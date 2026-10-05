@@ -29,29 +29,12 @@ path = "src/bin/qcareer.rs"
 name = "qglide"
 path = "src/bin/qglide.rs"
 
-[[bin]]
-name = "qfusion-servo"
-path = "src/bin/qfusion_servo.rs"
-required-features = ["fusion-servo"]
-
 [features]
 default = []
-fusion-servo = [
-  "dep:servo",
-  "dep:servo-embedder-traits",
-  "dep:winit",
-  "dep:euclid",
-  "dep:tracing",
-  "dep:rustls",
-  "dep:webrender_api",
-]
-fusion-gecko-network = [
-  "dep:neqo-common",
-  "dep:neqo-http3",
-  "dep:neqo-transport",
-]
+fusion-servo = []
+fusion-gecko-network = []
 fusion-ladybird-html = ["dep:quantic-ladybird-html"]
-fusion = ["fusion-servo", "fusion-gecko-network", "fusion-ladybird-html"]
+fusion = ["fusion-ladybird-html"]
 
 [dependencies]
 boa_engine = { version = "0.22.0", default-features = false }
@@ -73,20 +56,6 @@ eframe = { version = "0.33.0", default-features = false, features = ["default_fo
 # Ladybird LibWeb HTML tokenizer, adapted as a standalone Rust crate under BSD-2-Clause.
 quantic-ladybird-html = { path = "vendor/ladybird_html", optional = true }
 
-# Quantic Fusion upstream engines/components.
-# Servo is the primary standards/runtime backend. It brings Stylo, SpiderMonkey and WebRender.
-servo = { git = "https://github.com/servo/servo", tag = "v0.7.0", package = "servo", default-features = false, features = ["bundled", "js_jit", "clipboard"], optional = true }
-servo-embedder-traits = { git = "https://github.com/servo/servo", tag = "v0.7.0", package = "servo-embedder-traits", optional = true }
-winit = { version = "0.30.13", optional = true }
-euclid = { version = "0.22", optional = true }
-tracing = { version = "0.1.44", optional = true }
-rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"], optional = true }
-webrender_api = { version = "0.70", optional = true }
-
-# Mozilla Neqo: Firefox/Mozilla QUIC + HTTP/3 stack.
-neqo-common = { git = "https://github.com/mozilla/neqo", rev = "28b49f73b06f71aa602180e4dcc3a2b522103b51", package = "neqo-common", optional = true }
-neqo-http3 = { git = "https://github.com/mozilla/neqo", rev = "28b49f73b06f71aa602180e4dcc3a2b522103b51", package = "neqo-http3", optional = true }
-neqo-transport = { git = "https://github.com/mozilla/neqo", rev = "28b49f73b06f71aa602180e4dcc3a2b522103b51", package = "neqo-transport", optional = true }
 
 [profile.release]
 lto = "thin"
