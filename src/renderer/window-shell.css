@@ -1,0 +1,39 @@
+:root {
+  --quantic-window-radius: 14px;
+}
+
+/* Windows 11 already rounds the native frameless window. This keeps the
+   Quantic renderer visually aligned with the native DWM corners. */
+#shell {
+  border-radius: var(--quantic-window-radius);
+  overflow: hidden;
+}
+
+/* Clicking any unused part of the top row moves the window. */
+.tabs-row {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Interactive controls must never start a window drag. */
+.tabs-row button,
+.tabs-row .tabs,
+.tabs-row .window-controls,
+.tabs-row .no-drag,
+.nav-row,
+.nav-row * {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Keep a generous grab target even when many tabs are open. */
+.drag-zone {
+  min-width: 32px;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Full screen should visually occupy the complete display. */
+:fullscreen #shell {
+  border-radius: 0;
+}
