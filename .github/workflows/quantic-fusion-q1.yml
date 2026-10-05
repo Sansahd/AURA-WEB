@@ -60,7 +60,7 @@ jobs:
       - name: Verify Mozilla Neqo integration contract
         run: |
           grep -q 'mozilla/neqo' quantic-engine/THIRD_PARTY_FUSION.md
-          grep -q 'QUIC/HTTP3' quantic-engine/THIRD_PARTY_FUSION.md
+          grep -q 'HTTP/3' quantic-engine/THIRD_PARTY_FUSION.md
           test -f fusion/mozilla-network/Cargo.toml
           grep -q 'neqo-http3' fusion/mozilla-network/Cargo.toml
           grep -q 'neqo-transport' fusion/mozilla-network/Cargo.toml
