@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="window-shell.css">
+  <link rel="stylesheet" href="persona-sidestage.css">
+  <link rel="stylesheet" href="product-suite.css">
+  <link rel="stylesheet" href="quantic-glide-brand.css">
+  <title>Quantic Glide</title>
+</head>
+<body>
+<div id="shell">
+  <header id="chrome">
+    <div class="tabs-row">
+      <button id="logo" class="logo no-drag" title="Accueil Quantic Glide" aria-label="Accueil Quantic Glide"><img src="../assets/quantic-glide-mark.svg" alt="Quantic Glide"></button>
+      <div id="tabs" class="tabs no-drag"></div>
+      <button id="plus" class="plus no-drag" title="Nouvel onglet" aria-label="Nouvel onglet">+</button>
+      <div class="drag-zone"></div>
+      <div class="window-controls no-drag">
+        <button data-win="minimize" aria-label="Réduire">—</button>
+        <button data-win="maximize" aria-label="Agrandir">□</button>
+        <button data-win="close" aria-label="Fermer">×</button>
+      </div>
+    </div>
+    <div class="nav-row no-drag">
+      <button id="back" title="Précédent">‹</button>
+      <button id="forward" title="Suivant">›</button>
+      <button id="reload" title="Actualiser">↻</button>
+      <div class="address glass-line"><span class="dot">●</span><input id="address" autocomplete="off" spellcheck="false" placeholder="Rechercher, ouvrir une URL ou exprimer une intention…"></div>
+      <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">😍</button>
+      <button id="sidestage" title="SideStage · Lecteurs persistants" aria-label="Ouvrir SideStage">SIDE</button>
+      <button id="persona" title="Quantic Persona · Personnalisation locale">◈</button>
+      <button id="ai" title="Quantic AI">✦</button>
+      <button id="menu" title="Menu">⋮</button>
+    </div>
+  </header>
+
+  <section id="home" class="home">
+    <div class="hero glass">
+      <img src="../assets/quantic-glide-logo.svg" class="hero-logo" alt="Quantic Glide — Movement Without Limits">
+      <h1>Browse without limits.</h1>
+      <p>Naviguez plus loin. Sans perdre le contrôle.</p>
+      <div class="home-search glass-line">
+        <input id="home-search" autocomplete="off" spellcheck="false" placeholder="Quelle est votre prochaine intention ?">
+        <button id="home-go" aria-label="Rechercher">→</button>
+      </div>
+    </div>
+    <div class="quick-row">
+      <button data-q="Rechercher sur le web">Rechercher</button>
+      <button data-q="Comparer des sources">Comparer</button>
+      <button data-q="Planifier un projet">Planifier</button>
+      <button data-q="Apprendre quelque chose">Apprendre</button>
+      <button data-q="Créer quelque chose">Créer</button>
+    </div>
+
+    <div class="quantic-suite" aria-label="Suite sécurité et transparence Quantic">
+      <button class="quantic-suite-card" data-quantic-suite="shield"><strong>Quantic Shield</strong><span>Protection réseau légère, permissions strictes.</span><span class="suite-status">Actif</span></button>
+      <button class="quantic-suite-card" data-quantic-suite="vault"><strong>Quantic Vault</strong><span>Coffre local chiffré, chargé uniquement à la demande.</span><span class="suite-status">Local · bêta</span></button>
+      <button class="quantic-suite-card" data-quantic-suite="proof"><strong>Quantic Proof</strong><span>SHA-256 local et preuves de build vérifiables.</span><span class="suite-status">Vérifiable</span></button>
+      <button class="quantic-suite-card" data-quantic-suite="transparency"><strong>Transparency</strong><span>Ce que Glide protège, conserve et expose.</span><span class="suite-status">Lisible</span></button>
+      <button class="quantic-suite-card" data-quantic-suite="mail"><strong>Quantic Mail</strong><span>Messagerie Quantic chiffrée, pensée pour fonctionner hors des géants du mail.</span><span class="suite-status">Réseau Quantic</span></button>
+      <button class="quantic-suite-card" data-quantic-suite="analysis"><strong>Providence</strong><span>Analyse séparée du cœur de navigation.</span><span class="suite-status">À la demande</span></button>
+    </div>
+
+    <div id="quantic-suite-panel" class="quantic-suite-panel hidden" aria-live="polite">
+      <div class="quantic-suite-head"><h2 id="quantic-suite-title">Quantic</h2><button id="quantic-suite-close" type="button" aria-label="Fermer">×</button></div>
+      <div id="quantic-suite-body" class="quantic-suite-body"></div>
+    </div>
+
+    <footer class="quantic-footer">
+      <a id="quantic-minds-link" href="https://xdsawyerlol.github.io/QuanticMinds/">Quantic Sillage — Ideas Travel Further</a>
+    </footer>
+  </section>
+
+  <section id="internal-page" class="internal-page hidden" aria-live="polite">
+    <div id="internal-content" class="internal-content"></div>
+  </section>
+
+  <aside id="sidestage-rail" class="hidden" aria-label="SideStage · Lecteurs persistants"></aside>
+
+  <aside id="ai-panel" class="ai-panel glass closed">
+    <div class="ai-head"><img src="../assets/quantic-glide-mark.svg" alt="Quantic Glide"><strong>AURA 2.0</strong><button id="ai-close" aria-label="Fermer">×</button></div>
+    <div id="ai-engine" class="ai-engine">AURA 2.0 · local</div>
+    <div class="orb"></div>
+    <p>Assistant de navigation local-first, relié au MoA et au Mesh AURA.</p>
+    <button data-ai="summarize">Résumer cette page</button>
+    <button data-ai="compare">Comparer les onglets</button>
+    <button data-ai="plan">Créer un plan</button>
+    <div id="ai-output" class="ai-output">Prêt.</div>
+    <div class="ai-chat"><textarea id="ai-prompt" placeholder="Posez-moi une question…"></textarea><button id="ai-send" title="Envoyer">→</button></div>
+  </aside>
+</div>
+<script src="renderer.js"></script>
+<script src="product-suite.js"></script>
+</body>
+</html>
