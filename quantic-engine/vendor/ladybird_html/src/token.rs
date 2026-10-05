@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#[cfg(not(test))]
-use ak::Utf16StringUnits;
 use std::cell::RefCell;
 
 /// Source position in the input.
@@ -134,165 +132,53 @@ impl Drop for AttributeList {
     }
 }
 
-#[cfg(not(test))]
-#[derive(Clone, Default, Eq)]
-pub struct HtmlName(ak::Utf16FlyString);
-
-// Standalone Rust test binaries have no C++ fly-string table to own these names.
-#[cfg(test)]
-#[derive(Clone, Default, Eq)]
+#[derive(Clone, Default, Eq, PartialEq, Hash)]
 pub struct HtmlName(String);
 
-#[cfg(not(test))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct KnownName(usize);
-
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum KnownName {
-    Raw(usize),
-    Literal(&'static str),
-}
+pub struct KnownName(&'static str);
 
 impl KnownName {
-    pub const fn from_raw(raw: usize) -> Self {
-        #[cfg(not(test))]
-        {
-            Self(raw)
-        }
-        #[cfg(test)]
-        {
-            Self::Raw(raw)
-        }
-    }
-
-    #[cfg(test)]
     pub const fn from_literal(name: &'static str) -> Self {
-        Self::Literal(name)
+        Self(name)
     }
 }
 
 impl HtmlName {
     pub fn from_utf8(name: &str) -> Self {
-        #[cfg(not(test))]
-        {
-            Self(ak::Utf16FlyString::from_utf8(name))
-        }
-        #[cfg(test)]
-        {
-            Self(name.to_string())
-        }
-    }
-
-    /// Borrow an existing C++ `Utf16FlyString` identity.
-    ///
-    /// # Safety
-    /// `raw` must identify a live `Utf16FlyString` for the duration of this call.
-    pub unsafe fn from_borrowed_raw(raw: usize) -> Self {
-        #[cfg(not(test))]
-        {
-            unsafe { ak::reference_utf16_string(raw) };
-            Self(unsafe { ak::Utf16FlyString::from_raw_owned(raw) })
-        }
-        #[cfg(test)]
-        {
-            let _ = raw;
-            unreachable!("C++ string identities are unavailable in standalone Rust tests")
-        }
+        Self(name.to_string())
     }
 
     pub fn raw_identity(&self) -> usize {
-        #[cfg(not(test))]
-        {
-            self.0.raw_identity()
-        }
-        #[cfg(test)]
-        {
-            0
-        }
+        0
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 
     pub fn equals(&self, other: &str) -> bool {
-        #[cfg(test)]
-        return self.0 == other;
-
-        #[cfg(not(test))]
-        {
-            if let Some(raw) = ak::utf16_short_string_raw(other) {
-                return self.raw_identity() == raw;
-            }
-            match self.0.as_units() {
-                Utf16StringUnits::Ascii(units) => units == other.as_bytes(),
-                Utf16StringUnits::Utf16(units) => units.iter().copied().eq(other.encode_utf16()),
-            }
-        }
+        self.0 == other
     }
 
     pub fn is_one_of(&self, names: &[KnownName]) -> bool {
-        #[cfg(not(test))]
-        {
-            names.contains(&KnownName::from_raw(self.raw_identity()))
-        }
-        #[cfg(test)]
-        {
-            names.iter().any(|name| self == name)
-        }
+        names.iter().any(|name| self.0 == name.0)
     }
 
     pub fn eq_ignore_ascii_case(&self, other: &Self) -> bool {
-        #[cfg(test)]
-        return self.0.eq_ignore_ascii_case(&other.0);
-
-        #[cfg(not(test))]
-        {
-            match (self.0.as_units(), other.0.as_units()) {
-                (Utf16StringUnits::Ascii(left), Utf16StringUnits::Ascii(right)) => left.eq_ignore_ascii_case(right),
-                (Utf16StringUnits::Utf16(left), Utf16StringUnits::Utf16(right)) => {
-                    left.len() == right.len()
-                        && left.iter().zip(right).all(|(left, right)| {
-                            left == right
-                                || (*left <= 0x7f
-                                    && *right <= 0x7f
-                                    && (*left as u8).eq_ignore_ascii_case(&(*right as u8)))
-                        })
-                }
-                (Utf16StringUnits::Ascii(left), Utf16StringUnits::Utf16(right))
-                | (Utf16StringUnits::Utf16(right), Utf16StringUnits::Ascii(left)) => {
-                    left.len() == right.len()
-                        && left.iter().zip(right).all(|(left, right)| {
-                            u16::from(*left) == *right || (*right <= 0x7f && left.eq_ignore_ascii_case(&(*right as u8)))
-                        })
-                }
-            }
-        }
+        self.0.eq_ignore_ascii_case(&other.0)
     }
 }
 
 impl PartialEq<KnownName> for HtmlName {
     fn eq(&self, other: &KnownName) -> bool {
-        #[cfg(not(test))]
-        {
-            self.raw_identity() == other.0
-        }
-        #[cfg(test)]
-        {
-            match other {
-                KnownName::Raw(raw) => self.raw_identity() == *raw,
-                KnownName::Literal(name) => self.0 == *name,
-            }
-        }
+        self.0 == other.0
     }
 }
 
 impl PartialEq<HtmlName> for KnownName {
     fn eq(&self, other: &HtmlName) -> bool {
         other == self
-    }
-}
-
-impl PartialEq for HtmlName {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
     }
 }
 
@@ -316,14 +202,7 @@ impl PartialEq<&HtmlName> for HtmlName {
 
 impl std::fmt::Debug for HtmlName {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        #[cfg(not(test))]
-        {
-            formatter.debug_tuple("HtmlName").field(&self.0.raw_identity()).finish()
-        }
-        #[cfg(test)]
-        {
-            formatter.debug_tuple("HtmlName").field(&self.0).finish()
-        }
+        formatter.debug_tuple("HtmlName").field(&self.0).finish()
     }
 }
 
