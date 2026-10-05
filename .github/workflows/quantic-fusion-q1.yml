@@ -14,8 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: quantic-fusion-q1
-  cancel-in-progress: true
+  group: quantic-fusion-q1-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   servo-runtime:
