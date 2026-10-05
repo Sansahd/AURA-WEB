@@ -62,7 +62,7 @@ impl GlideApp {
         Self {
             session,
             address: String::new(),
-            status: "Quantic Engine natif prêt".to_string(),
+            status: "Glide Native 0.6.1 prêt".to_string(),
             texture: None,
             last_async_poll: Instant::now(),
             home: true,
