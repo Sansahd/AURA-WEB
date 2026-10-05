@@ -1,0 +1,12 @@
+[package]
+name = "quantic-fusion-mozilla-network"
+version = "0.1.0"
+edition = "2021"
+license = "MPL-2.0"
+publish = false
+
+[dependencies]
+quantic-engine = { path = "../../quantic-engine", features = ["fusion-gecko-network"] }
+neqo-common = { git = "https://github.com/mozilla/neqo", tag = "v0.32.0", package = "neqo-common" }
+neqo-http3 = { git = "https://github.com/mozilla/neqo", tag = "v0.32.0", package = "neqo-http3" }
+neqo-transport = { git = "https://github.com/mozilla/neqo", tag = "v0.32.0", package = "neqo-transport" }
