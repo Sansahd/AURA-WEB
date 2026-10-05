@@ -75,7 +75,7 @@ jobs:
           Unicode True
           !include "MUI2.nsh"
           Name "Quantic Glide Native"
-          OutFile "Quantic-Glide-Native-Zero-Chromium-Setup.exe"
+          OutFile "Quantic-Glide-Native-0.6.1-Setup.exe"
           InstallDir "$LOCALAPPDATA\Programs\Quantic Glide Native"
           RequestExecutionLevel user
 
@@ -98,7 +98,7 @@ jobs:
             WriteUninstaller "$INSTDIR\Uninstall.exe"
             WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideNative" "DisplayName" "Quantic Glide Native"
             WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideNative" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
-            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideNative" "DisplayVersion" "0.6.0"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideNative" "DisplayVersion" "0.6.1"
             Exec "$INSTDIR\QuanticGlide.exe"
           SectionEnd
 
@@ -124,13 +124,13 @@ jobs:
       - name: SHA256
         shell: pwsh
         run: |
-          Get-FileHash Quantic-Glide-Native-Zero-Chromium-Setup.exe -Algorithm SHA256 | Format-List
+          Get-FileHash Quantic-Glide-Native-0.6.1-Setup.exe -Algorithm SHA256 | Format-List
           Get-FileHash target\debug\qglide.exe -Algorithm SHA256 | Format-List
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: Quantic-Glide-Native-Zero-Chromium
-          path: quantic-engine/Quantic-Glide-Native-Zero-Chromium-Setup.exe
+          name: Quantic-Glide-Native-0.6.1
+          path: quantic-engine/Quantic-Glide-Native-0.6.1-Setup.exe
           if-no-files-found: error
           retention-days: 7
