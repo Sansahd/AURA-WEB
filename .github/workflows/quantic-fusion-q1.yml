@@ -6,6 +6,7 @@ on:
       - "quantic-fusion-servo-gecko-ladybird"
     paths:
       - "quantic-engine/**"
+      - "fusion/**"
       - ".github/workflows/quantic-fusion-q1.yml"
   workflow_dispatch:
 
