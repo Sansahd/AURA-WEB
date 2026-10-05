@@ -1,7 +1,19 @@
-# AURA-WEB / Quantic Glide Engine
+# Quantic Glide Native — ZERO CHROMIUM
 
-Dépôt de travail du nouveau moteur non-Chromium de Quantic Glide.
+Production branch for the native Quantic browser.
 
-Snapshot intégré : Q0.5 Engine Alpha depuis `XDSawyerLoL/Quantic-Browser`, branche `engine/quantic-v0.5-alpha`, commit `049bd565d501c375b27d95df9ac687e430294eeb`.
+Runtime stack:
+- Rust
+- Quantic Engine
+- Boa JavaScript engine
+- egui/eframe native shell
 
-Le moteur est encore un alpha technique. Le shell desktop natif est le chantier Q0.6.
+Forbidden by CI:
+- Chromium
+- Electron
+- CEF
+- WebView2
+- WebKit
+
+Native browser: quantic-engine/src/bin/qglide.rs
+Native AURA Career: quantic-engine/src/bin/qcareer.rs
