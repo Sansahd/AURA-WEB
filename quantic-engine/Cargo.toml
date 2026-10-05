@@ -1,6 +1,6 @@
 [package]
 name = "quantic-engine"
-version = "0.5.0"
+version = "0.6.1"
 edition = "2021"
 license = "MPL-2.0"
 description = "Experimental non-Chromium web engine core for Quantic Glide"
