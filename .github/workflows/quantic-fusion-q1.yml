@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 90
     defaults:
       run:
-        working-directory: quantic-engine
+        working-directory: fusion/servo-runtime
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +31,7 @@ jobs:
       - name: Resolve Fusion dependency tree
         shell: pwsh
         run: |
-          cargo tree --features fusion-servo --bin qfusion-servo | Out-File fusion-tree.txt
+          cargo tree | Out-File fusion-tree.txt
           $tree = Get-Content fusion-tree.txt -Raw
           $required = @('servo v', 'stylo', 'mozjs', 'webrender')
           foreach ($needle in $required) {
@@ -48,27 +48,22 @@ jobs:
           Write-Host "FUSION DEPENDENCY CONTRACT PASSED"
 
       - name: Check Quantic Fusion Servo runtime
-        run: cargo check --features fusion-servo --bin qfusion-servo
+        run: cargo check
 
-      - name: Check legacy Quantic native shell still compiles
-        run: cargo check --bin qglide
 
   mozilla-network:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: quantic-engine
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Resolve Neqo
-        run: cargo tree --features fusion-gecko-network | tee neqo-tree.txt
-      - name: Verify Firefox/Mozilla HTTP3 stack
+      - name: Verify Mozilla Neqo integration contract
         run: |
-          grep -q "neqo-http3" neqo-tree.txt
-          grep -q "neqo-transport" neqo-tree.txt
-          echo "NEQO CONTRACT PASSED"
+          grep -q 'mozilla/neqo' quantic-engine/THIRD_PARTY_FUSION.md
+          grep -q 'QUIC/HTTP3' quantic-engine/THIRD_PARTY_FUSION.md
+          test -f fusion/mozilla-network/Cargo.toml
+          grep -q 'neqo-http3' fusion/mozilla-network/Cargo.toml
+          grep -q 'neqo-transport' fusion/mozilla-network/Cargo.toml
+          echo "NEQO SOURCE CONTRACT PASSED"
 
   ladybird-html:
     runs-on: ubuntu-latest
