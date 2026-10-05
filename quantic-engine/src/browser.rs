@@ -14,6 +14,15 @@ pub struct HistoryEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HitTarget {
+    pub node_id: usize,
+    pub tag: String,
+    pub element_id: String,
+    pub href: String,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileUpload {
     pub field_name: String,
     pub filename: String,
@@ -295,6 +304,66 @@ impl BrowserSession {
         let full_page = self.engine.rasterize(&output);
         let compositor = ViewportCompositor::new(output.viewport_width, self.viewport_height);
         Some(compositor.compose(&full_page, self.scroll_y))
+    }
+
+    pub fn hit_test(&self, x: u32, y: u32) -> Option<HitTarget> {
+        let output = self.snapshot()?;
+        let document = &output.document;
+        let document_y = y.saturating_add(self.scroll_y);
+
+        let node_id = output
+            .display_list
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| {
+                x >= item.x
+                    && x < item.x.saturating_add(item.width.max(1))
+                    && document_y >= item.y
+                    && document_y < item.y.saturating_add(item.height.max(1))
+            })
+            .max_by_key(|(index, item)| (item.depth, *index))
+            .map(|(_, item)| item.node_id)?;
+
+        let mut current = Some(node_id);
+        while let Some(id) = current {
+            let tag = document.element_tag(id).unwrap_or_default().to_ascii_lowercase();
+            if matches!(tag.as_str(), "a" | "button" | "input" | "textarea" | "select") {
+                return Some(HitTarget {
+                    node_id: id,
+                    tag,
+                    element_id: document.attribute(id, "id").unwrap_or_default().to_string(),
+                    href: document.attribute(id, "href").unwrap_or_default().to_string(),
+                    text: document.text_content(id).split_whitespace().collect::<Vec<_>>().join(" "),
+                });
+            }
+            current = document.node(id).and_then(|node| node.parent);
+        }
+        None
+    }
+
+    pub fn activate_at(&mut self, x: u32, y: u32) -> Result<Option<HitTarget>, PageError> {
+        let Some(target) = self.hit_test(x, y) else {
+            return Ok(None);
+        };
+
+        if target.element_id.is_empty() {
+            return Ok(Some(target));
+        }
+
+        match target.tag.as_str() {
+            "a" => {
+                let _ = self.click_link(&target.element_id)?;
+            }
+            "button" => {
+                let page = self.page_mut()?;
+                let _ = page.click(&target.element_id)?;
+                self.sync_history_updates()?;
+                let _ = self.follow_pending_navigation()?;
+            }
+            _ => {}
+        }
+
+        Ok(Some(target))
     }
 
     fn page_mut(&mut self) -> Result<&mut InteractivePage, PageError> {
