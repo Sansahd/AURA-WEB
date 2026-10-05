@@ -20,6 +20,14 @@ const ACCENT: egui::Color32 = egui::Color32::from_rgb(242, 177, 52);
 const ACCENT_SOFT: egui::Color32 = egui::Color32::from_rgb(74, 55, 22);
 const BORDER: egui::Color32 = egui::Color32::from_rgb(53, 49, 44);
 
+#[derive(Clone)]
+struct FieldEditor {
+    element_id: String,
+    label: String,
+    value: String,
+    multiline: bool,
+}
+
 struct GlideApp {
     session: BrowserSession,
     address: String,
@@ -29,6 +37,7 @@ struct GlideApp {
     home: bool,
     error: Option<String>,
     home_query: String,
+    editor: Option<FieldEditor>,
 }
 
 impl GlideApp {
@@ -59,6 +68,7 @@ impl GlideApp {
             home: true,
             error: None,
             home_query: String::new(),
+            editor: None,
         }
     }
 
@@ -115,7 +125,7 @@ impl GlideApp {
         let _ = self.session.execute_script(
             r#"(() => {
                 let n = 0;
-                document.querySelectorAll('a[href],button,input,textarea,select').forEach((el) => {
+                document.querySelectorAll('a[href],button,input,textarea,select,form').forEach((el) => {
                     if (!el.id) el.id = 'qglide-interactive-' + (++n);
                 });
             })();"#,
@@ -178,8 +188,18 @@ impl GlideApp {
             Ok(Some(target)) => {
                 if matches!(target.tag.as_str(), "a" | "button") {
                     self.refresh_after_navigation(ctx);
-                } else if matches!(target.tag.as_str(), "input" | "textarea" | "select") {
-                    self.status = "Champ interactif détecté · saisie native en cours d’intégration".to_string();
+                } else if matches!(target.tag.as_str(), "input" | "textarea") {
+                    self.editor = Some(FieldEditor {
+                        element_id: target.element_id.clone(),
+                        label: if target.placeholder.is_empty() {
+                            if target.text.is_empty() { "Saisie".to_string() } else { target.text.clone() }
+                        } else {
+                            target.placeholder.clone()
+                        },
+                        value: target.value.clone(),
+                        multiline: target.tag == "textarea",
+                    });
+                    self.status = "Saisie native".to_string();
                 }
             }
             Ok(None) => {}
@@ -552,6 +572,82 @@ impl GlideApp {
         }
     }
 
+    fn field_editor(&mut self, ctx: &egui::Context) {
+        let Some(mut editor) = self.editor.clone() else {
+            return;
+        };
+
+        let mut keep_open = true;
+        let mut save = false;
+
+        egui::Window::new("Saisie Glide")
+            .collapsible(false)
+            .resizable(false)
+            .default_width(460.0)
+            .show(ctx, |ui| {
+                ui.label(
+                    egui::RichText::new(&editor.label)
+                        .size(12.0)
+                        .color(MUTED),
+                );
+                ui.add_space(8.0);
+
+                let response = if editor.multiline {
+                    ui.add_sized(
+                        [430.0, 120.0],
+                        egui::TextEdit::multiline(&mut editor.value),
+                    )
+                } else {
+                    ui.add_sized(
+                        [430.0, 36.0],
+                        egui::TextEdit::singleline(&mut editor.value),
+                    )
+                };
+
+                let enter = !editor.multiline
+                    && response.lost_focus()
+                    && ui.input(|i| i.key_pressed(egui::Key::Enter));
+
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    if ui
+                        .add(
+                            egui::Button::new(
+                                egui::RichText::new("Valider").strong().color(BG),
+                            )
+                            .fill(ACCENT),
+                        )
+                        .clicked()
+                        || enter
+                    {
+                        save = true;
+                    }
+
+                    if ui.button("Annuler").clicked() {
+                        keep_open = false;
+                    }
+                });
+            });
+
+        if save {
+            match self.session.set_value(&editor.element_id, &editor.value) {
+                Ok(()) => {
+                    self.editor = None;
+                    self.refresh_texture(ctx);
+                    self.status = "Champ mis à jour".to_string();
+                }
+                Err(error) => {
+                    self.error = Some(error.to_string());
+                    self.editor = None;
+                }
+            }
+        } else if keep_open {
+            self.editor = Some(editor);
+        } else {
+            self.editor = None;
+        }
+    }
+
     fn status_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("status_bar")
             .exact_height(28.0)
@@ -595,6 +691,7 @@ impl eframe::App for GlideApp {
                 }
             });
 
+        self.field_editor(ctx);
         ctx.request_repaint_after(Duration::from_millis(250));
     }
 }
