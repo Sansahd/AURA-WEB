@@ -62,6 +62,31 @@ function buildInternalState(url, store, veilSnapshot = {}, careerSnapshot = null
     };
   }
 
+  if (parsed.host === 'career') {
+    return {
+      kind: 'career',
+      career: careerSnapshot || {
+        running: false,
+        stopRequested: false,
+        lastError: '',
+        lastRunAt: '',
+        current: null,
+        settings: {
+          autopilot: true,
+          autoSubmit: false,
+          minScore: 72,
+          maxOffers: 5,
+          maxDaily: 12
+        },
+        config: { profile: false, searches: false, cv: false },
+        offers: [],
+        applications: [],
+        events: []
+      }
+    };
+  }
+
+
   if (parsed.host === 'error') {
     return {
       kind: 'error',
