@@ -318,7 +318,7 @@ impl FusionState {
                         let dock_width = ui.available_width().min(920.0);
                         egui::Frame::new()
                             .fill(egui::Color32::from_rgb(28, 26, 23))
-                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .stroke(egui::Stroke::new(1.0_f32, BORDER))
                             .corner_radius(22.0)
                             .inner_margin(egui::Margin::symmetric(10, 7))
                             .show(ui, |ui| {
@@ -389,7 +389,7 @@ impl FusionState {
                     });
                 });
 
-            let available = ctx.available_rect_before_wrap();
+            let available = ctx.available_rect();
             self.content_height_points.set(available.height());
             let pixels_per_point = ctx.pixels_per_point();
             let width = (available.width() * pixels_per_point).max(1.0) as u32;
@@ -411,7 +411,7 @@ impl FusionState {
                             Point2D::new(clip.left_px, clip.from_bottom_px),
                             Size2D::new(clip.width_px, clip.height_px),
                         );
-                        render_to_parent(painter.gl(), rect);
+                        render_to_parent(painter.gl().as_ref(), rect);
                     })),
                 });
             }
