@@ -1,6 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::error::Error;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::sync::Arc;
 
 use eframe::egui;
@@ -65,22 +65,52 @@ struct FusionState {
     cursor_point: Cell<(f32, f32)>,
 }
 
-impl servo::WebViewDelegate for FusionState {
+struct FusionDelegate {
+    state: RefCell<Weak<FusionState>>,
+}
+
+impl FusionDelegate {
+    fn new() -> Self {
+        Self {
+            state: RefCell::new(Weak::new()),
+        }
+    }
+
+    fn bind(&self, state: &Rc<FusionState>) {
+        *self.state.borrow_mut() = Rc::downgrade(state);
+    }
+
+    fn with_state(&self, callback: impl FnOnce(&FusionState)) {
+        if let Some(state) = self.state.borrow().upgrade() {
+            callback(&state);
+        }
+    }
+}
+
+impl servo::WebViewDelegate for FusionDelegate {
     fn notify_new_frame_ready(&self, _webview: WebView) {
-        self.window.request_redraw();
+        self.with_state(|state| state.window.request_redraw());
     }
 
     fn notify_url_changed(&self, _webview: WebView, url: Url) {
-        *self.current_url.borrow_mut() = url.to_string();
-        if !self.egui.borrow().egui_ctx.memory(|memory| memory.focused().is_some()) {
-            *self.dock_input.borrow_mut() = url.to_string();
-        }
-        self.window.request_redraw();
+        self.with_state(|state| {
+            *state.current_url.borrow_mut() = url.to_string();
+            if !state.egui.borrow().egui_ctx.memory(|memory| memory.focused().is_some()) {
+                *state.dock_input.borrow_mut() = url.to_string();
+            }
+            state.window.request_redraw();
+        });
     }
 
     fn notify_page_title_changed(&self, _webview: WebView, title: Option<String>) {
-        let title = title.filter(|value| !value.trim().is_empty()).unwrap_or_else(|| "Glide".into());
-        self.window.set_title(&format!("{title} — Quantic Glide Fusion"));
+        self.with_state(|state| {
+            let title = title
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| "Glide".into());
+            state
+                .window
+                .set_title(&format!("{title} — Quantic Glide Fusion"));
+        });
     }
 }
 
@@ -409,33 +439,32 @@ impl ApplicationHandler<WakeEvent> for App {
             .build();
         servo.setup_logging();
 
-        let placeholder = Rc::new_cyclic(|weak| {
-            let delegate: Rc<dyn servo::WebViewDelegate> = weak.upgrade().expect("Fusion delegate");
-            let webview = WebViewBuilder::new(&servo, web_context.clone())
-                .url(Url::parse(START_URL).unwrap())
-                .hidpi_scale_factor(Scale::new(window.scale_factor() as f32))
-                .delegate(delegate)
-                .build();
+        let delegate = Rc::new(FusionDelegate::new());
+        let webview = WebViewBuilder::new(&servo, web_context.clone())
+            .url(Url::parse(START_URL).unwrap())
+            .hidpi_scale_factor(Scale::new(window.scale_factor() as f32))
+            .delegate(delegate.clone())
+            .build();
 
-            FusionState {
-                window,
-                servo,
-                webview,
-                window_context,
-                web_context,
-                egui: RefCell::new(egui),
-                dock_input: RefCell::new(START_URL.to_string()),
-                current_url: RefCell::new(START_URL.to_string()),
-                status: RefCell::new("Glide Fusion prêt".into()),
-                dock_expanded: Cell::new(false),
-                dock_focus_requested: Cell::new(false),
-                content_height_points: Cell::new(700.0),
-                cursor_point: Cell::new((0.0, 0.0)),
-            }
+        let state = Rc::new(FusionState {
+            window,
+            servo,
+            webview,
+            window_context,
+            web_context,
+            egui: RefCell::new(egui),
+            dock_input: RefCell::new(START_URL.to_string()),
+            current_url: RefCell::new(START_URL.to_string()),
+            status: RefCell::new("Glide Fusion prêt".into()),
+            dock_expanded: Cell::new(false),
+            dock_focus_requested: Cell::new(false),
+            content_height_points: Cell::new(700.0),
+            cursor_point: Cell::new((0.0, 0.0)),
         });
+        delegate.bind(&state);
 
-        placeholder.window.request_redraw();
-        *self = Self::Running(placeholder);
+        state.window.request_redraw();
+        *self = Self::Running(state);
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: WakeEvent) {
