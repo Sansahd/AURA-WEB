@@ -69,3 +69,17 @@ jobs:
           grep -q "neqo-http3" neqo-tree.txt
           grep -q "neqo-transport" neqo-tree.txt
           echo "NEQO CONTRACT PASSED"
+
+  ladybird-html:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: quantic-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check standalone Ladybird tokenizer integration
+        run: cargo check --features fusion-ladybird-html --lib
+      - name: Run Quantic HTML tests through Ladybird tokenizer
+        run: cargo test --features fusion-ladybird-html html::tests
