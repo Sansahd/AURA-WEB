@@ -20,6 +20,10 @@ pub struct HitTarget {
     pub element_id: String,
     pub href: String,
     pub text: String,
+    pub input_type: String,
+    pub value: String,
+    pub placeholder: String,
+    pub form_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -328,12 +332,23 @@ impl BrowserSession {
         while let Some(id) = current {
             let tag = document.element_tag(id).unwrap_or_default().to_ascii_lowercase();
             if matches!(tag.as_str(), "a" | "button" | "input" | "textarea" | "select") {
+                let form_id = std::iter::once(id)
+                    .chain(document.ancestors(id))
+                    .find(|candidate| document.element_tag(*candidate) == Some("form"))
+                    .and_then(|form| document.attribute(form, "id"))
+                    .unwrap_or_default()
+                    .to_string();
+
                 return Some(HitTarget {
                     node_id: id,
                     tag,
                     element_id: document.attribute(id, "id").unwrap_or_default().to_string(),
                     href: document.attribute(id, "href").unwrap_or_default().to_string(),
                     text: document.text_content(id).split_whitespace().collect::<Vec<_>>().join(" "),
+                    input_type: document.attribute(id, "type").unwrap_or_default().to_ascii_lowercase(),
+                    value: document.attribute(id, "value").unwrap_or_default().to_string(),
+                    placeholder: document.attribute(id, "placeholder").unwrap_or_default().to_string(),
+                    form_id,
                 });
             }
             current = document.node(id).and_then(|node| node.parent);
@@ -355,10 +370,28 @@ impl BrowserSession {
                 let _ = self.click_link(&target.element_id)?;
             }
             "button" => {
-                let page = self.page_mut()?;
-                let _ = page.click(&target.element_id)?;
+                let allowed = {
+                    let page = self.page_mut()?;
+                    page.click(&target.element_id)?
+                };
                 self.sync_history_updates()?;
-                let _ = self.follow_pending_navigation()?;
+                let navigated = self.follow_pending_navigation()?;
+                if allowed && !navigated && !target.form_id.is_empty()
+                    && (target.input_type.is_empty() || target.input_type == "submit")
+                {
+                    let _ = self.submit_form(&target.form_id)?;
+                }
+            }
+            "input" if target.input_type == "submit" => {
+                let allowed = {
+                    let page = self.page_mut()?;
+                    page.click(&target.element_id)?
+                };
+                self.sync_history_updates()?;
+                let navigated = self.follow_pending_navigation()?;
+                if allowed && !navigated && !target.form_id.is_empty() {
+                    let _ = self.submit_form(&target.form_id)?;
+                }
             }
             _ => {}
         }
