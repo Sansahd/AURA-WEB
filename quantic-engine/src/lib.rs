@@ -1,3 +1,4 @@
+pub mod fusion;
 #![forbid(unsafe_code)]
 
 pub mod automation;
