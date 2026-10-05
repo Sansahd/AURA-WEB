@@ -6,7 +6,7 @@ license = "MPL-2.0"
 publish = false
 
 [dependencies]
-quantic-engine = { path = "../../quantic-engine", features = ["fusion-servo"] }
+quantic-engine = { path = "../../quantic-engine", features = ["fusion-servo", "fusion-ladybird-html"] }
 servo = { version = "=0.7.0", default-features = false, features = ["bundled", "js_jit", "clipboard"] }
 servo-embedder-traits = { version = "=0.7.0" }
 winit = "0.30.13"
