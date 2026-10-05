@@ -23,7 +23,7 @@ pub mod url_context;
 pub mod websocket;
 
 pub use automation::{AutomationBridge, AutomationElement, AutomationField, AutomationForm};
-pub use browser::{BrowserSession, FileUpload, HistoryEntry};
+pub use browser::{BrowserSession, FileUpload, HistoryEntry, HitTarget};
 pub use cache::{is_cacheable_kind, ResourceCache};
 pub use compositor::ViewportCompositor;
 pub use engine::{Engine, EngineLoadError, EngineOutput};
