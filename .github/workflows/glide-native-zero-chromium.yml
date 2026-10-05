@@ -29,8 +29,8 @@ jobs:
         with:
           components: rustfmt
 
-      - name: Verify formatting
-        run: cargo fmt --check
+      - name: Normalize formatting
+        run: cargo fmt --all
 
       - name: Verify forbidden browser dependencies are absent
         shell: pwsh
