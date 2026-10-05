@@ -337,7 +337,7 @@ impl FusionState {
                                         [edit_width, 36.0],
                                         egui::TextEdit::singleline(&mut *input)
                                             .hint_text("Rechercher, saisir une adresse ou une commande…")
-                                            .frame(false),
+                                            .frame(egui::Frame::NONE),
                                     );
 
                                     if self.dock_focus_requested.replace(false) {
