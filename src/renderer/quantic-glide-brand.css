@@ -1,0 +1,23 @@
+:root{--qg-navy:#0A1F3D;--qg-deep:#061629;--qg-cyan:#00D9FF;--qg-teal:#14B8A6;--qg-silver:#C9D1D9;--qg-white:#FFFFFF;--qg-glass:rgba(8,31,51,.72)}
+body{background:radial-gradient(circle at 72% 38%,rgba(0,217,255,.14),transparent 28%),linear-gradient(150deg,#061629 0%,#082a42 48%,#071827 100%);color:#eafaff}
+#shell{background:transparent}
+#chrome{background:linear-gradient(180deg,rgba(5,22,38,.92),rgba(6,28,46,.78));border-bottom:1px solid rgba(0,217,255,.16);box-shadow:0 12px 35px rgba(0,0,0,.22);backdrop-filter:blur(18px)}
+.logo img{width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(0,217,255,.36))}
+.tabs-row,.nav-row{color:#eafaff}.tab,.plus,.window-controls button,.nav-row>button{border-color:rgba(255,255,255,.08);color:#dff7ff;background:rgba(255,255,255,.035)}
+.tab.active,.nav-row>button:hover,.plus:hover{background:rgba(0,217,255,.12);border-color:rgba(0,217,255,.38);color:#fff}
+.address,.home-search{background:rgba(255,255,255,.075)!important;border:1px solid rgba(255,255,255,.16)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 28px rgba(0,0,0,.12)}
+.address:focus-within,.home-search:focus-within{border-color:rgba(0,217,255,.62)!important;box-shadow:0 0 0 2px rgba(0,217,255,.08),0 12px 36px rgba(0,0,0,.18)}
+.address input,.home-search input{color:#f6fcff!important}.address input::placeholder,.home-search input::placeholder{color:#9fc6d2!important}
+.home{position:relative;overflow:auto;background:linear-gradient(180deg,rgba(255,255,255,.025),transparent 65%)}
+.home:before{content:"";position:absolute;z-index:0;width:min(80vw,1080px);height:min(80vw,1080px);border:2px solid rgba(255,255,255,.18);border-left-color:transparent;border-bottom-color:transparent;border-radius:50%;right:-24%;top:-58%;filter:drop-shadow(0 0 15px rgba(0,217,255,.22));pointer-events:none}
+.home:after{content:"";position:absolute;z-index:0;left:23%;right:-16%;bottom:-150px;height:320px;border-radius:50%;background:radial-gradient(ellipse at 52% 0%,rgba(255,255,255,.9) 0 1%,rgba(0,217,255,.9) 2%,rgba(20,184,166,.45) 5%,rgba(0,217,255,.11) 14%,transparent 32%);transform:rotate(-7deg);pointer-events:none}
+.hero,.quick-row,.quantic-suite,.quantic-footer{position:relative;z-index:1}
+.hero{max-width:920px!important;margin:8vh auto 34px!important;padding:42px 44px!important;text-align:center;background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.035))!important;border:1px solid rgba(255,255,255,.15)!important;box-shadow:0 30px 80px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.09);backdrop-filter:blur(20px)}
+.hero-logo{width:min(560px,72vw)!important;height:auto!important;object-fit:contain;filter:drop-shadow(0 0 22px rgba(0,217,255,.18));margin:0 auto 18px!important}
+.hero h1{font-family:'Segoe UI Variable Display','Segoe UI',sans-serif;font-weight:350;letter-spacing:-.035em;color:#fff;margin:.15em 0 .32em!important;font-size:clamp(40px,5vw,66px)!important;line-height:.94!important}
+.hero p{color:#b7d8e1!important;letter-spacing:.08em}.home-search{max-width:720px;margin:28px auto 0!important}.home-search button{background:linear-gradient(120deg,#007c9d,#00a9bf)!important;color:white!important;box-shadow:0 0 22px rgba(0,217,255,.18)}
+.quick-row button,.quantic-suite-card{background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,255,255,.11)!important;color:#e8faff!important;backdrop-filter:blur(12px)}
+.quick-row button:hover,.quantic-suite-card:hover{border-color:rgba(0,217,255,.42)!important;background:rgba(0,217,255,.075)!important}.quantic-suite-card strong{color:#fff}.quantic-suite-card span{color:#acd0db}.suite-status{color:var(--qg-cyan)!important}
+.quantic-footer a{color:#8fc1cf!important;text-decoration:none}.quantic-footer a:hover{color:var(--qg-cyan)!important}
+.ai-panel{background:rgba(5,23,39,.9)!important;border-color:rgba(0,217,255,.2)!important}.ai-head img{width:28px;height:28px}.orb{background:radial-gradient(circle,#fff 0 3%,#00d9ff 9%,rgba(20,184,166,.5) 27%,transparent 62%)!important;filter:drop-shadow(0 0 18px rgba(0,217,255,.44))}
+@media(max-width:760px){.hero{margin:4vh 18px 24px!important;padding:30px 22px!important}.hero-logo{width:min(430px,86vw)!important}.home:before{right:-65%;top:-38%}}
