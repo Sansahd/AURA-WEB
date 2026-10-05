@@ -1,0 +1,71 @@
+name: Quantic Fusion Q1
+
+on:
+  push:
+    branches:
+      - "quantic-fusion-servo-gecko-ladybird"
+    paths:
+      - "quantic-engine/**"
+      - ".github/workflows/quantic-fusion-q1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantic-fusion-q1
+  cancel-in-progress: true
+
+jobs:
+  servo-runtime:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: quantic-engine
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Resolve Fusion dependency tree
+        shell: pwsh
+        run: |
+          cargo tree --features fusion-servo --bin qfusion-servo | Out-File fusion-tree.txt
+          $tree = Get-Content fusion-tree.txt -Raw
+          $required = @('servo v', 'stylo', 'mozjs', 'webrender')
+          foreach ($needle in $required) {
+            if ($tree -notmatch [regex]::Escape($needle)) {
+              Write-Host $tree
+              throw "Required Fusion component missing: $needle"
+            }
+          }
+          $forbidden = 'chromium|electron|cef|webview2'
+          if ($tree -match $forbidden) {
+            Write-Host $tree
+            throw "Forbidden browser dependency detected"
+          }
+          Write-Host "FUSION DEPENDENCY CONTRACT PASSED"
+
+      - name: Check Quantic Fusion Servo runtime
+        run: cargo check --features fusion-servo --bin qfusion-servo
+
+      - name: Check legacy Quantic native shell still compiles
+        run: cargo check --bin qglide
+
+  mozilla-network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: quantic-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Resolve Neqo
+        run: cargo tree --features fusion-gecko-network | tee neqo-tree.txt
+      - name: Verify Firefox/Mozilla HTTP3 stack
+        run: |
+          grep -q "neqo-http3" neqo-tree.txt
+          grep -q "neqo-transport" neqo-tree.txt
+          echo "NEQO CONTRACT PASSED"
