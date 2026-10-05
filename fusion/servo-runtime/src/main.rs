@@ -516,6 +516,13 @@ impl ApplicationHandler<WakeEvent> for App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Hard runtime integration check: the LibWeb/Ladybird tokenizer is part of
+    // this executable and must successfully build a Quantic DOM before Glide starts.
+    let ladybird_probe = quantic_engine::html::parse(
+        "<!doctype html><html><body><main data-engine='ladybird'>Fusion</main></body></html>",
+    );
+    assert!(ladybird_probe.nodes.len() >= 4, "Ladybird HTML Fusion probe failed");
+
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .expect("install crypto provider");
