@@ -3,8 +3,7 @@ use std::error::Error;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 
-use eframe::egui;
-use egui::{Id, LayerId, Order, PaintCallback};
+use egui::{LayerId, PaintCallback};
 use egui_glow::{CallbackFn, EguiGlow};
 use euclid::{Point2D, Rect, Scale, Size2D};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
@@ -521,6 +520,30 @@ impl FusionState {
         result
     }
 
+    fn send_keyboard_event(
+        &self,
+        state: ElementState,
+        key: ServoKey,
+        code: Code,
+        repeat: bool,
+    ) {
+        let state = match state {
+            ElementState::Pressed => KeyState::Down,
+            ElementState::Released => KeyState::Up,
+        };
+        self.webview.notify_input_event(InputEvent::Keyboard(
+            KeyboardEvent::new_without_event(
+                state,
+                key,
+                code,
+                Location::Standard,
+                self.servo_modifiers(),
+                repeat,
+                false,
+            ),
+        ));
+    }
+
     fn handle_keyboard_input(&self, event: winit::event::KeyEvent) {
         let key = match event.logical_key {
             WinitKey::Character(value) => ServoKey::Character(value.to_string()),
@@ -538,40 +561,23 @@ impl FusionState {
                 WinitNamedKey::End => ServoNamedKey::End,
                 WinitNamedKey::PageUp => ServoNamedKey::PageUp,
                 WinitNamedKey::PageDown => ServoNamedKey::PageDown,
-                WinitNamedKey::Space => return self.webview.notify_input_event(
-                    InputEvent::Keyboard(KeyboardEvent::new_without_event(
-                        match event.state {
-                            ElementState::Pressed => KeyState::Down,
-                            ElementState::Released => KeyState::Up,
-                        },
-                        ServoKey::Character(" ".into()),
-                        Code::Space,
-                        Location::Standard,
-                        self.servo_modifiers(),
-                        event.repeat,
-                        false,
-                    ))
-                ).into(),
+                WinitNamedKey::Space => return self.send_keyboard_event(
+                    event.state,
+                    ServoKey::Character(" ".into()),
+                    Code::Space,
+                    event.repeat,
+                ),
                 _ => ServoNamedKey::Unidentified,
             }),
             _ => ServoKey::Named(ServoNamedKey::Unidentified),
         };
 
-        let state = match event.state {
-            ElementState::Pressed => KeyState::Down,
-            ElementState::Released => KeyState::Up,
-        };
-        self.webview.notify_input_event(InputEvent::Keyboard(
-            KeyboardEvent::new_without_event(
-                state,
-                key,
-                Code::Unidentified,
-                Location::Standard,
-                self.servo_modifiers(),
-                event.repeat,
-                false,
-            ),
-        ));
+        self.send_keyboard_event(
+            event.state,
+            key,
+            Code::Unidentified,
+            event.repeat,
+        );
     }
 
     fn handle_ime(&self, ime: Ime) {
