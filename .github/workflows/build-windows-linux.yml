@@ -1,0 +1,38 @@
+name: Build Windows Installer via Wine
+
+on:
+  push:
+    branches: [installer-linux]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: electronuserland/builder:wine
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versions
+        run: |
+          node -v
+          npm -v
+          wine --version
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Check
+        run: npm run check
+      - name: Build Windows NSIS
+        run: npm run dist
+      - name: Show dist
+        run: ls -lah dist
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: Quantic-Glide-AURA-Career-Setup
+          path: dist/Quantic-Glide-AURA-Career-Setup.exe
+          if-no-files-found: error
+          retention-days: 7
