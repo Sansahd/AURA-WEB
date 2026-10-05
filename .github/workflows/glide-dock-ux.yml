@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: glide-dock-ux
+  group: quantic-fusion-q1
   cancel-in-progress: true
 
 jobs:
