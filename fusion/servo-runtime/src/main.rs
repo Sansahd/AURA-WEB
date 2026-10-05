@@ -9,16 +9,19 @@ use egui_glow::{CallbackFn, EguiGlow};
 use euclid::{Point2D, Rect, Scale, Size2D};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use servo::{
-    InputEvent, MouseButton as ServoMouseButton, MouseButtonAction, MouseButtonEvent,
-    MouseLeftViewportEvent, MouseMoveEvent, OffscreenRenderingContext, RenderingContext, Servo,
-    ServoBuilder, WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode,
-    WindowRenderingContext,
+    Code, CompositionEvent, CompositionState, ImeEvent, InputEvent, Key as ServoKey, KeyState,
+    KeyboardEvent, LoadStatus, Location, Modifiers as ServoModifiers,
+    MouseButton as ServoMouseButton, MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent,
+    MouseMoveEvent, NamedKey as ServoNamedKey, NavigationRequest, OffscreenRenderingContext,
+    PermissionRequest, RenderingContext, Servo, ServoBuilder, WebResourceLoad, WebResourceResponse,
+    WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
 };
 use servo_embedder_traits::EventLoopWaker;
 use url::Url;
 use winit::application::ApplicationHandler;
-use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
+use winit::event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
+use winit::keyboard::{Key as WinitKey, ModifiersState, NamedKey as WinitNamedKey};
 use winit::window::Window;
 
 const START_URL: &str = "https://servo.org/";
@@ -32,6 +35,40 @@ const TEXT: egui::Color32 = egui::Color32::from_rgb(242, 238, 228);
 const MUTED: egui::Color32 = egui::Color32::from_rgb(151, 146, 137);
 const ACCENT: egui::Color32 = egui::Color32::from_rgb(242, 177, 52);
 const BORDER: egui::Color32 = egui::Color32::from_rgb(58, 53, 47);
+
+
+const TRACKER_HOSTS: &[&str] = &[
+    "doubleclick.net",
+    "google-analytics.com",
+    "googletagmanager.com",
+    "adservice.google.com",
+    "connect.facebook.net",
+    "facebook.net",
+    "hotjar.com",
+    "clarity.ms",
+    "segment.com",
+    "segment.io",
+    "scorecardresearch.com",
+    "quantserve.com",
+];
+
+fn host_matches(host: &str, domain: &str) -> bool {
+    host == domain ||
+        host
+            .strip_suffix(domain)
+            .is_some_and(|prefix| prefix.ends_with('.'))
+}
+
+fn is_known_tracker(url: &Url) -> bool {
+    let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
+        return false;
+    };
+    TRACKER_HOSTS.iter().any(|domain| host_matches(&host, domain))
+}
+
+fn navigation_scheme_allowed(url: &Url) -> bool {
+    matches!(url.scheme(), "http" | "https" | "about" | "data" | "blob")
+}
 
 #[derive(Clone)]
 struct Waker(EventLoopProxy<WakeEvent>);
@@ -63,6 +100,9 @@ struct FusionState {
     dock_focus_requested: Cell<bool>,
     content_height_points: Cell<f32>,
     cursor_point: Cell<(f32, f32)>,
+    modifiers_state: Cell<ModifiersState>,
+    blocked_resources: Cell<u64>,
+    permissions_denied: Cell<u64>,
 }
 
 struct FusionDelegate {
@@ -111,6 +151,64 @@ impl servo::WebViewDelegate for FusionDelegate {
                 .window
                 .set_title(&format!("{title} — Quantic Glide Fusion"));
         });
+    }
+
+    fn notify_load_status_changed(&self, _webview: WebView, load_status: LoadStatus) {
+        self.with_state(|state| {
+            *state.status.borrow_mut() = match load_status {
+                LoadStatus::Started => "Chargement…".into(),
+                LoadStatus::HeadParsed => "Rendu…".into(),
+                LoadStatus::Complete => "Prêt".into(),
+            };
+            state.window.request_redraw();
+        });
+    }
+
+    fn notify_crashed(&self, _webview: WebView, reason: String, _backtrace: Option<String>) {
+        self.with_state(|state| {
+            *state.status.borrow_mut() = format!("Page interrompue · {reason}");
+            state.window.request_redraw();
+        });
+    }
+
+    fn request_permission(&self, _webview: WebView, request: PermissionRequest) {
+        self.with_state(|state| {
+            state.permissions_denied.set(state.permissions_denied.get() + 1);
+            *state.status.borrow_mut() = format!("Permission bloquée · {:?}", request.feature());
+            state.window.request_redraw();
+        });
+        request.deny();
+    }
+
+    fn request_navigation(&self, _webview: WebView, request: NavigationRequest) {
+        if navigation_scheme_allowed(&request.url) {
+            request.allow();
+        } else {
+            self.with_state(|state| {
+                *state.status.borrow_mut() =
+                    format!("Navigation externe bloquée · {}", request.url.scheme());
+                state.window.request_redraw();
+            });
+            request.deny();
+        }
+    }
+
+    fn load_web_resource(&self, _webview: WebView, load: WebResourceLoad) {
+        if !load.request.is_for_main_frame && is_known_tracker(&load.request.url) {
+            self.with_state(|state| {
+                state.blocked_resources.set(state.blocked_resources.get() + 1);
+                *state.status.borrow_mut() = format!(
+                    "Traqueur bloqué · {}",
+                    load.request.url.host_str().unwrap_or("ressource tierce")
+                );
+                state.window.request_redraw();
+            });
+
+            let response = WebResourceResponse::new(load.request.url.clone())
+                .status_code(http::StatusCode::NO_CONTENT)
+                .status_message(b"Blocked by Quantic Glide".to_vec());
+            load.intercept(response).finish();
+        }
     }
 }
 
@@ -277,6 +375,16 @@ impl FusionState {
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new(self.status.borrow().as_str()).size(9.0).color(MUTED));
                             ui.separator();
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "bloqués {} · permissions {}",
+                                    self.blocked_resources.get(),
+                                    self.permissions_denied.get()
+                                ))
+                                .size(9.0)
+                                .color(MUTED),
+                            );
+                            ui.separator();
                             ui.label(egui::RichText::new("Chromium 0").size(9.0).strong().color(egui::Color32::from_rgb(129, 191, 142)));
                         });
                     });
@@ -394,6 +502,96 @@ impl FusionState {
             self.webview_point(x, y).into(),
         )));
     }
+
+    fn servo_modifiers(&self) -> ServoModifiers {
+        let modifiers = self.modifiers_state.get();
+        let mut result = ServoModifiers::empty();
+        if modifiers.shift_key() {
+            result |= ServoModifiers::SHIFT;
+        }
+        if modifiers.control_key() {
+            result |= ServoModifiers::CONTROL;
+        }
+        if modifiers.alt_key() {
+            result |= ServoModifiers::ALT;
+        }
+        if modifiers.super_key() {
+            result |= ServoModifiers::META;
+        }
+        result
+    }
+
+    fn handle_keyboard_input(&self, event: winit::event::KeyEvent) {
+        let key = match event.logical_key {
+            WinitKey::Character(value) => ServoKey::Character(value.to_string()),
+            WinitKey::Named(named) => ServoKey::Named(match named {
+                WinitNamedKey::Enter => ServoNamedKey::Enter,
+                WinitNamedKey::Tab => ServoNamedKey::Tab,
+                WinitNamedKey::Backspace => ServoNamedKey::Backspace,
+                WinitNamedKey::Delete => ServoNamedKey::Delete,
+                WinitNamedKey::Escape => ServoNamedKey::Escape,
+                WinitNamedKey::ArrowLeft => ServoNamedKey::ArrowLeft,
+                WinitNamedKey::ArrowRight => ServoNamedKey::ArrowRight,
+                WinitNamedKey::ArrowUp => ServoNamedKey::ArrowUp,
+                WinitNamedKey::ArrowDown => ServoNamedKey::ArrowDown,
+                WinitNamedKey::Home => ServoNamedKey::Home,
+                WinitNamedKey::End => ServoNamedKey::End,
+                WinitNamedKey::PageUp => ServoNamedKey::PageUp,
+                WinitNamedKey::PageDown => ServoNamedKey::PageDown,
+                WinitNamedKey::Space => return self.webview.notify_input_event(
+                    InputEvent::Keyboard(KeyboardEvent::new_without_event(
+                        match event.state {
+                            ElementState::Pressed => KeyState::Down,
+                            ElementState::Released => KeyState::Up,
+                        },
+                        ServoKey::Character(" ".into()),
+                        Code::Space,
+                        Location::Standard,
+                        self.servo_modifiers(),
+                        event.repeat,
+                        false,
+                    ))
+                ).into(),
+                _ => ServoNamedKey::Unidentified,
+            }),
+            _ => ServoKey::Named(ServoNamedKey::Unidentified),
+        };
+
+        let state = match event.state {
+            ElementState::Pressed => KeyState::Down,
+            ElementState::Released => KeyState::Up,
+        };
+        self.webview.notify_input_event(InputEvent::Keyboard(
+            KeyboardEvent::new_without_event(
+                state,
+                key,
+                Code::Unidentified,
+                Location::Standard,
+                self.servo_modifiers(),
+                event.repeat,
+                false,
+            ),
+        ));
+    }
+
+    fn handle_ime(&self, ime: Ime) {
+        let event = match ime {
+            Ime::Enabled => ImeEvent::Composition(CompositionEvent {
+                state: CompositionState::Start,
+                data: String::new(),
+            }),
+            Ime::Preedit(text, _) => ImeEvent::Composition(CompositionEvent {
+                state: CompositionState::Update,
+                data: text,
+            }),
+            Ime::Commit(text) => ImeEvent::Composition(CompositionEvent {
+                state: CompositionState::End,
+                data: text,
+            }),
+            Ime::Disabled => ImeEvent::Dismissed,
+        };
+        self.webview.notify_input_event(InputEvent::Ime(event));
+    }
 }
 
 enum App {
@@ -460,6 +658,9 @@ impl ApplicationHandler<WakeEvent> for App {
             dock_focus_requested: Cell::new(false),
             content_height_points: Cell::new(700.0),
             cursor_point: Cell::new((0.0, 0.0)),
+            modifiers_state: Cell::new(ModifiersState::empty()),
+            blocked_resources: Cell::new(0),
+            permissions_denied: Cell::new(0),
         });
         delegate.bind(&state);
 
@@ -507,6 +708,20 @@ impl ApplicationHandler<WakeEvent> for App {
             }
             WindowEvent::MouseWheel { delta, .. } if !egui_response.consumed => {
                 state.handle_wheel(delta);
+            }
+            WindowEvent::ModifiersChanged(modifiers) => {
+                state.modifiers_state.set(modifiers.state());
+            }
+            WindowEvent::KeyboardInput { event, .. } if !egui_response.consumed => {
+                let modifiers = state.modifiers_state.get();
+                let is_location_shortcut = (modifiers.control_key() || modifiers.super_key())
+                    && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("l"));
+                if !is_location_shortcut {
+                    state.handle_keyboard_input(event);
+                }
+            }
+            WindowEvent::Ime(ime) if !egui_response.consumed => {
+                state.handle_ime(ime);
             }
             _ => {}
         }
