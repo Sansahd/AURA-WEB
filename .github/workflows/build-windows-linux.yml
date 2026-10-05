@@ -45,6 +45,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Quantic-Glide-AURA-Career-Setup
-          path: dist/Quantic-Glide-AURA-Career-Setup-v1.3.2.exe
+          path: dist/Quantic-Glide-AURA-Career-Setup-v1.3.3.exe
           if-no-files-found: error
           retention-days: 7
