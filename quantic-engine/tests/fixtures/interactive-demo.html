@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { background-color:#ffffff; color:#202020; }
+    h1 { color:#202020; font-size:28px; }
+    .card { background-color:#eeeeee; margin:12px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1 id="title">Quantic Engine</h1>
+    <p id="status">Booting</p>
+    <button id="go">Run</button>
+  </main>
+  <script>
+    localStorage.setItem("demo", "q03");
+    document.getElementById("status").textContent = "JavaScript ready";
+    const image = document.createElement("img");
+    image.setAttribute("alt", "QEngine");
+    image.setAttribute("width", "72");
+    image.setAttribute("height", "32");
+    document.querySelector("main").appendChild(image);
+    document.getElementById("go").addEventListener("click", () => {
+      document.getElementById("title").textContent = "Interactive";
+    });
+    document.getElementById("go").click();
+  </script>
+</body>
+</html>
