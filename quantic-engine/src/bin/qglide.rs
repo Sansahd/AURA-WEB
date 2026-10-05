@@ -19,6 +19,9 @@ const MUTED: egui::Color32 = egui::Color32::from_rgb(156, 151, 142);
 const ACCENT: egui::Color32 = egui::Color32::from_rgb(242, 177, 52);
 const ACCENT_SOFT: egui::Color32 = egui::Color32::from_rgb(74, 55, 22);
 const BORDER: egui::Color32 = egui::Color32::from_rgb(53, 49, 44);
+const GLASS: egui::Color32 = egui::Color32::from_rgba_premultiplied(27, 25, 22, 244);
+const GLASS_STRONG: egui::Color32 = egui::Color32::from_rgba_premultiplied(34, 31, 27, 250);
+const SUCCESS: egui::Color32 = egui::Color32::from_rgb(129, 191, 142);
 
 #[derive(Clone)]
 struct FieldEditor {
@@ -38,6 +41,9 @@ struct GlideApp {
     error: Option<String>,
     home_query: String,
     editor: Option<FieldEditor>,
+    dock_input: String,
+    dock_expanded: bool,
+    dock_focus_requested: bool,
 }
 
 impl GlideApp {
@@ -69,6 +75,9 @@ impl GlideApp {
             error: None,
             home_query: String::new(),
             editor: None,
+            dock_input: String::new(),
+            dock_expanded: false,
+            dock_focus_requested: false,
         }
     }
 
@@ -91,6 +100,8 @@ impl GlideApp {
         self.error = None;
         self.texture = None;
         self.address.clear();
+        self.dock_input.clear();
+        self.dock_expanded = false;
         self.status = "Accueil Glide".to_string();
     }
 
@@ -108,6 +119,7 @@ impl GlideApp {
         match self.session.open(&target) {
             Ok(()) => {
                 self.address = self.session.current_url().unwrap_or(&target).to_string();
+                self.dock_input = self.address.clone();
                 self.prepare_page();
                 self.refresh_texture(ctx);
                 self.status = host_label(&self.address);
@@ -148,6 +160,7 @@ impl GlideApp {
 
     fn refresh_after_navigation(&mut self, ctx: &egui::Context) {
         self.address = self.session.current_url().unwrap_or_default().to_string();
+        self.dock_input = self.address.clone();
         self.prepare_page();
         self.refresh_texture(ctx);
         self.error = None;
@@ -240,125 +253,122 @@ impl GlideApp {
         if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R)) {
             self.reload(ctx);
         }
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::L)) {
+            self.dock_expanded = true;
+            self.dock_focus_requested = true;
+            if self.dock_input.is_empty() && !self.address.is_empty() {
+                self.dock_input = self.address.clone();
+            }
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.dock_expanded = false;
+        }
     }
 
-    fn top_bar(&mut self, ctx: &egui::Context) {
+    fn execute_dock(&mut self, ctx: &egui::Context) {
+        let raw = self.dock_input.trim().to_string();
+        if raw.is_empty() {
+            return;
+        }
+
+        let lower = raw.to_ascii_lowercase();
+
+        if lower == "@mail" || lower.starts_with("@mail ") {
+            self.navigate(ctx, MAIL_URL);
+        } else if lower == "@pulse" || lower.starts_with("@pulse ") {
+            self.navigate(ctx, PULSE_URL);
+        } else if lower == "@quantic" || lower.starts_with("@quantic ") {
+            self.navigate(ctx, QUANTIC_PORTAL);
+        } else if lower == "@aura" || lower.starts_with("@aura ") {
+            let prompt = raw.strip_prefix("@aura").unwrap_or("").trim();
+            self.status = if prompt.is_empty() {
+                "AURA prête · écris ta demande après @aura".to_string()
+            } else {
+                format!("AURA · commande reçue : {prompt}")
+            };
+        } else if lower == "> accueil" || lower == "> home" {
+            self.go_home();
+        } else if lower == "> retour" || lower == "> back" {
+            self.back(ctx);
+        } else if lower == "> avance" || lower == "> forward" {
+            self.forward(ctx);
+        } else if lower == "> recharger" || lower == "> reload" {
+            self.reload(ctx);
+        } else {
+            self.navigate(ctx, &raw);
+        }
+
+        self.dock_expanded = false;
+        self.dock_focus_requested = false;
+    }
+
+    fn dock_hint(&self) -> &'static str {
+        let value = self.dock_input.trim().to_ascii_lowercase();
+        if value.starts_with("@aura") {
+            "AURA · agir sur le navigateur"
+        } else if value.starts_with("@mail") {
+            "Quantic Mail"
+        } else if value.starts_with("@pulse") {
+            "Quantic Pulse"
+        } else if value.starts_with('>') {
+            "Commande Glide"
+        } else if value.starts_with("http://") || value.starts_with("https://") {
+            "Ouvrir l’adresse"
+        } else {
+            "Rechercher sur le web"
+        }
+    }
+
+    fn top_chrome(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("glide_top")
-            .exact_height(84.0)
+            .exact_height(38.0)
             .frame(egui::Frame::new().fill(BG))
             .show(ctx, |ui| {
-                ui.add_space(8.0);
-
-                ui.horizontal(|ui| {
+                ui.horizontal_centered(|ui| {
                     ui.add_space(10.0);
-                    let (mark_rect, _) = ui.allocate_exact_size(egui::vec2(28.0, 28.0), egui::Sense::hover());
-                    ui.painter().circle_filled(mark_rect.center(), 12.0, ACCENT);
-                    ui.painter().circle_filled(mark_rect.center(), 5.0, BG);
+
+                    let (mark_rect, _) =
+                        ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::hover());
+                    ui.painter().circle_filled(mark_rect.center(), 9.0, ACCENT);
+                    ui.painter().circle_filled(mark_rect.center(), 3.5, BG);
 
                     ui.label(
                         egui::RichText::new("GLIDE")
-                            .size(20.0)
+                            .size(14.0)
                             .strong()
                             .color(TEXT),
                     );
 
-                    ui.add_space(10.0);
+                    ui.add_space(8.0);
                     ui.label(
-                        egui::RichText::new("NATIVE")
-                            .size(10.0)
-                            .strong()
-                            .color(ACCENT),
+                        egui::RichText::new(if self.home {
+                            "Accueil".to_string()
+                        } else {
+                            host_label(&self.address)
+                        })
+                        .size(11.0)
+                        .color(MUTED),
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(10.0);
                         ui.label(
-                            egui::RichText::new("ZERO CHROMIUM")
-                                .size(10.0)
+                            egui::RichText::new("FUSION · ZERO CHROMIUM")
+                                .size(9.0)
                                 .strong()
-                                .color(MUTED),
+                                .color(ACCENT),
                         );
                     });
-                });
-
-                ui.add_space(7.0);
-
-                ui.horizontal(|ui| {
-                    ui.add_space(10.0);
-
-                    let back = ui.add_enabled(
-                        !self.home && self.session.can_go_back(),
-                        egui::Button::new("←").min_size(egui::vec2(36.0, 32.0)),
-                    );
-                    if back.clicked() {
-                        self.back(ctx);
-                    }
-
-                    let forward = ui.add_enabled(
-                        !self.home && self.session.can_go_forward(),
-                        egui::Button::new("→").min_size(egui::vec2(36.0, 32.0)),
-                    );
-                    if forward.clicked() {
-                        self.forward(ctx);
-                    }
-
-                    if ui
-                        .add(egui::Button::new("↻").min_size(egui::vec2(36.0, 32.0)))
-                        .clicked()
-                    {
-                        if self.home {
-                            self.status = "Accueil Glide".to_string();
-                        } else {
-                            self.reload(ctx);
-                        }
-                    }
-
-                    if ui
-                        .add(egui::Button::new("⌂").min_size(egui::vec2(36.0, 32.0)))
-                        .clicked()
-                    {
-                        self.go_home();
-                    }
-
-                    ui.add_space(6.0);
-
-                    let available = (ui.available_width() - 118.0).max(220.0);
-                    let response = ui.add_sized(
-                        [available, 34.0],
-                        egui::TextEdit::singleline(&mut self.address)
-                            .hint_text("Rechercher ou saisir une adresse"),
-                    );
-
-                    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                        let value = self.address.clone();
-                        self.navigate(ctx, &value);
-                    }
-
-                    if ui
-                        .add(
-                            egui::Button::new(
-                                egui::RichText::new("Aller").strong().color(BG),
-                            )
-                            .fill(ACCENT)
-                            .min_size(egui::vec2(64.0, 34.0)),
-                        )
-                        .clicked()
-                    {
-                        let value = self.address.clone();
-                        self.navigate(ctx, &value);
-                    }
-
-                    ui.add_space(10.0);
                 });
             });
     }
 
     fn native_rail(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("native_rail")
-            .exact_width(68.0)
+            .exact_width(54.0)
             .frame(egui::Frame::new().fill(egui::Color32::from_rgb(17, 16, 14)))
             .show(ctx, |ui| {
-                ui.add_space(18.0);
+                ui.add_space(12.0);
                 ui.vertical_centered(|ui| {
                     if rail_button(ui, "⌕", "Accueil / recherche") {
                         self.go_home();
@@ -391,93 +401,67 @@ impl GlideApp {
     }
 
     fn home_view(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-        ui.add_space(70.0);
+        ui.add_space(105.0);
 
         ui.vertical_centered(|ui| {
-            let (logo_rect, _) = ui.allocate_exact_size(egui::vec2(92.0, 92.0), egui::Sense::hover());
-            ui.painter().circle_filled(logo_rect.center(), 42.0, ACCENT);
-            ui.painter().circle_filled(logo_rect.center(), 19.0, BG);
+            let (logo_rect, _) =
+                ui.allocate_exact_size(egui::vec2(96.0, 96.0), egui::Sense::hover());
+            ui.painter().circle_filled(logo_rect.center(), 44.0, ACCENT);
+            ui.painter().circle_filled(logo_rect.center(), 20.0, BG);
 
-            ui.add_space(16.0);
+            ui.add_space(18.0);
             ui.label(
                 egui::RichText::new("GLIDE")
-                    .size(44.0)
+                    .size(46.0)
                     .strong()
                     .color(TEXT),
             );
             ui.label(
-                egui::RichText::new("Le web, sans Chromium.")
-                    .size(17.0)
+                egui::RichText::new("Le web libéré de Chromium.")
+                    .size(16.0)
                     .color(MUTED),
             );
 
-            ui.add_space(30.0);
-
-            let search_width = ui.available_width().min(720.0);
-            let response = ui.add_sized(
-                [search_width, 46.0],
-                egui::TextEdit::singleline(&mut self.home_query)
-                    .hint_text("Rechercher sur le web ou saisir une adresse"),
-            );
-
-            let enter = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-
-            ui.add_space(10.0);
-            let search_clicked = ui
-                .add(
-                    egui::Button::new(
-                        egui::RichText::new("Rechercher")
-                            .strong()
-                            .color(BG),
-                    )
-                    .fill(ACCENT)
-                    .min_size(egui::vec2(150.0, 38.0)),
-                )
-                .clicked();
-
-            if enter || search_clicked {
-                let value = self.home_query.clone();
-                if !value.trim().is_empty() {
-                    self.address = value.clone();
-                    self.navigate(ctx, &value);
-                }
-            }
-
-            ui.add_space(42.0);
+            ui.add_space(34.0);
 
             ui.horizontal(|ui| {
-                let total = 4.0 * 150.0 + 3.0 * 14.0;
+                let total = 4.0 * 146.0 + 3.0 * 12.0;
                 ui.add_space(((ui.available_width() - total) / 2.0).max(0.0));
 
-                if home_card(ui, "WEB", "Recherche privée", "HTML léger") {
-                    let value = if self.home_query.trim().is_empty() {
-                        "Quantic".to_string()
-                    } else {
-                        self.home_query.clone()
-                    };
-                    self.navigate(ctx, &value);
+                if home_card(ui, "WEB", "Naviguer", "Glide Dock") {
+                    self.dock_expanded = true;
+                    self.dock_focus_requested = true;
                 }
-                ui.add_space(14.0);
+                ui.add_space(12.0);
 
                 if home_card(ui, "MAIL", "Quantic Mail", "Communication") {
                     self.navigate(ctx, MAIL_URL);
                 }
-                ui.add_space(14.0);
+                ui.add_space(12.0);
 
                 if home_card(ui, "PULSE", "Quantic Pulse", "Réseau social") {
                     self.navigate(ctx, PULSE_URL);
                 }
-                ui.add_space(14.0);
+                ui.add_space(12.0);
 
-                if home_card(ui, "AURA", "AURA Career", "Agent emploi") {
-                    self.status = "AURA Career natif est installé avec Glide".to_string();
+                if home_card(ui, "AURA", "AURA", "Assistant natif") {
+                    self.dock_input = "@aura ".to_string();
+                    self.dock_expanded = true;
+                    self.dock_focus_requested = true;
                 }
             });
 
-            ui.add_space(34.0);
+            ui.add_space(48.0);
             ui.label(
-                egui::RichText::new("Rust · Quantic Engine · Boa JS · aucun moteur tiers")
+                egui::RichText::new("Ctrl+L · Glide Dock")
                     .size(11.0)
+                    .strong()
+                    .color(ACCENT),
+            );
+            ui.add_space(6.0);
+            ui.label(
+                egui::RichText::new("Servo · Ladybird · Mozilla · Quantic")
+                    .size(10.0)
                     .color(MUTED),
             );
         });
@@ -648,21 +632,147 @@ impl GlideApp {
         }
     }
 
-    fn status_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("status_bar")
-            .exact_height(28.0)
-            .frame(egui::Frame::new().fill(egui::Color32::from_rgb(17, 16, 14)))
+    fn glide_dock(&mut self, ctx: &egui::Context) {
+        let dock_height = if self.dock_expanded { 118.0 } else { 64.0 };
+
+        egui::TopBottomPanel::bottom("glide_dock")
+            .exact_height(dock_height)
+            .frame(egui::Frame::new().fill(BG))
             .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.add_space(8.0);
-                    ui.label(egui::RichText::new(&self.status).size(10.0).color(MUTED));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.add_space(8.0);
+                ui.add_space(if self.dock_expanded { 6.0 } else { 8.0 });
+
+                ui.vertical_centered(|ui| {
+                    if self.dock_expanded {
+                        let hint_width = ui.available_width().min(760.0);
+                        let (hint_rect, _) =
+                            ui.allocate_exact_size(egui::vec2(hint_width, 30.0), egui::Sense::hover());
+
+                        ui.painter().rect_filled(hint_rect, 12.0, PANEL);
+                        ui.painter().text(
+                            hint_rect.left_center() + egui::vec2(14.0, 0.0),
+                            egui::Align2::LEFT_CENTER,
+                            self.dock_hint(),
+                            egui::FontId::proportional(11.0),
+                            ACCENT,
+                        );
+                        ui.painter().text(
+                            hint_rect.right_center() - egui::vec2(14.0, 0.0),
+                            egui::Align2::RIGHT_CENTER,
+                            "@aura  @mail  @pulse  > retour",
+                            egui::FontId::proportional(9.5),
+                            MUTED,
+                        );
+
+                        ui.add_space(5.0);
+                    }
+
+                    let dock_width = ui.available_width().min(if self.dock_expanded { 900.0 } else { 720.0 });
+
+                    egui::Frame::new()
+                        .fill(if self.dock_expanded { GLASS_STRONG } else { GLASS })
+                        .stroke(egui::Stroke::new(
+                            1.0,
+                            if self.dock_expanded { ACCENT_SOFT } else { BORDER },
+                        ))
+                        .corner_radius(22.0)
+                        .inner_margin(egui::Margin::symmetric(10, 8))
+                        .show(ui, |ui| {
+                            ui.set_width(dock_width);
+
+                            ui.horizontal(|ui| {
+                                if ui
+                                    .add_enabled(
+                                        !self.home && self.session.can_go_back(),
+                                        egui::Button::new("←")
+                                            .fill(egui::Color32::TRANSPARENT)
+                                            .min_size(egui::vec2(34.0, 34.0)),
+                                    )
+                                    .on_hover_text("Retour")
+                                    .clicked()
+                                {
+                                    self.back(ctx);
+                                }
+
+                                if ui
+                                    .add_enabled(
+                                        !self.home && self.session.can_go_forward(),
+                                        egui::Button::new("→")
+                                            .fill(egui::Color32::TRANSPARENT)
+                                            .min_size(egui::vec2(34.0, 34.0)),
+                                    )
+                                    .on_hover_text("Avancer")
+                                    .clicked()
+                                {
+                                    self.forward(ctx);
+                                }
+
+                                let edit_width = (dock_width - 180.0).max(260.0);
+                                let response = ui.add_sized(
+                                    [edit_width, 36.0],
+                                    egui::TextEdit::singleline(&mut self.dock_input)
+                                        .hint_text("Rechercher, saisir une adresse ou une commande…")
+                                        .frame(false),
+                                );
+
+                                if self.dock_focus_requested {
+                                    response.request_focus();
+                                    self.dock_focus_requested = false;
+                                }
+
+                                if response.gained_focus() {
+                                    self.dock_expanded = true;
+                                }
+
+                                let enter = response.lost_focus()
+                                    && ui.input(|i| i.key_pressed(egui::Key::Enter));
+
+                                if ui
+                                    .add(
+                                        egui::Button::new(
+                                            egui::RichText::new("↵")
+                                                .size(16.0)
+                                                .strong()
+                                                .color(BG),
+                                        )
+                                        .fill(ACCENT)
+                                        .min_size(egui::vec2(38.0, 34.0)),
+                                    )
+                                    .on_hover_text("Exécuter")
+                                    .clicked()
+                                    || enter
+                                {
+                                    self.execute_dock(ctx);
+                                }
+
+                                if ui
+                                    .add(
+                                        egui::Button::new("A")
+                                            .fill(ACCENT_SOFT)
+                                            .min_size(egui::vec2(34.0, 34.0)),
+                                    )
+                                    .on_hover_text("AURA")
+                                    .clicked()
+                                {
+                                    self.dock_input = "@aura ".to_string();
+                                    self.dock_expanded = true;
+                                    self.dock_focus_requested = true;
+                                }
+                            });
+                        });
+
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
                         ui.label(
-                            egui::RichText::new("Chromium 0 · Electron 0 · CEF 0")
-                                .size(10.0)
+                            egui::RichText::new(&self.status)
+                                .size(9.5)
+                                .color(MUTED),
+                        );
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new("Chromium 0")
+                                .size(9.5)
                                 .strong()
-                                .color(ACCENT),
+                                .color(SUCCESS),
                         );
                     });
                 });
@@ -675,9 +785,9 @@ impl eframe::App for GlideApp {
         self.poll_async(ctx);
         self.keyboard_shortcuts(ctx);
 
-        self.top_bar(ctx);
-        self.status_bar(ctx);
+        self.top_chrome(ctx);
         self.native_rail(ctx);
+        self.glide_dock(ctx);
 
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(BG))
@@ -705,7 +815,7 @@ fn rail_button(ui: &mut egui::Ui, label: &str, tooltip: &str) -> bool {
                 .color(TEXT),
         )
         .fill(PANEL)
-        .min_size(egui::vec2(42.0, 42.0)),
+        .min_size(egui::vec2(36.0, 36.0)),
     );
     response.on_hover_text(tooltip).clicked()
 }
