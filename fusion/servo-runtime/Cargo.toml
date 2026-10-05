@@ -7,8 +7,8 @@ publish = false
 
 [dependencies]
 quantic-engine = { path = "../../quantic-engine", features = ["fusion-servo"] }
-servo = { git = "https://github.com/servo/servo", tag = "v0.7.0", package = "servo", default-features = false, features = ["bundled", "js_jit", "clipboard"] }
-servo-embedder-traits = { git = "https://github.com/servo/servo", tag = "v0.7.0", package = "servo-embedder-traits" }
+servo = { version = "=0.7.0", default-features = false, features = ["bundled", "js_jit", "clipboard"] }
+servo-embedder-traits = { version = "=0.7.0" }
 winit = "0.30.13"
 euclid = "0.22"
 tracing = "0.1.44"
