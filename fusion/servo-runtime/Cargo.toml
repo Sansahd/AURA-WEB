@@ -6,7 +6,7 @@ license = "MPL-2.0"
 publish = false
 
 [dependencies]
-quantic-engine = { path = "../../quantic-engine", features = ["fusion-servo", "fusion-ladybird-html"] }
+quantic-ladybird-html = { path = "../../quantic-engine/vendor/ladybird_html" }
 servo = { version = "=0.7.0", default-features = false, features = ["bundled", "js_jit", "clipboard"] }
 servo-embedder-traits = { version = "=0.7.0" }
 winit = "0.30.13"
@@ -16,8 +16,8 @@ rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", 
 webrender_api = "0.70"
 url = "2.5"
 
-egui = "0.34.3"
-egui_glow = { version = "0.34.3", features = ["winit"] }
+egui = "0.33.3"
+egui_glow = { version = "0.33.3", features = ["winit"] }
 raw-window-handle = "0.6"
 urlencoding = "2.1"
 
