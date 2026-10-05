@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: glide-fusion-windows
-  cancel-in-progress: true
+  group: glide-fusion-windows-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   windows:
