@@ -15,12 +15,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: glide-dock-windows-preview
+  group: glide-dock-windows-preview-ubuntu24
   cancel-in-progress: true
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     defaults:
       run:
