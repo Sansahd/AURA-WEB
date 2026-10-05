@@ -1,0 +1,53 @@
+name: Fusion Compile Mac
+
+on:
+  push:
+    branches: ["quantic-fusion-servo-gecko-ladybird"]
+    paths:
+      - "quantic-engine/**"
+      - "fusion/servo-runtime/**"
+      - ".github/workflows/fusion-compile-mac.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fusion-compile-mac
+  cancel-in-progress: true
+
+jobs:
+  core:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: quantic-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check Glide Dock core
+        run: cargo check --bin qglide --no-default-features
+      - name: Check Ladybird HTML Fusion
+        run: cargo check --lib --features fusion-ladybird-html
+
+  servo:
+    runs-on: macos-15
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: fusion/servo-runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Resolve Servo 0.7 Fusion
+        run: cargo tree > servo-tree.txt
+      - name: Verify Servo Mozilla stack
+        run: |
+          grep -qi "servo v0.7" servo-tree.txt
+          grep -Eqi "stylo|style v" servo-tree.txt
+          grep -qi "mozjs" servo-tree.txt
+          grep -qi "webrender" servo-tree.txt
+          ! grep -Eiq "chromium|electron|cef|webview2" servo-tree.txt
+      - name: Check Servo/WebRender Glide Dock
+        run: cargo check
