@@ -1,0 +1,129 @@
+name: Build Native Zero Chromium Glide
+
+on:
+  push:
+    branches:
+      - "engine/glide-native-zero-chromium"
+    paths:
+      - "quantic-engine/**"
+      - ".github/workflows/glide-native-zero-chromium.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: quantic-engine
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Verify formatting
+        run: cargo fmt --check
+
+      - name: Verify forbidden browser dependencies are absent
+        shell: pwsh
+        run: |
+          $tree = cargo tree --edges normal
+          $tree | Out-File cargo-tree.txt
+          $forbidden = 'chromium|electron|cef|webview2|webkit'
+          if ($tree -match $forbidden) {
+            Write-Host $tree
+            throw "Forbidden Chromium/WebView dependency detected"
+          }
+          Write-Host "ZERO-CHROMIUM CHECK PASSED"
+
+      - name: Check native Glide
+        run: cargo check --bin qglide
+
+      - name: Check native Career agent
+        run: cargo check --bin qcareer
+
+      - name: Build native release
+        run: cargo build --release --bin qglide --bin qcareer
+
+      - name: Prepare installer payload
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force installer | Out-Null
+          Copy-Item target\release\qglide.exe installer\QuanticGlide.exe
+          Copy-Item target\release\qcareer.exe installer\AURACareer.exe
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Create NSIS script
+        shell: pwsh
+        run: |
+          @'
+          Unicode True
+          !include "MUI2.nsh"
+          Name "Quantic Glide Native"
+          OutFile "Quantic-Glide-Native-Zero-Chromium-Setup.exe"
+          InstallDir "$LOCALAPPDATA\Programs\Quantic Glide Native"
+          RequestExecutionLevel user
+
+          !define MUI_ABORTWARNING
+          !insertmacro MUI_PAGE_WELCOME
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          !insertmacro MUI_PAGE_FINISH
+          !insertmacro MUI_LANGUAGE "French"
+
+          Section "Quantic Glide Native" SEC01
+            SetOutPath "$INSTDIR"
+            File "installer\QuanticGlide.exe"
+            File "installer\AURACareer.exe"
+
+            CreateDirectory "$SMPROGRAMS\Quantic Glide Native"
+            CreateShortcut "$DESKTOP\Quantic Glide Native.lnk" "$INSTDIR\QuanticGlide.exe"
+            CreateShortcut "$SMPROGRAMS\Quantic Glide Native\Quantic Glide Native.lnk" "$INSTDIR\QuanticGlide.exe"
+
+            WriteUninstaller "$INSTDIR\Uninstall.exe"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideNative" "DisplayName" "Quantic Glide Native"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideNative" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideNative" "DisplayVersion" "0.6.0"
+            Exec "$INSTDIR\QuanticGlide.exe"
+          SectionEnd
+
+          Section "Uninstall"
+            Delete "$DESKTOP\Quantic Glide Native.lnk"
+            Delete "$SMPROGRAMS\Quantic Glide Native\Quantic Glide Native.lnk"
+            RMDir "$SMPROGRAMS\Quantic Glide Native"
+            Delete "$INSTDIR\QuanticGlide.exe"
+            Delete "$INSTDIR\AURACareer.exe"
+            Delete "$INSTDIR\Uninstall.exe"
+            RMDir "$INSTDIR"
+            DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideNative"
+          SectionEnd
+          '@ | Set-Content -Encoding UTF8 installer.nsi
+
+      - name: Build installer
+        shell: pwsh
+        run: makensis installer.nsi
+
+      - name: SHA256
+        shell: pwsh
+        run: |
+          Get-FileHash Quantic-Glide-Native-Zero-Chromium-Setup.exe -Algorithm SHA256 | Format-List
+          Get-FileHash target\release\qglide.exe -Algorithm SHA256 | Format-List
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Quantic-Glide-Native-Zero-Chromium
+          path: quantic-engine/Quantic-Glide-Native-Zero-Chromium-Setup.exe
+          if-no-files-found: error
+          retention-days: 7
