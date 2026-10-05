@@ -8,6 +8,18 @@ const RAW_TEXT_TAGS: &[&str] = &["script", "style"];
 const RCDATA_TAGS: &[&str] = &["textarea", "title"];
 
 pub fn parse(input: &str) -> Document {
+    #[cfg(feature = "fusion-ladybird-html")]
+    {
+        return parse_ladybird(input);
+    }
+
+    #[cfg(not(feature = "fusion-ladybird-html"))]
+    {
+        parse_legacy(input)
+    }
+}
+
+fn parse_legacy(input: &str) -> Document {
     let mut document = Document::new();
     let mut stack = vec![document.root];
     let bytes = input.as_bytes();
@@ -113,6 +125,108 @@ pub fn parse(input: &str) -> Document {
         cursor = next.max(cursor + 1);
     }
 
+    document
+}
+
+#[cfg(feature = "fusion-ladybird-html")]
+fn parse_ladybird(input: &str) -> Document {
+    use quantic_ladybird_html::{HtmlTokenizer, State, TokenPayload, TokenType};
+
+    let mut tokenizer = HtmlTokenizer::new(input.encode_utf16().collect());
+    let mut document = Document::new();
+    let mut stack = vec![document.root];
+    let mut text = String::new();
+
+    fn flush_text(document: &mut Document, stack: &[usize], text: &mut String) {
+        if text.is_empty() {
+            return;
+        }
+        let parent = *stack.last().unwrap_or(&document.root);
+        document.append(parent, NodeKind::Text(std::mem::take(text)));
+    }
+
+    while let Some(token) = tokenizer.next_token(false, false) {
+        match token.token_type {
+            TokenType::Character => {
+                text.push(char::from_u32(token.code_point).unwrap_or('�'));
+            }
+            TokenType::StartTag => {
+                flush_text(&mut document, &stack, &mut text);
+                let TokenPayload::Tag {
+                    tag_name,
+                    self_closing,
+                    attributes,
+                    ..
+                } = token.payload
+                else {
+                    continue;
+                };
+
+                let name = tag_name.as_str().to_ascii_lowercase();
+                if name.is_empty() {
+                    continue;
+                }
+
+                auto_close_before_start(&document, &mut stack, &name);
+                let parent = *stack.last().unwrap_or(&document.root);
+                let attributes = attributes
+                    .into_iter()
+                    .map(|attribute| Attribute {
+                        name: attribute.local_name.as_str().to_ascii_lowercase(),
+                        value: attribute.value,
+                    })
+                    .collect::<Vec<_>>();
+
+                let id = document.append(
+                    parent,
+                    NodeKind::Element {
+                        tag: name.clone(),
+                        attributes,
+                    },
+                );
+
+                let is_void = VOID_TAGS.contains(&name.as_str());
+                if !self_closing && !is_void {
+                    stack.push(id);
+                }
+
+                match name.as_str() {
+                    "script" => tokenizer.switch_to(State::ScriptData),
+                    "style" => tokenizer.switch_to(State::RAWTEXT),
+                    "textarea" | "title" => tokenizer.switch_to(State::RCDATA),
+                    "plaintext" => tokenizer.switch_to(State::PLAINTEXT),
+                    _ => {}
+                }
+            }
+            TokenType::EndTag => {
+                flush_text(&mut document, &stack, &mut text);
+                let TokenPayload::Tag { tag_name, .. } = token.payload else {
+                    continue;
+                };
+                let closing = tag_name.as_str().to_ascii_lowercase();
+                if let Some(position) = stack.iter().rposition(|id| {
+                    matches!(
+                        &document.nodes[*id].kind,
+                        NodeKind::Element { tag, .. } if tag == &closing
+                    )
+                }) {
+                    if position > 0 {
+                        stack.truncate(position);
+                    }
+                }
+                tokenizer.switch_to(State::Data);
+            }
+            TokenType::EndOfFile => {
+                flush_text(&mut document, &stack, &mut text);
+                break;
+            }
+            TokenType::Comment | TokenType::Doctype | TokenType::Invalid => {
+                flush_text(&mut document, &stack, &mut text);
+            }
+        }
+    }
+
+    flush_text(&mut document, &stack, &mut text);
     document
 }
 
