@@ -482,7 +482,7 @@ impl ApplicationHandler<WakeEvent> for App {
     ) {
         let Self::Running(state) = self else { return; };
 
-        if event == WindowEvent::RedrawRequested {
+        if matches!(&event, WindowEvent::RedrawRequested) {
             state.servo.spin_event_loop();
             state.draw();
             return;
