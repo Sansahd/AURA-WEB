@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: fusion-compile-mac
-  cancel-in-progress: true
+  group: fusion-compile-mac-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   core:
