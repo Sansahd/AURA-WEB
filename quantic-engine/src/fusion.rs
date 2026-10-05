@@ -59,8 +59,8 @@ pub const FUSION_COMPONENTS: &[FusionComponent] = &[
     FusionComponent {
         name: "Ladybird LibWeb",
         family: UpstreamFamily::LadybirdLibWeb,
-        role: "HTML/CSS behavior source and differential-conformance oracle during ports",
-        runtime: false,
+        role: "LibWeb HTML tokenizer state machine embedded in Quantic DOM path; CSS behavior remains a differential-conformance source",
+        runtime: cfg!(feature = "fusion-ladybird-html"),
     },
 ];
 
