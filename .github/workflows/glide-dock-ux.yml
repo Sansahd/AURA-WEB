@@ -5,6 +5,7 @@ on:
     branches:
       - "quantic-fusion-servo-gecko-ladybird"
     paths:
+      - "quantic-engine/Cargo.toml"
       - "quantic-engine/src/bin/qglide.rs"
       - "quantic-engine/src/browser.rs"
       - "quantic-engine/src/lib.rs"
