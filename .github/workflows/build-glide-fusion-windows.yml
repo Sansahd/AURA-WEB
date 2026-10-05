@@ -1,0 +1,118 @@
+name: Build Quantic Glide Fusion Windows
+
+on:
+  push:
+    branches: ["quantic-fusion-servo-gecko-ladybird"]
+    paths:
+      - "fusion/servo-runtime/**"
+      - "quantic-engine/**"
+      - ".github/workflows/build-glide-fusion-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: glide-fusion-windows
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify Fusion dependency contract
+        shell: pwsh
+        working-directory: fusion/servo-runtime
+        run: |
+          cargo tree | Out-File fusion-tree.txt
+          $tree = Get-Content fusion-tree.txt -Raw
+          foreach ($needle in @('servo v0.7', 'mozjs', 'webrender', 'quantic-ladybird-html')) {
+            if ($tree -notmatch [regex]::Escape($needle)) {
+              Write-Host $tree
+              throw "Required Fusion component missing: $needle"
+            }
+          }
+          if ($tree -match 'chromium|electron|cef|webview2') {
+            Write-Host $tree
+            throw "Forbidden Chromium-family dependency detected"
+          }
+          Write-Host "QUANTIC FUSION CONTRACT PASSED"
+
+      - name: Check Fusion shell
+        working-directory: fusion/servo-runtime
+        run: cargo check
+
+      - name: Build Fusion executable
+        working-directory: fusion/servo-runtime
+        run: cargo build --release
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Prepare installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item "fusion\servo-runtime\target\release\quantic-fusion-servo-runtime.exe" "dist\QuanticGlideFusion.exe"
+
+          @'
+          Unicode True
+          !include "MUI2.nsh"
+          Name "Quantic Glide Fusion"
+          OutFile "Quantic-Glide-Fusion-Setup.exe"
+          InstallDir "$LOCALAPPDATA\Programs\Quantic Glide Fusion"
+          RequestExecutionLevel user
+
+          !define MUI_ABORTWARNING
+          !insertmacro MUI_PAGE_WELCOME
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          !insertmacro MUI_PAGE_FINISH
+          !insertmacro MUI_LANGUAGE "French"
+
+          Section "Quantic Glide Fusion"
+            SetOutPath "$INSTDIR"
+            File "dist\QuanticGlideFusion.exe"
+            CreateDirectory "$SMPROGRAMS\Quantic Glide Fusion"
+            CreateShortcut "$DESKTOP\Quantic Glide Fusion.lnk" "$INSTDIR\QuanticGlideFusion.exe"
+            CreateShortcut "$SMPROGRAMS\Quantic Glide Fusion\Quantic Glide Fusion.lnk" "$INSTDIR\QuanticGlideFusion.exe"
+            WriteUninstaller "$INSTDIR\Uninstall.exe"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideFusion" "DisplayName" "Quantic Glide Fusion"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideFusion" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideFusion" "DisplayVersion" "0.7.0-fusion.1"
+            Exec "$INSTDIR\QuanticGlideFusion.exe"
+          SectionEnd
+
+          Section "Uninstall"
+            Delete "$DESKTOP\Quantic Glide Fusion.lnk"
+            Delete "$SMPROGRAMS\Quantic Glide Fusion\Quantic Glide Fusion.lnk"
+            RMDir "$SMPROGRAMS\Quantic Glide Fusion"
+            Delete "$INSTDIR\QuanticGlideFusion.exe"
+            Delete "$INSTDIR\Uninstall.exe"
+            RMDir "$INSTDIR"
+            DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideFusion"
+          SectionEnd
+          '@ | Set-Content -Encoding UTF8 installer-fusion.nsi
+
+          $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          & $makensis installer-fusion.nsi
+
+      - name: Verify executable and installer hashes
+        shell: pwsh
+        run: |
+          Get-FileHash dist\QuanticGlideFusion.exe -Algorithm SHA256 | Format-List
+          Get-FileHash Quantic-Glide-Fusion-Setup.exe -Algorithm SHA256 | Format-List
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quantic-Glide-Fusion-Windows
+          path: Quantic-Glide-Fusion-Setup.exe
+          if-no-files-found: error
+          retention-days: 7
