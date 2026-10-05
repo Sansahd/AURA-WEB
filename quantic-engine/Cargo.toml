@@ -1,0 +1,57 @@
+[package]
+name = "quantic-engine"
+version = "0.5.0"
+edition = "2021"
+license = "MPL-2.0"
+description = "Experimental non-Chromium web engine core for Quantic Glide"
+
+[lib]
+name = "quantic_engine"
+path = "src/lib.rs"
+
+[[bin]]
+name = "qengine"
+path = "src/bin/qengine.rs"
+
+[[bin]]
+name = "qcompat"
+path = "src/bin/qcompat.rs"
+
+[[bin]]
+name = "qwpt"
+path = "src/bin/qwpt.rs"
+
+[[bin]]
+name = "qcareer"
+path = "src/bin/qcareer.rs"
+
+[[bin]]
+name = "qglide"
+path = "src/bin/qglide.rs"
+
+[dependencies]
+boa_engine = { version = "0.22.0", default-features = false }
+font8x8 = "0.3.1"
+fontdb = "0.24.0"
+fontdue = "0.9.4"
+rustybuzz = "0.20.1"
+unicode-segmentation = "1.13.3"
+oxifont-webfont = { version = "0.2.2", features = ["woff1", "woff2"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp", "avif"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+ureq = { version = "2.12.1", default-features = false, features = ["tls"] }
+url = "2.5"
+urlencoding = "2.1"
+tungstenite = { version = "0.30.0", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
+eframe = { version = "0.33.0", default-features = false, features = ["default_fonts", "glow"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dist]
+inherits = "release"
+lto = "fat"
