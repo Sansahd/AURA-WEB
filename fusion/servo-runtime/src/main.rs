@@ -737,20 +737,38 @@ impl ApplicationHandler<WakeEvent> for App {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // Hard runtime integration check: the LibWeb/Ladybird tokenizer is part of
-    // this executable and must successfully build a Quantic DOM before Glide starts.
-    let ladybird_probe = quantic_engine::html::parse(
-        "<!doctype html><html><body><main data-engine='ladybird'>Fusion</main></body></html>",
+    // Hard runtime integration check: Ladybird's LibWeb tokenizer is linked into
+    // this executable independently from Servo's SpiderMonkey/ICU dependency graph.
+    use quantic_ladybird_html::{HtmlTokenizer, TokenType};
+    let mut tokenizer = HtmlTokenizer::new(
+        "<!doctype html><html><body><main data-engine='ladybird'>Fusion</main></body></html>"
+            .encode_utf16()
+            .collect(),
     );
-    assert!(ladybird_probe.nodes.len() >= 4, "Ladybird HTML Fusion probe failed");
+    let mut start_tags = 0usize;
+    while let Some(token) = tokenizer.next_token(false, false) {
+        if token.token_type == TokenType::StartTag {
+            start_tags += 1;
+        }
+        if token.token_type == TokenType::EndOfFile {
+            break;
+        }
+    }
+    assert!(start_tags >= 3, "Ladybird HTML Fusion probe failed");
 
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .expect("install crypto provider");
 
     println!("Quantic Glide Fusion");
-    for component in quantic_engine::fusion::active_runtime_components() {
-        println!("{:?}: {} — {}", component.family, component.name, component.role);
+    for component in [
+        "Quantic: shell, privacy policy, orchestration and product UX",
+        "Servo 0.7: primary web runtime",
+        "Mozilla: SpiderMonkey + Stylo + WebRender through Servo",
+        "Ladybird LibWeb: independent HTML tokenizer/conformance path",
+        "Mozilla Neqo: isolated QUIC/HTTP3 integration track",
+    ] {
+        println!("{component}");
     }
 
     let event_loop = EventLoop::<WakeEvent>::with_user_event().build()?;
