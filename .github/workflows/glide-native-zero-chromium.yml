@@ -3,7 +3,7 @@ name: Build Native Zero Chromium Glide
 on:
   push:
     branches:
-      - "engine/glide-native-zero-chromium"
+      - "native-zero-chromium"
     paths:
       - "quantic-engine/**"
       - ".github/workflows/glide-native-zero-chromium.yml"
