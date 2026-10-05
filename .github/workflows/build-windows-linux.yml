@@ -25,7 +25,15 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Check
         run: npm run check
+      - name: Prepare Wine home
+        run: |
+          mkdir -p /tmp/winehome /tmp/wineprefix
+          chmod 777 /tmp/winehome /tmp/wineprefix
+
       - name: Build Windows NSIS
+        env:
+          HOME: /tmp/winehome
+          WINEPREFIX: /tmp/wineprefix
         run: npm run dist
       - name: Show dist
         run: ls -lah dist
