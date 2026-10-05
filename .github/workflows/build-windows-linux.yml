@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: aura-career-installer-linux
-  cancel-in-progress: true
+  group: aura-career-installer-linux-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   build:
