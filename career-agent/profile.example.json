@@ -1,0 +1,24 @@
+{
+  "identity": {
+    "fullName": "YOUR NAME",
+    "email": "you@example.com",
+    "phone": "+33...",
+    "location": "Paris, France"
+  },
+  "headline": "Chef de projet Innovation & Digital",
+  "targetRoles": [
+    "Chef de projet innovation",
+    "Chef de projet digital",
+    "Chargé d'innovation"
+  ],
+  "skills": [
+    "Relation client",
+    "Analyse des besoins",
+    "Gestion de projet digital",
+    "IA générative",
+    "UX"
+  ],
+  "experience": [
+    "Describe only verified experience here"
+  ]
+}
