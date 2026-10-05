@@ -50,8 +50,8 @@ jobs:
       - name: Check native Career agent
         run: cargo check --bin qcareer
 
-      - name: Build native release
-        run: cargo build --release --bin qglide --bin qcareer
+      - name: Build native binaries
+        run: cargo build --bin qglide --bin qcareer
 
       - name: Prepare installer payload
         shell: pwsh
