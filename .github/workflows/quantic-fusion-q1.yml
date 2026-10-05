@@ -77,5 +77,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Check standalone Ladybird tokenizer integration
         run: cargo check --features fusion-ladybird-html --lib
-      - name: Run Quantic HTML tests through Ladybird tokenizer
-        run: cargo test --features fusion-ladybird-html html::tests
+      - name: Run focused Ladybird HTML contract tests
+        run: cargo test --features fusion-ladybird-html --test ladybird_html_contract
