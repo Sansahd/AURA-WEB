@@ -8,6 +8,7 @@ const NETWORK_MODES = new Set(['balanced', 'private']);
 const SIDE_ACTIONS = new Set(['toggle', 'select', 'close', 'reload', 'collapse']);
 const SIDE_APPS = new Set(['youtube', 'twitch', 'spotify', 'netflix', 'proton']);
 function isString(value, max = 8192) { return typeof value === 'string' && value.length <= max; }
+function isPlainObject(value) { return Boolean(value) && typeof value === 'object' && !Array.isArray(value); }
 function isPositiveId(value) { return Number.isSafeInteger(value) && value > 0; }
 function isHttpUrl(value) { if (!isString(value, 8192)) return false; try { const url = new URL(value); return url.protocol === 'http:' || url.protocol === 'https:'; } catch { return false; } }
 function isAppearancePatch(value) {
@@ -21,6 +22,27 @@ function isAppearancePatch(value) {
   return true;
 }
 function isSideAction(value) { if (!isString(value, 64)) return false; const [action, app = ''] = value.split(':', 2); return SIDE_ACTIONS.has(action) && (app === '' || SIDE_APPS.has(app)); }
+function isCareerSettingsPatch(value) {
+  if (!isPlainObject(value)) return false;
+  const allowed = new Set(['autopilot', 'autoSubmit', 'minScore', 'maxOffers', 'maxDaily']);
+  for (const key of Object.keys(value)) if (!allowed.has(key)) return false;
+  if ('autopilot' in value && typeof value.autopilot !== 'boolean') return false;
+  if ('autoSubmit' in value && typeof value.autoSubmit !== 'boolean') return false;
+  if ('minScore' in value && (!Number.isFinite(value.minScore) || value.minScore < 0 || value.minScore > 100)) return false;
+  if ('maxOffers' in value && (!Number.isSafeInteger(value.maxOffers) || value.maxOffers < 1 || value.maxOffers > 50)) return false;
+  if ('maxDaily' in value && (!Number.isSafeInteger(value.maxDaily) || value.maxDaily < 1 || value.maxDaily > 100)) return false;
+  return true;
+}
+function isCareerRunOptions(value) {
+  if (!isPlainObject(value)) return false;
+  const allowed = new Set(['autoSubmit', 'minScore', 'maxOffers', 'maxDaily']);
+  for (const key of Object.keys(value)) if (!allowed.has(key)) return false;
+  if ('autoSubmit' in value && typeof value.autoSubmit !== 'boolean') return false;
+  if ('minScore' in value && (!Number.isFinite(value.minScore) || value.minScore < 0 || value.minScore > 100)) return false;
+  if ('maxOffers' in value && (!Number.isSafeInteger(value.maxOffers) || value.maxOffers < 1 || value.maxOffers > 50)) return false;
+  if ('maxDaily' in value && (!Number.isSafeInteger(value.maxDaily) || value.maxDaily < 1 || value.maxDaily > 100)) return false;
+  return true;
+}
 function noArgs(args) { return args.length === 0; }
 const CHANNEL_VALIDATORS = Object.freeze({
   'get-state': noArgs,
@@ -40,6 +62,13 @@ const CHANNEL_VALIDATORS = Object.freeze({
   'pick-wallpaper': noArgs,
   'wallpaper-data': noArgs,
   'ai-action': (args) => args.length === 2 && AI_ACTIONS.has(args[0]) && isString(args[1], 16000),
+  'career-status': noArgs,
+  'career-settings': (args) => args.length === 1 && isCareerSettingsPatch(args[0]),
+  'career-run': (args) => args.length === 1 && isCareerRunOptions(args[0]),
+  'career-stop': noArgs,
+  'career-folder': noArgs,
+  'career-open-folder': noArgs,
+  'career-import': noArgs,
   'window-control': (args) => args.length === 1 && WINDOW_ACTIONS.has(args[0]),
   'set-chrome-lock': (args) => args.length === 1 && typeof args[0] === 'boolean',
   'set-setting': (args) => {
