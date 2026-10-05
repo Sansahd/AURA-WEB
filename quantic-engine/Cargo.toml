@@ -50,7 +50,8 @@ fusion-gecko-network = [
   "dep:neqo-http3",
   "dep:neqo-transport",
 ]
-fusion = ["fusion-servo", "fusion-gecko-network"]
+fusion-ladybird-html = ["dep:quantic-ladybird-html"]
+fusion = ["fusion-servo", "fusion-gecko-network", "fusion-ladybird-html"]
 
 [dependencies]
 boa_engine = { version = "0.22.0", default-features = false }
@@ -68,6 +69,9 @@ url = "2.5"
 urlencoding = "2.1"
 tungstenite = { version = "0.30.0", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
 eframe = { version = "0.33.0", default-features = false, features = ["default_fonts", "glow"] }
+
+# Ladybird LibWeb HTML tokenizer, adapted as a standalone Rust crate under BSD-2-Clause.
+quantic-ladybird-html = { path = "vendor/ladybird_html", optional = true }
 
 # Quantic Fusion upstream engines/components.
 # Servo is the primary standards/runtime backend. It brings Stylo, SpiderMonkey and WebRender.
