@@ -1,0 +1,25 @@
+{
+  "sources": [
+    {
+      "name": "LinkedIn",
+      "url": "https://www.linkedin.com/jobs/search/?keywords=chef%20de%20projet%20innovation&location=Paris%2C%20%C3%8Ele-de-France%2C%20France",
+      "linkContains": [
+        "/jobs/view/"
+      ]
+    },
+    {
+      "name": "France Travail",
+      "url": "https://candidat.francetravail.fr/offres/recherche?motsCles=chef%20de%20projet%20digital",
+      "linkContains": [
+        "/offres/recherche/detail/"
+      ]
+    },
+    {
+      "name": "Welcome to the Jungle",
+      "url": "https://www.welcometothejungle.com/fr/jobs?query=chef%20de%20projet%20innovation",
+      "linkContains": [
+        "/jobs/"
+      ]
+    }
+  ]
+}
