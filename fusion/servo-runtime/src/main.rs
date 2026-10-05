@@ -15,7 +15,7 @@ use servo::{
     PermissionRequest, RenderingContext, Servo, ServoBuilder, WebResourceLoad, WebResourceResponse,
     WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
 };
-use servo_embedder_traits::EventLoopWaker;
+use embedder_traits::EventLoopWaker;
 use url::Url;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent};
