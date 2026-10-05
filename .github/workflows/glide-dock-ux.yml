@@ -1,0 +1,43 @@
+name: Glide Dock UX
+
+on:
+  push:
+    branches:
+      - "quantic-fusion-servo-gecko-ladybird"
+    paths:
+      - "quantic-engine/src/bin/qglide.rs"
+      - "quantic-engine/src/browser.rs"
+      - "quantic-engine/src/lib.rs"
+      - ".github/workflows/glide-dock-ux.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: glide-dock-ux
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: quantic-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check Glide Dock
+        run: cargo check --bin qglide --no-default-features
+      - name: Build Glide Dock
+        run: cargo build --bin qglide --no-default-features
+      - name: Verify zero Chromium family
+        shell: pwsh
+        run: |
+          $tree = cargo tree --bin qglide --no-default-features
+          if ($tree -match 'chromium|electron|cef|webview2') {
+            Write-Host $tree
+            throw "Forbidden browser dependency detected"
+          }
+          Write-Host "GLIDE DOCK ZERO-CHROMIUM CHECK PASSED"
