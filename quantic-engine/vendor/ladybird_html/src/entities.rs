@@ -30,20 +30,36 @@ impl NamedCharacterReferenceMatcher {
         if !ch.is_ascii() {
             return false;
         }
-        self.consumed.push(ch);
+
+        // Important: a character that does not extend any named entity must not
+        // mutate the matcher. Ladybird's tokenizer will reconsume that character.
+        // Mutating here caused the adapter to backtrack one code point too far
+        // after entities such as &amp;.
+        let mut candidate = self.consumed.clone();
+        candidate.push(ch);
 
         let mut any_prefix = false;
+        let mut exact_match = None;
         for &(name, first, second) in ENTITIES {
-            if name.starts_with(&self.consumed) {
+            if name.starts_with(&candidate) {
                 any_prefix = true;
             }
-            if name == self.consumed {
-                self.last_match = Some((first, second));
-                self.last_match_len = self.consumed.len();
-                self.ends_with_semicolon = name.ends_with(';');
+            if name == candidate {
+                exact_match = Some((first, second, name.ends_with(';')));
             }
         }
-        any_prefix
+
+        if !any_prefix {
+            return false;
+        }
+
+        self.consumed = candidate;
+        if let Some((first, second, ends_with_semicolon)) = exact_match {
+            self.last_match = Some((first, second));
+            self.last_match_len = self.consumed.len();
+            self.ends_with_semicolon = ends_with_semicolon;
+        }
+        true
     }
 
     pub fn code_points(&self) -> Option<(u32, u32)> {
