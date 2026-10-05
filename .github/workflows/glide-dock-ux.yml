@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
       run:
@@ -28,16 +28,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Linux GUI build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libx11-dev libxi-dev libxcursor-dev libxrandr-dev libxinerama-dev libxkbcommon-dev libgl1-mesa-dev
+
       - name: Check Glide Dock
         run: cargo check --bin qglide --no-default-features
       - name: Build Glide Dock
         run: cargo build --bin qglide --no-default-features
       - name: Verify zero Chromium family
-        shell: pwsh
+        shell: bash
         run: |
-          $tree = cargo tree --bin qglide --no-default-features
-          if ($tree -match 'chromium|electron|cef|webview2') {
-            Write-Host $tree
-            throw "Forbidden browser dependency detected"
-          }
-          Write-Host "GLIDE DOCK ZERO-CHROMIUM CHECK PASSED"
+          cargo tree --no-default-features > glide-tree.txt
+          if grep -Eiq 'chromium|electron|cef|webview2' glide-tree.txt; then
+            cat glide-tree.txt
+            echo "Forbidden browser dependency detected"
+            exit 1
+          fi
+          echo "GLIDE DOCK ZERO-CHROMIUM CHECK PASSED"
