@@ -1,0 +1,129 @@
+.quantic-suite {
+  width: min(980px, calc(100vw - 72px));
+  margin: 18px auto 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quantic-suite-card {
+  min-height: 76px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 16px;
+  background: rgba(7,13,26,.48);
+  color: rgba(255,255,255,.94);
+  text-align: left;
+  cursor: pointer;
+  transition: transform .14s ease, border-color .14s ease, background .14s ease;
+}
+
+.quantic-suite-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--quantic-accent) 55%, transparent);
+  background: rgba(12,20,38,.68);
+}
+
+.quantic-suite-card strong,
+.quantic-suite-card span {
+  display: block;
+}
+
+.quantic-suite-card strong {
+  font-size: 13px;
+  letter-spacing: .01em;
+}
+
+.quantic-suite-card span {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(255,255,255,.58);
+}
+
+.quantic-suite-card .suite-status {
+  margin-top: 7px;
+  color: color-mix(in srgb, var(--quantic-accent) 78%, white);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.quantic-suite-panel {
+  width: min(780px, calc(100vw - 72px));
+  margin: 12px auto 0;
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 18px;
+  background: rgba(5,10,22,.76);
+  box-shadow: 0 18px 42px rgba(0,0,0,.18);
+}
+
+.quantic-suite-panel.hidden { display: none; }
+.quantic-suite-head { display: flex; align-items: center; gap: 12px; }
+.quantic-suite-head h2 { margin: 0; font-size: 18px; }
+.quantic-suite-head button { margin-left: auto; }
+.quantic-suite-body { margin-top: 12px; color: rgba(255,255,255,.78); font-size: 13px; line-height: 1.5; }
+.quantic-suite-body code { color: rgba(255,255,255,.92); word-break: break-all; }
+.quantic-suite-body input,
+.quantic-suite-body textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  outline: none;
+  background: rgba(3,8,18,.68);
+  color: #fff;
+}
+.quantic-suite-body textarea { min-height: 92px; resize: vertical; }
+.quantic-suite-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.quantic-suite-actions button,
+.quantic-suite-head button {
+  padding: 8px 11px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 11px;
+  background: rgba(255,255,255,.07);
+  color: #fff;
+  cursor: pointer;
+}
+.quantic-suite-list { display: grid; gap: 8px; margin-top: 10px; }
+.quantic-suite-item { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.07); }
+.quantic-suite-note { margin-top: 8px; color: rgba(255,255,255,.54); font-size: 11px; }
+.quantic-proof-hash { margin-top: 10px; padding: 10px; border-radius: 12px; background: rgba(0,0,0,.18); }
+
+.quantic-footer {
+  width: min(980px, calc(100vw - 72px));
+  margin: 16px auto 22px;
+  text-align: center;
+  font-size: 11px;
+}
+
+.quantic-footer a {
+  color: rgba(255,255,255,.50);
+  text-decoration: none;
+  transition: color .14s ease;
+}
+.quantic-footer a:hover { color: rgba(255,255,255,.88); }
+
+#sidestage {
+  color: color-mix(in srgb, var(--quantic-accent) 82%, white);
+  font-weight: 800;
+}
+
+body.has-wallpaper .quantic-suite-card,
+body.has-wallpaper .quantic-suite-panel {
+  background: rgba(5,10,22,.74);
+  border-color: rgba(255,255,255,.18);
+}
+
+@media (max-width: 1050px) {
+  .quantic-suite { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .quantic-suite { grid-template-columns: repeat(2, minmax(0, 1fr)); width: calc(100vw - 32px); }
+  .quantic-suite-panel, .quantic-footer { width: calc(100vw - 32px); }
+}
