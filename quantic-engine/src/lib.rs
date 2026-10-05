@@ -1,5 +1,6 @@
-pub mod fusion;
 #![forbid(unsafe_code)]
+
+pub mod fusion;
 
 pub mod automation;
 pub mod browser;
