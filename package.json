@@ -1,13 +1,13 @@
 {
   "name": "quantic-glide-aura-career",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "Quantic Glide with integrated AURA Career",
   "main": "src/bootstrap.cjs",
   "author": "Quantic",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/security/ipc-firewall.cjs && node --check src/services/career-agent.cjs",
+    "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/security/ipc-firewall.cjs && node --check src/core/internal-state.cjs && node --check src/services/career-agent.cjs && node --check src/services/sidestage.cjs && node --check src/services/sidestage-manager.cjs",
     "dist": "electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
@@ -44,7 +44,7 @@
       "deleteAppDataOnUninstall": false,
       "displayLanguageSelector": false
     },
-    "artifactName": "Quantic-Glide-AURA-Career-Setup-v1.3.3.${ext}",
+    "artifactName": "Quantic-Glide-AURA-Career-Setup-v1.3.4.${ext}",
     "directories": {
       "buildResources": "build",
       "output": "dist"
