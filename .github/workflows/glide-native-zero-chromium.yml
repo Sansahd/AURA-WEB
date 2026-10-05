@@ -112,7 +112,10 @@ jobs:
 
       - name: Build installer
         shell: pwsh
-        run: makensis installer.nsi
+        run: |
+          $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          if (-not (Test-Path $makensis)) { throw "NSIS compiler not found: $makensis" }
+          & $makensis installer.nsi
 
       - name: SHA256
         shell: pwsh
