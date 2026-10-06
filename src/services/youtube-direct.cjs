@@ -36,15 +36,14 @@ function directRequestUrl(videoId) {
 }
 
 function parseDirectRequest(raw = '') {
-  if (!String(raw).startsWith(DIRECT_SCHEME_PREFIX)) return '';
+  const value = String(raw || '');
+  if (!value.startsWith(DIRECT_SCHEME_PREFIX)) return '';
   try {
-    const url = new URL(raw);
-    const id = decodeURIComponent(url.pathname.replace(/^\/+/, '') || url.hostname === 'youtube' ? url.pathname.replace(/^\/+/, '') : '');
-    if (/^[A-Za-z0-9_-]{6,32}$/.test(id)) return id;
-  } catch {}
-
-  const id = decodeURIComponent(String(raw).slice(DIRECT_SCHEME_PREFIX.length).split(/[?#]/, 1)[0] || '');
-  return /^[A-Za-z0-9_-]{6,32}$/.test(id) ? id : '';
+    const id = decodeURIComponent(value.slice(DIRECT_SCHEME_PREFIX.length).split(/[?#]/, 1)[0] || '');
+    return /^[A-Za-z0-9_-]{6,32}$/.test(id) ? id : '';
+  } catch {
+    return '';
+  }
 }
 
 function isAllowedDirectStreamUrl(raw = '') {
