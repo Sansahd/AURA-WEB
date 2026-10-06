@@ -57,6 +57,7 @@ pub const YOUTUBE_CLEAN_PLAYBACK_SCRIPT: &str = r#"
   };
 
   let initialPlayerResponse;
+  try { initialPlayerResponse = sanitize(window.ytInitialPlayerResponse); } catch (_) {}
   try {
     Object.defineProperty(window, "ytInitialPlayerResponse", {
       configurable: true,
@@ -215,7 +216,10 @@ pub const YOUTUBE_CLEAN_PLAYBACK_SCRIPT: &str = r#"
     });
   } catch (_) {}
 
-  setInterval(killActiveAd, 350);
+  setInterval(() => {
+    installStyle();
+    killActiveAd();
+  }, 350);
 })();
 "#;
 
