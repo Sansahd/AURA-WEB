@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 quantic-ladybird-html = { path = "../../quantic-engine/vendor/ladybird_html" }
+quantic-fusion-mozilla-network = { path = "../mozilla-network" }
 servo = { path = "../../vendor/servo/components/servo", default-features = false, features = ["bundled", "js_jit", "clipboard"] }
 servo-embedder-traits = { path = "../../vendor/servo/components/shared/embedder" }
 winit = "0.30.13"
