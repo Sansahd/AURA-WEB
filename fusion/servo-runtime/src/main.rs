@@ -41,7 +41,7 @@ use winit::window::{Fullscreen, Window};
 use aura::{AuraAction, AuraReply};
 use quantic_fusion_mozilla_network::{fetch_https as neqo_fetch_https, probe_https as neqo_probe_https};
 use privacy::{PrivacyStats, classify_resource};
-use youtube::YOUTUBE_CLEAN_PLAYBACK_SCRIPT;
+use youtube::{YOUTUBE_CLEAN_PLAYBACK_SCRIPT, is_youtube_ad_resource};
 
 const GEKKO_VERSION: &str = env!("CARGO_PKG_VERSION");
 const START_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com";
@@ -361,6 +361,7 @@ struct FusionState {
     cursor_point: Cell<(f32, f32)>,
     modifiers_state: Cell<ModifiersState>,
     blocked_resources: Cell<u64>,
+    youtube_ads_blocked: Cell<u64>,
     privacy_stats: RefCell<PrivacyStats>,
     permissions_denied: Cell<u64>,
     downloads_completed: Cell<u64>,
@@ -706,6 +707,10 @@ impl servo::WebViewDelegate for FusionDelegate {
     }
 
     fn load_web_resource(&self, _webview: WebView, load: WebResourceLoad) {
+        let youtube_ad = is_youtube_ad_resource(
+            &load.request.url,
+            load.request.referrer_url.as_ref(),
+        );
         let reason = classify_resource(
             &load.request.url,
             load.request.referrer_url.as_ref(),
@@ -715,12 +720,22 @@ impl servo::WebViewDelegate for FusionDelegate {
         if let Some(reason) = reason {
             self.with_state(|state| {
                 state.blocked_resources.set(state.blocked_resources.get() + 1);
+                if youtube_ad {
+                    state.youtube_ads_blocked.set(state.youtube_ads_blocked.get().saturating_add(1));
+                }
                 state.privacy_stats.borrow_mut().record(reason);
-                *state.status.borrow_mut() = format!(
-                    "Bloqué · {} · {}",
-                    reason.label(),
-                    load.request.url.host_str().unwrap_or("ressource tierce")
-                );
+                *state.status.borrow_mut() = if youtube_ad {
+                    format!(
+                        "YouTube Clean · pub bloquée · {}",
+                        load.request.url.host_str().unwrap_or("YouTube")
+                    )
+                } else {
+                    format!(
+                        "Bloqué · {} · {}",
+                        reason.label(),
+                        load.request.url.host_str().unwrap_or("ressource tierce")
+                    )
+                };
                 state.window.request_redraw();
             });
 
@@ -1665,6 +1680,7 @@ impl FusionState {
                         ui.label(egui::RichText::new(format!("{} ressources bloquées", self.blocked_resources.get())).size(10.0).color(TEXT));
                         let stats = *self.privacy_stats.borrow();
                         ui.label(egui::RichText::new(format!("{} pubs · {} analytics · {} social", stats.advertising, stats.analytics, stats.social)).size(9.0).color(MUTED));
+                        ui.label(egui::RichText::new(format!("YouTube Clean · {} pub(s) réseau bloquée(s)", self.youtube_ads_blocked.get())).size(9.0).color(ACCENT));
                         ui.label(egui::RichText::new(format!("{} télémétrie · {} fingerprint · {} HTTP", stats.telemetry, stats.fingerprinting, stats.insecure)).size(9.0).color(MUTED));
                         ui.label(egui::RichText::new(format!(
                             "{} permissions autorisées · {} bloquées",
@@ -2404,6 +2420,7 @@ impl ApplicationHandler<WakeEvent> for App {
             cursor_point: Cell::new((0.0, 0.0)),
             modifiers_state: Cell::new(ModifiersState::empty()),
             blocked_resources: Cell::new(0),
+            youtube_ads_blocked: Cell::new(0),
             privacy_stats: RefCell::new(PrivacyStats::default()),
             permissions_denied: Cell::new(0),
             downloads_completed: Cell::new(0),
