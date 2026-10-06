@@ -38,7 +38,7 @@ fn filename_from_content_disposition(value: &str) -> Option<String> {
             return urlencoding::decode(encoded).ok().map(|value| value.into_owned());
         }
         if let Some(raw) = part.strip_prefix("filename=") {
-            let raw = raw.trim_matches('"').trim_matches(''');
+            let raw = raw.trim_matches('"').trim_matches(char::from(39));
             if !raw.is_empty() {
                 return Some(raw.to_string());
             }
@@ -94,8 +94,19 @@ fn unique_path(dir: &Path, filename: &str) -> PathBuf {
     dir.join(format!("{stem}-copy"))
 }
 
+pub fn destination_path(url: &Url, suggested_filename: Option<&str>) -> Option<PathBuf> {
+    let filename = suggested_filename
+        .filter(|value| !value.trim().is_empty())
+        .map(sanitize_filename)
+        .unwrap_or_else(|| sanitize_filename(&fallback_filename(url)));
+    let dir = default_download_dir()?;
+    fs::create_dir_all(&dir).ok()?;
+    Some(unique_path(&dir, &filename))
+}
+
 pub fn download_to_default(
     url: Url,
+    suggested_filename: Option<String>,
     cookie_header: Option<String>,
     referrer: Option<String>,
 ) -> DownloadOutcome {
@@ -103,7 +114,7 @@ pub fn download_to_default(
 
     let result = (|| -> Result<(PathBuf, u64), Box<dyn std::error::Error + Send + Sync>> {
         let client = Client::builder()
-            .user_agent("Quantic Glide Fusion/0.1")
+            .user_agent("Quantic Glide Fusion/0.2")
             .redirect(reqwest::redirect::Policy::limited(10))
             .build()?;
 
@@ -116,25 +127,25 @@ pub fn download_to_default(
         }
 
         let mut response = request.send()?.error_for_status()?;
-        let filename = response
+        let response_filename = response
             .headers()
             .get(CONTENT_DISPOSITION)
             .and_then(|value| value.to_str().ok())
-            .and_then(filename_from_content_disposition)
-            .unwrap_or_else(|| fallback_filename(response.url()));
+            .and_then(filename_from_content_disposition);
 
-        let filename = sanitize_filename(&filename);
-        let dir = default_download_dir().ok_or("download directory unavailable")?;
-        fs::create_dir_all(&dir)?;
+        let final_path = destination_path(
+            response.url(),
+            suggested_filename
+                .as_deref()
+                .or(response_filename.as_deref()),
+        )
+        .ok_or("download directory unavailable")?;
 
-        let final_path = unique_path(&dir, &filename);
-        let temp_path = final_path.with_extension(
-            final_path
-                .extension()
-                .and_then(|value| value.to_str())
-                .map(|ext| format!("{ext}.part"))
-                .unwrap_or_else(|| "part".into()),
-        );
+        let temp_path = {
+            let mut value = final_path.as_os_str().to_os_string();
+            value.push(".part");
+            PathBuf::from(value)
+        };
 
         let mut file = File::create(&temp_path)?;
         let bytes = match response.copy_to(&mut file) {
@@ -179,5 +190,12 @@ mod tests {
     #[test]
     fn sanitizes_path_characters() {
         assert_eq!(sanitize_filename("../bad:name?.zip"), "_bad_name_.zip");
+    }
+
+    #[test]
+    fn prefers_server_or_dom_filename() {
+        let url = Url::parse("https://example.com/export?id=42").unwrap();
+        let path = destination_path(&url, Some("report.pdf")).unwrap();
+        assert_eq!(path.file_name().and_then(|name| name.to_str()), Some("report.pdf"));
     }
 }
