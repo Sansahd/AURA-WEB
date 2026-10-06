@@ -41,7 +41,7 @@
         <button id="home-button" title="Accueil" aria-label="Accueil"><span>⌂</span><small>Home</small></button>
         <button id="discover" title="Découvrir" aria-label="Découvrir"><span>◎</span><small>Discover</small></button>
         <button id="bookmarks" title="Favoris" aria-label="Favoris"><span>♡</span><small>Bookmarks</small></button>
-        <button id="sidestage" title="Apps · SideStage" aria-label="Ouvrir les apps"><span>▦</span><small>Apps</small></button>
+        <button id="apps-button" title="Apps Quantic" aria-label="Ouvrir les apps"><span>▦</span><small>Apps</small></button>
       </div>
       <div class="address glass-line">
         <span class="address-search">⌕</span>
@@ -50,6 +50,7 @@
       </div>
       <div class="dock-actions">
         <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
+        <button id="sidestage" title="SideStage · Lecteurs persistants" aria-label="Ouvrir SideStage">◫</button>
         <button id="ai" title="AURA" aria-label="AURA">✦</button>
         <button id="downloads" title="Téléchargements GEKKO" aria-label="Téléchargements">⇩</button>
         <button id="persona" title="Paramètres" aria-label="Paramètres">⚙</button>
@@ -63,6 +64,21 @@
     <img src="../assets/quantic-glide-mark.svg" alt="">
     <strong>GEKKO</strong>
   </div>
+
+  <aside id="apps-panel" class="apps-panel hidden" aria-label="Applications Quantic">
+    <div class="apps-panel-head">
+      <div><small>QUANTIC SILLAGE</small><strong>Apps</strong></div>
+      <button id="apps-close" type="button" aria-label="Fermer">×</button>
+    </div>
+    <div class="apps-grid">
+      <button class="app-tile" data-app-url="https://antiquewhite-dolphin-780448.hostingersite.com/"><span>✦</span><strong>AURA</strong><small>Intelligence</small></button>
+      <button class="app-tile" data-app-url="https://mediumorchid-badger-314305.hostingersite.com/mail/"><span>✉</span><strong>Mail</strong><small>Communication</small></button>
+      <button class="app-tile" data-app-url="https://mediumorchid-badger-314305.hostingersite.com/pulse/"><span>◉</span><strong>ZOON</strong><small>Social</small></button>
+      <button class="app-tile" data-app-url="https://mediumorchid-badger-314305.hostingersite.com/news/"><span>⌁</span><strong>News</strong><small>Information</small></button>
+      <button class="app-tile" data-app-url="https://mediumorchid-badger-314305.hostingersite.com/vision/"><span>◇</span><strong>Providence</strong><small>Analyse</small></button>
+      <button class="app-tile" data-app-url="quantic://settings"><span>⚙</span><strong>GEKKO</strong><small>Réglages</small></button>
+    </div>
+  </aside>
 
   <section id="home" class="home">
     <div class="gekko-home-scene" aria-label="Nouvel onglet GEKKO">
