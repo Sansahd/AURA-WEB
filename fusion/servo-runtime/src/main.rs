@@ -4,6 +4,7 @@ mod aura;
 mod downloads;
 mod privacy;
 mod paths;
+mod youtube;
 
 use std::cell::{Cell, RefCell};
 use std::error::Error;
@@ -40,6 +41,7 @@ use winit::window::{Fullscreen, Window};
 use aura::{AuraAction, AuraReply};
 use quantic_fusion_mozilla_network::{fetch_https as neqo_fetch_https, probe_https as neqo_probe_https};
 use privacy::{PrivacyStats, classify_resource};
+use youtube::YOUTUBE_CLEAN_PLAYBACK_SCRIPT;
 
 const GEKKO_VERSION: &str = env!("CARGO_PKG_VERSION");
 const START_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com";
@@ -2358,6 +2360,7 @@ impl ApplicationHandler<WakeEvent> for App {
         let user_content_manager = Rc::new(UserContentManager::new(&servo));
         user_content_manager.add_script(Rc::new(UserScript::from(DOWNLOAD_BRIDGE_SCRIPT)));
         user_content_manager.add_script(Rc::new(UserScript::from(PRIVACY_HARDENING_SCRIPT)));
+        user_content_manager.add_script(Rc::new(UserScript::from(YOUTUBE_CLEAN_PLAYBACK_SCRIPT)));
 
         let configured_start = std::env::var("GEKKO_START_URL")
             .ok()
