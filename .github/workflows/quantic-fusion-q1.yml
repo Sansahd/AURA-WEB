@@ -5,6 +5,7 @@ on:
     branches:
       - "quantic-fusion-servo-gecko-ladybird"
       - "gekko-next-privacy-aura"
+      - "gekko-next-h3-full"
     paths:
       - "quantic-engine/**"
       - "fusion/**"
@@ -49,6 +50,7 @@ jobs:
         shell: pwsh
         run: |
           $runtime = Get-Content src/main.rs -Raw
+          $youtube = Get-Content src/youtube.rs -Raw
           $cargo = Get-Content Cargo.toml -Raw
           foreach ($needle in @(
             'paint_gekko_mark',
@@ -58,7 +60,8 @@ jobs:
             'GEKKO_VERSION',
             'neqo_fetch_https',
             'WakeEvent::H3Used',
-            'h3_request_is_safe'
+            'h3_request_is_safe',
+            'YOUTUBE_CLEAN_PLAYBACK_SCRIPT'
           )) {
             if ($runtime -notmatch [regex]::Escape($needle)) {
               throw "Gekko product contract missing: $needle"
@@ -80,6 +83,17 @@ jobs:
           }
           if ($cargo -notmatch 'quantic-fusion-mozilla-network') {
             throw "Live Neqo runtime dependency missing"
+          }
+          foreach ($needle in @(
+            '/youtubei/v1/player',
+            'adPlacements',
+            'googlevideo.com',
+            'MutationObserver',
+            'ad-showing'
+          )) {
+            if ($youtube -notmatch [regex]::Escape($needle)) {
+              throw "YouTube Clean Playback contract missing: $needle"
+            }
           }
           Write-Host "GEKKO PRODUCT CONTRACT PASSED"
 
