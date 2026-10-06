@@ -1,17 +1,9 @@
 name: Glide Dock UX
 
 on:
-  push:
-    branches:
-      - "quantic-fusion-servo-gecko-ladybird"
-    paths:
-      - "quantic-engine/Cargo.toml"
-      - "quantic-engine/src/bin/qglide.rs"
-      - "quantic-engine/src/browser.rs"
-      - "quantic-engine/src/lib.rs"
-      - ".github/workflows/glide-dock-ux.yml"
   workflow_dispatch:
 
+# Legacy Glide preview kept for manual regression comparison only.
 permissions:
   contents: read
 
