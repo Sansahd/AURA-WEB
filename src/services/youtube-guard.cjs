@@ -317,7 +317,29 @@ function youtubeGuardSource() {
       restorePlayback();
     }, { once: true });
 
-    window[KEY] = { refresh };
+    window[KEY] = {
+      refresh,
+      directResult(result = {}) {
+        state.directRequested = Boolean(result.ok);
+        if (!result.ok) {
+          state.adSince = 0;
+          const button = document.getElementById('gekko-direct-button');
+          if (button) {
+            const original = button.textContent;
+            button.textContent = 'DIRECT ✕';
+            button.title = String(result.error || 'Flux direct indisponible');
+            setTimeout(() => {
+              if (!button.isConnected) return;
+              button.textContent = original || 'G·DIRECT';
+              button.title = 'Lire avec GEKKO Direct';
+              state.directRequested = false;
+            }, 2600);
+          } else {
+            state.directRequested = false;
+          }
+        }
+      }
+    };
     refresh();
     return true;
   })()`;
