@@ -69,7 +69,7 @@ test('new tab matches the approved cinematic GEKKO browser composition', () => {
     'gekko-home-aurora'
   ]) assert.match(html, new RegExp(marker));
 
-  const cards = (html.match(/class="gekko-home-card/g) || []).length;
+  const cards = (html.match(/class="gekko-home-card"/g) || []).length;
   assert.equal(cards, 4);
   assert.match(html, /Private Search/);
   assert.match(html, /Secure Tabs/);
@@ -92,4 +92,19 @@ test('new tab visual controls stay functional', () => {
   assert.match(renderer, /data-home-action/);
   assert.match(renderer, /private-search/);
   assert.match(renderer, /secure-tabs/);
+});
+
+
+test('Apps button opens a real Quantic launcher', () => {
+  const html = read('src/renderer/index.html');
+  const renderer = read('src/renderer/renderer.js');
+  assert.match(html, /id="apps-panel"/);
+  assert.match(html, /id="apps-button"/);
+  assert.match(html, />AURA</);
+  assert.match(html, />Mail</);
+  assert.match(html, />ZOON</);
+  assert.match(html, />News</);
+  assert.match(html, />Providence</);
+  assert.match(renderer, /data-app-url/);
+  assert.match(renderer, /appsPanel/);
 });
