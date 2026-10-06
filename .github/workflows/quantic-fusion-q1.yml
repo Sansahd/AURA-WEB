@@ -106,15 +106,22 @@ jobs:
             $env:GEKKO_SMOKE_OUTPUT = (Join-Path $PWD "gekko-smoke.json")
             $env:GEKKO_REDUCED_MOTION = "1"
             $exe = Join-Path $PWD "target/debug/quantic-gekko-servo-runtime.exe"
-            $app = Start-Process $exe -PassThru
+            $stdout = Join-Path $PWD "gekko-smoke.stdout.log"
+            $stderr = Join-Path $PWD "gekko-smoke.stderr.log"
+            $app = Start-Process $exe -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
             try {
               Wait-Process -Id $app.Id -Timeout 60 -ErrorAction Stop
             } catch {
               Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+              Get-Content $stdout -ErrorAction SilentlyContinue | Write-Host
+              Get-Content $stderr -ErrorAction SilentlyContinue | Write-Host
               throw "Gekko E2E smoke timed out"
             }
+            $app.Refresh()
             if (!(Test-Path $env:GEKKO_SMOKE_OUTPUT)) {
-              throw "Gekko E2E output was not produced"
+              Get-Content $stdout -ErrorAction SilentlyContinue | Write-Host
+              Get-Content $stderr -ErrorAction SilentlyContinue | Write-Host
+              throw "Gekko E2E output was not produced (exit=$($app.ExitCode))"
             }
             $data = Get-Content $env:GEKKO_SMOKE_OUTPUT -Raw | ConvertFrom-Json
             foreach ($pair in @{
