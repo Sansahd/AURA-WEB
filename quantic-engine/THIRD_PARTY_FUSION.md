@@ -1,4 +1,4 @@
-# Quantic Fusion — upstream provenance
+# Gekko Fusion — upstream provenance
 
 This branch intentionally combines independent non-Chromium technologies behind the Quantic Engine API.
 
@@ -22,11 +22,14 @@ Pinned source snapshot:
 `LadybirdBrowser/ladybird@a4140db626af72d0a676075a1ba26be728f4ea39`.
 
 Runtime component currently ported:
-- LibWeb Rust HTML tokenizer state machine.
+- LibWeb Rust HTML tokenizer state machine;
+- live Gekko shadow-parser path: every real main-frame `text/html` response received by Servo is tokenized in parallel by Ladybird and reported to the Gekko embedder diagnostics.
 
 Quantic-specific standalone adaptations:
 - Ladybird's AK/C++ fly-string identity is replaced by an owned Rust `String`;
 - the named-character-reference lookup keeps Ladybird's tokenizer API but uses a standalone table generated from Ladybird's `Entities.json`.
+
+Servo remains the authoritative DOM/layout/rendering path. Ladybird is a live, independent tokenizer/conformance signal rather than a cosmetic dependency.
 
 The tokenizer algorithm/source remains attributed to the Ladybird developers.
 
