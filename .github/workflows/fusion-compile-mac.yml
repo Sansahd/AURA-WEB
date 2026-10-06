@@ -77,10 +77,30 @@ jobs:
         run: |
           set -euo pipefail
           APP="$GITHUB_WORKSPACE/dist/Gekko.app"
-          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-          cp target/release/quantic-gekko-servo-runtime "$APP/Contents/MacOS/QuanticGekko"
-          chmod +x "$APP/Contents/MacOS/QuanticGekko"
+          BIN="$APP/Contents/MacOS/QuanticGekko"
+          FRAMEWORKS="$APP/Contents/Frameworks"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$FRAMEWORKS"
+          cp target/release/quantic-gekko-servo-runtime "$BIN"
+          chmod +x "$BIN"
           cp assets/gekko-mark.svg "$APP/Contents/Resources/gekko-mark.svg"
+
+          NSS_LIB_DIR="$(find "$NSS_DIR/.." -type f -name 'libssl3.dylib' -print -quit | xargs dirname)"
+          test -d "$NSS_LIB_DIR"
+          cp "$NSS_LIB_DIR"/*.dylib "$FRAMEWORKS/"
+          install_name_tool -add_rpath "@executable_path/../Frameworks" "$BIN" || true
+
+          for dylib in "$FRAMEWORKS"/*.dylib; do
+            install_name_tool -id "@rpath/$(basename "$dylib")" "$dylib" || true
+          done
+
+          for target in "$BIN" "$FRAMEWORKS"/*.dylib; do
+            while IFS= read -r dep; do
+              base="$(basename "$dep")"
+              if [[ -f "$FRAMEWORKS/$base" ]]; then
+                install_name_tool -change "$dep" "@rpath/$base" "$target" || true
+              fi
+            done < <(otool -L "$target" | tail -n +2 | awk '{print $1}')
+          done
           cat > "$APP/Contents/Info.plist" <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -104,8 +124,17 @@ jobs:
       - name: Verify macOS bundle
         shell: bash
         run: |
-          test -x "$GITHUB_WORKSPACE/dist/Gekko.app/Contents/MacOS/QuanticGekko"
+          BIN="$GITHUB_WORKSPACE/dist/Gekko.app/Contents/MacOS/QuanticGekko"
+          FRAMEWORKS="$GITHUB_WORKSPACE/dist/Gekko.app/Contents/Frameworks"
+          test -x "$BIN"
           test -f "$GITHUB_WORKSPACE/dist/Gekko.app/Contents/Info.plist"
+          test -f "$FRAMEWORKS/libssl3.dylib"
+          test -f "$FRAMEWORKS/libnss3.dylib"
+          otool -L "$BIN"
+          if otool -L "$BIN" | grep -F "$NSS_DIR"; then
+            echo "Gekko binary still references CI NSS path"
+            exit 1
+          fi
           shasum -a 256 "$GITHUB_WORKSPACE/Quantic-Gekko-macOS.zip"
 
       - uses: actions/upload-artifact@v4
