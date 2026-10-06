@@ -89,3 +89,98 @@ button.internal-card{text-align:left;width:100%}.internal-card:hover{background:
 body.immersive .ai-panel{display:none}
 
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+
+/* GEKKO shell: compact tabs above, primary navigation below. */
+#chrome{
+  height:42px;
+  background:linear-gradient(180deg,rgba(4,18,28,.88),rgba(4,18,28,.54));
+  border-bottom:1px solid rgba(116,247,255,.10);
+}
+body.chrome-hidden #chrome{transform:translate3d(0,-48px,0);opacity:0;pointer-events:none}
+.tabs-row{height:42px;padding:5px 8px}
+.logo{width:32px;height:32px;padding:3px;border-radius:11px}
+.logo img{width:26px;height:26px}
+.tab{height:31px;border-radius:11px}
+.window-controls button{height:31px}
+
+#bottom-dock{
+  position:absolute;
+  z-index:32;
+  left:0;
+  right:0;
+  bottom:0;
+  height:60px;
+  padding:7px 10px 9px;
+  transition:transform .2s cubic-bezier(.2,.78,.22,1),opacity .14s ease;
+  background:linear-gradient(0deg,rgba(2,14,23,.96),rgba(4,26,39,.82));
+  border-top:1px solid rgba(117,245,226,.14);
+  box-shadow:0 -12px 34px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter:blur(24px) saturate(130%);
+}
+body.chrome-hidden #bottom-dock{transform:translate3d(0,68px,0);opacity:0;pointer-events:none}
+#bottom-dock .nav-row{height:44px;padding:0;gap:6px;max-width:1480px;margin:0 auto}
+#bottom-dock .nav-row>button{
+  width:38px;height:38px;flex:0 0 38px;border-radius:13px;
+  border:1px solid transparent;color:rgba(235,255,255,.90);background:transparent;
+}
+#bottom-dock .nav-row>button:hover{background:rgba(95,235,218,.09);border-color:rgba(110,245,232,.15)}
+#bottom-dock #sidestage{width:48px;flex-basis:48px;font-size:9px;font-weight:700;letter-spacing:.12em}
+.address{
+  height:42px;min-width:220px;flex:1;border-radius:17px;padding:0 12px 0 8px;
+  background:linear-gradient(135deg,rgba(255,255,255,.10),rgba(255,255,255,.035))!important;
+  border:1px solid rgba(154,255,241,.20)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 8px 26px rgba(0,0,0,.22)!important;
+}
+.address:focus-within{
+  border-color:rgba(96,244,220,.68)!important;
+  box-shadow:0 0 0 2px rgba(80,237,219,.10),0 10px 34px rgba(0,0,0,.26)!important;
+}
+.address-mark{width:27px;height:27px;margin-right:9px;filter:drop-shadow(0 0 8px rgba(81,237,216,.22))}
+.address .dot{display:none}
+.address input{font-size:14px;letter-spacing:.005em}
+.address-key{
+  flex:0 0 auto;margin-left:10px;padding:3px 6px;border-radius:7px;
+  border:1px solid rgba(255,255,255,.09);color:rgba(220,244,245,.38);font-size:10px;
+}
+
+.home,.internal-page{inset:42px 0 60px}
+.home{padding:30px 38px 34px}
+.hero{width:min(850px,76vw)}
+.hero-badge{
+  display:inline-flex;margin-top:18px;padding:7px 13px;border-radius:999px;
+  border:1px solid rgba(116,247,255,.18);background:rgba(44,225,206,.05);
+  color:rgba(170,255,243,.75);font-size:10px;font-weight:700;letter-spacing:.28em;
+}
+.ai-panel{top:52px;bottom:72px}
+
+.navigation-transition{
+  position:absolute;z-index:29;inset:42px 0 60px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;pointer-events:none;
+  opacity:0;transform:scale(1.012);
+  background:
+    radial-gradient(circle at 50% 50%,rgba(29,225,205,.12),transparent 26%),
+    linear-gradient(135deg,rgba(2,13,22,.90),rgba(3,26,35,.82));
+  transition:opacity .16s ease,transform .24s cubic-bezier(.2,.8,.2,1);
+}
+.navigation-transition.active{opacity:1;transform:scale(1)}
+.navigation-transition img{width:64px;height:64px;filter:drop-shadow(0 0 22px rgba(75,242,221,.42));animation:gekko-transition-drift .8s ease-in-out infinite alternate}
+.navigation-transition strong{font-size:12px;font-weight:500;letter-spacing:.48em;color:rgba(222,255,251,.76);transform:translateX(.24em)}
+.transition-aura{
+  position:absolute;width:280px;height:280px;border-radius:50%;
+  border:1px solid rgba(117,247,255,.12);box-shadow:0 0 70px rgba(28,222,204,.08);
+  animation:gekko-transition-breathe .9s ease-in-out infinite alternate;
+}
+@keyframes gekko-transition-drift{from{transform:translateY(2px) scale(.985)}to{transform:translateY(-3px) scale(1.015)}}
+@keyframes gekko-transition-breathe{from{transform:scale(.92);opacity:.28}to{transform:scale(1.05);opacity:.72}}
+
+@media(max-width:760px){
+  #bottom-dock{padding-left:6px;padding-right:6px}
+  #bottom-dock #sidestage,#bottom-dock #persona{display:none}
+  .address-key{display:none}
+  .address{min-width:120px}
+  .home{padding:24px 18px}
+}
+@media (prefers-reduced-motion:reduce){
+  .navigation-transition,.navigation-transition img,.transition-aura{animation:none!important;transition:none!important}
+}
