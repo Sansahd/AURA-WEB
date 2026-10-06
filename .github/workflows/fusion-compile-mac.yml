@@ -1,4 +1,4 @@
-name: Fusion Compile Mac
+name: Gekko Compile & Test Mac
 
 on:
   push:
@@ -32,6 +32,8 @@ jobs:
         run: cargo check --bin qglide --no-default-features
       - name: Check Ladybird HTML Fusion
         run: cargo check --lib --features fusion-ladybird-html
+      - name: Run engine compatibility tests
+        run: cargo test --lib --tests --features fusion-ladybird-html
 
   servo:
     runs-on: macos-15
@@ -55,5 +57,7 @@ jobs:
           grep -qi "mozjs" servo-tree.txt
           grep -qi "webrender" servo-tree.txt
           ! grep -Eiq "chromium|electron|cef|webview2" servo-tree.txt
-      - name: Check Servo/WebRender Glide Dock
+      - name: Check Servo/WebRender Gekko
         run: cargo check
+      - name: Run Gekko runtime tests
+        run: cargo test
