@@ -8,7 +8,7 @@ mod paths;
 use std::cell::{Cell, RefCell};
 use std::error::Error;
 use std::rc::{Rc, Weak};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 use std::fs;
@@ -38,6 +38,7 @@ use winit::keyboard::{Key as WinitKey, ModifiersState, NamedKey as WinitNamedKey
 use winit::window::{Fullscreen, Window};
 
 use aura::{AuraAction, AuraReply};
+use quantic_fusion_mozilla_network::{fetch_https as neqo_fetch_https, probe_https as neqo_probe_https};
 use privacy::{PrivacyStats, classify_resource};
 
 const GEKKO_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -259,6 +260,8 @@ struct Waker(EventLoopProxy<WakeEvent>);
 enum WakeEvent {
     Servo,
     Aura(AuraReply),
+    H3Capability { origin: String, available: bool },
+    H3Used { origin: String },
     SmokeComplete,
 }
 
@@ -390,6 +393,10 @@ struct FusionState {
     downloads_panel_open: Cell<bool>,
     smoke_probe_started: Cell<bool>,
     smoke_started_at: Instant,
+    h3_origins: Mutex<std::collections::HashSet<String>>,
+    h3_probe_inflight: Mutex<std::collections::HashSet<String>>,
+    h3_successes: Cell<u64>,
+    h3_fallbacks: Cell<u64>,
 }
 
 struct FusionDelegate {
@@ -718,9 +725,71 @@ impl servo::WebViewDelegate for FusionDelegate {
 
             let response = WebResourceResponse::new(load.request.url.clone())
                 .status_code(http::StatusCode::NO_CONTENT)
-                .status_message(b"Blocked by Quantic Privacy Shield V2".to_vec());
+                .status_message(b"Blocked by Quantic Privacy Shield V3".to_vec());
             load.intercept(response).finish();
+            return;
         }
+
+        let request = load.request.clone();
+        if !FusionState::h3_request_is_safe(&request) {
+            return;
+        }
+
+        let Some(origin) = FusionState::h3_origin(&request.url) else { return; };
+        let Some(state) = self.state.borrow().upgrade() else { return; };
+
+        if !state.h3_capable(&origin) {
+            state.schedule_h3_probe(request.url.clone());
+            return;
+        }
+
+        let method = request.method.as_str().to_string();
+        let headers = FusionState::h3_headers(&request);
+        let url = request.url.clone();
+        let proxy = state.event_proxy.clone();
+
+        // Hold the intercepted request only while Neqo attempts the same load.
+        // On any H3 error, dropping the load resumes Servo's normal network path.
+        thread::spawn(move || {
+            match neqo_fetch_https(&url, &method, &headers, Duration::from_secs(5)) {
+                Ok(h3) => {
+                    let mut response_headers = http::HeaderMap::new();
+                    for (name, value) in h3.headers {
+                        let Ok(name) = http::header::HeaderName::from_bytes(name.as_bytes()) else {
+                            continue;
+                        };
+                        let Ok(value) = http::header::HeaderValue::from_bytes(&value) else {
+                            continue;
+                        };
+                        response_headers.append(name, value);
+                    }
+                    let status = http::StatusCode::from_u16(h3.status)
+                        .unwrap_or(http::StatusCode::OK);
+                    let status_message = status
+                        .canonical_reason()
+                        .unwrap_or("HTTP/3")
+                        .as_bytes()
+                        .to_vec();
+                    let response = WebResourceResponse::new(url.clone())
+                        .headers(response_headers)
+                        .status_code(status)
+                        .status_message(status_message);
+                    let mut intercepted = load.intercept(response);
+                    if !h3.body.is_empty() {
+                        intercepted.send_body_data(h3.body);
+                    }
+                    intercepted.finish();
+                    let _ = proxy.send_event(WakeEvent::H3Used { origin });
+                }
+                Err(_) => {
+                    drop(load);
+                    let _ = proxy.send_event(WakeEvent::H3Capability {
+                        origin,
+                        available: false,
+                    });
+                }
+            }
+        });
     }
 }
 
@@ -1917,6 +1986,61 @@ impl FusionState {
         servo::DevicePoint::new(x * scale, (y - 54.0) * scale)
     }
 
+    fn h3_origin(url: &Url) -> Option<String> {
+        if url.scheme() != "https" {
+            return None;
+        }
+        Some(url.origin().ascii_serialization())
+    }
+
+    fn h3_headers(request: &servo_embedder_traits::WebResourceRequest) -> Vec<(String, Vec<u8>)> {
+        request
+            .headers
+            .iter()
+            .filter_map(|(name, value)| {
+                if matches!(
+                    name.as_str().to_ascii_lowercase().as_str(),
+                    "cookie" | "authorization" | "proxy-authorization"
+                ) {
+                    return None;
+                }
+                Some((name.as_str().to_string(), value.as_bytes().to_vec()))
+            })
+            .collect()
+    }
+
+    fn h3_request_is_safe(request: &servo_embedder_traits::WebResourceRequest) -> bool {
+        request.is_for_main_frame
+            && request.url.scheme() == "https"
+            && matches!(request.method.as_str(), "GET" | "HEAD")
+            && !request.headers.contains_key(http::header::COOKIE)
+            && !request.headers.contains_key(http::header::AUTHORIZATION)
+            && !request.is_redirect
+    }
+
+    fn h3_capable(&self, origin: &str) -> bool {
+        std::env::var("GEKKO_H3_FORCE").ok().as_deref() == Some("1")
+            || self.h3_origins.lock().is_ok_and(|origins| origins.contains(origin))
+    }
+
+    fn schedule_h3_probe(&self, url: Url) {
+        let Some(origin) = Self::h3_origin(&url) else { return; };
+        if self.h3_capable(&origin) {
+            return;
+        }
+        {
+            let Ok(mut inflight) = self.h3_probe_inflight.lock() else { return; };
+            if !inflight.insert(origin.clone()) {
+                return;
+            }
+        }
+        let proxy = self.event_proxy.clone();
+        thread::spawn(move || {
+            let available = neqo_probe_https(&url, Duration::from_millis(1400)).is_ok();
+            let _ = proxy.send_event(WakeEvent::H3Capability { origin, available });
+        });
+    }
+
     fn smoke_mode() -> bool {
         std::env::var_os("GEKKO_SMOKE_OUTPUT").is_some()
     }
@@ -2297,6 +2421,10 @@ impl ApplicationHandler<WakeEvent> for App {
             downloads_panel_open: Cell::new(false),
             smoke_probe_started: Cell::new(false),
             smoke_started_at: Instant::now(),
+            h3_origins: Mutex::new(std::collections::HashSet::new()),
+            h3_probe_inflight: Mutex::new(std::collections::HashSet::new()),
+            h3_successes: Cell::new(0),
+            h3_fallbacks: Cell::new(0),
         });
         delegate.bind(&state);
         state.active_webview().load(configured_start.clone());
@@ -2345,6 +2473,26 @@ impl ApplicationHandler<WakeEvent> for App {
                     *state.aura_error.borrow_mut() = reply.error.unwrap_or_default();
                     state.apply_aura_actions(reply.actions);
                     *state.status.borrow_mut() = "AURA · réponse reçue".into();
+                }
+                WakeEvent::H3Capability { origin, available } => {
+                    if let Ok(mut inflight) = state.h3_probe_inflight.lock() {
+                        inflight.remove(&origin);
+                    }
+                    if available {
+                        if let Ok(mut origins) = state.h3_origins.lock() {
+                            origins.insert(origin.clone());
+                        }
+                        *state.status.borrow_mut() = format!("HTTP/3 prêt · {origin}");
+                    } else {
+                        state.h3_fallbacks.set(state.h3_fallbacks.get().saturating_add(1));
+                    }
+                }
+                WakeEvent::H3Used { origin } => {
+                    if let Ok(mut origins) = state.h3_origins.lock() {
+                        origins.insert(origin.clone());
+                    }
+                    state.h3_successes.set(state.h3_successes.get().saturating_add(1));
+                    *state.status.borrow_mut() = format!("Neqo HTTP/3 · {origin}");
                 }
                 WakeEvent::SmokeComplete => {
                     state.clear_private_state();
@@ -2516,7 +2664,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Servo 0.7: primary web runtime",
         "Mozilla: SpiderMonkey + Stylo + WebRender through Servo",
         "Ladybird LibWeb: independent HTML tokenizer/conformance path",
-        "Mozilla Neqo: isolated QUIC/HTTP3 integration track",
+        "Mozilla Neqo: live opportunistic HTTP/3 path with Servo fallback",
     ] {
         println!("{component}");
     }
@@ -2550,6 +2698,15 @@ mod gekko_product_tests {
     }
 
     #[test]
+    #[test]
+    fn h3_origin_accepts_only_https() {
+        assert_eq!(
+            FusionState::h3_origin(&Url::parse("https://example.com/path").unwrap()).as_deref(),
+            Some("https://example.com")
+        );
+        assert!(FusionState::h3_origin(&Url::parse("http://example.com/").unwrap()).is_none());
+    }
+
     fn address_normalizer_prefers_https_and_search() {
         assert_eq!(
             FusionState::normalize_target("example.com").unwrap().as_str(),
