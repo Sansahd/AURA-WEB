@@ -287,8 +287,16 @@ impl FusionState {
             visuals.window_fill = BG;
             visuals.override_text_color = Some(TEXT);
             visuals.widgets.inactive.bg_fill = PANEL;
-            visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(38, 34, 29);
-            visuals.widgets.active.bg_fill = egui::Color32::from_rgb(73, 54, 22);
+            visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(18);
+            visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(55, 48, 39);
+            visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.2, TEXT);
+            visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(18);
+            visuals.widgets.active.bg_fill = ACCENT_SOFT;
+            visuals.widgets.active.fg_stroke = egui::Stroke::new(1.4, ACCENT);
+            visuals.widgets.active.corner_radius = egui::CornerRadius::same(18);
+            visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(18);
+            visuals.selection.bg_fill = ACCENT_SOFT;
+            visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT);
             ctx.set_visuals(visuals);
 
             egui::TopBottomPanel::top("fusion_header")
@@ -357,11 +365,17 @@ impl FusionState {
                                     ("Accueil", "> accueil"),
                                 ] {
                                     if ui.add(
-                                        egui::Button::new(egui::RichText::new(label).size(10.0).color(TEXT))
+                                        egui::Button::new(egui::RichText::new(label).strong().size(10.0).color(TEXT))
                                             .fill(PANEL_SOFT)
+                                            .stroke(egui::Stroke::new(1.0, BORDER))
                                             .corner_radius(14.0)
-                                            .min_size(egui::vec2(72.0, 28.0))
-                                    ).clicked() {
+                                            .min_size(egui::vec2(78.0, 30.0))
+                                    ).on_hover_text(match label {
+                                        "AURA" => "Ouvrir AURA",
+                                        "Mail" => "Ouvrir Quantic Mail",
+                                        "ZOON" => "Ouvrir ZOON",
+                                        _ => "Retour à l’accueil Quantic",
+                                    }).clicked() {
                                         *self.dock_input.borrow_mut() = command.to_string();
                                         execute = true;
                                     }
@@ -389,14 +403,26 @@ impl FusionState {
                                         )
                                     };
 
-                                    if nav(ui, self.webview.can_go_back(), "‹").clicked() {
+                                    if nav(ui, self.webview.can_go_back(), "‹")
+                                        .on_hover_text("Retour · Alt+←")
+                                        .clicked()
+                                    {
                                         self.webview.go_back(1);
+                                        *self.status.borrow_mut() = "Retour".into();
                                     }
-                                    if nav(ui, self.webview.can_go_forward(), "›").clicked() {
+                                    if nav(ui, self.webview.can_go_forward(), "›")
+                                        .on_hover_text("Suivant · Alt+→")
+                                        .clicked()
+                                    {
                                         self.webview.go_forward(1);
+                                        *self.status.borrow_mut() = "Suivant".into();
                                     }
-                                    if nav(ui, true, "↻").on_hover_text("Recharger").clicked() {
+                                    if nav(ui, true, "↻")
+                                        .on_hover_text("Recharger · Ctrl+R")
+                                        .clicked()
+                                    {
                                         self.webview.reload();
+                                        *self.status.borrow_mut() = "Actualisation…".into();
                                     }
 
                                     let edit_width = (dock_width - 250.0).max(260.0);
@@ -429,7 +455,7 @@ impl FusionState {
                                             .fill(ACCENT)
                                             .corner_radius(20.0)
                                             .min_size(egui::vec2(42.0, 40.0))
-                                    ).on_hover_text("Ouvrir").clicked() {
+                                    ).on_hover_text("Ouvrir · Entrée").clicked() {
                                         execute = true;
                                     }
 
@@ -438,7 +464,7 @@ impl FusionState {
                                             .fill(PANEL_SOFT)
                                             .corner_radius(20.0)
                                             .min_size(egui::vec2(40.0, 40.0))
-                                    ).on_hover_text("AURA").clicked() {
+                                    ).on_hover_text("AURA · assistant Quantic").clicked() {
                                         *self.dock_input.borrow_mut() = "@aura ".to_string();
                                         self.dock_expanded.set(true);
                                         self.dock_focus_requested.set(true);
@@ -490,9 +516,11 @@ impl FusionState {
                 });
             }
 
-            if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::L)) {
+            if ctx.input(|i| (i.modifiers.ctrl || i.modifiers.command) && i.key_pressed(egui::Key::L)) {
+                *self.dock_input.borrow_mut() = self.current_url.borrow().clone();
                 self.dock_expanded.set(true);
                 self.dock_focus_requested.set(true);
+                *self.status.borrow_mut() = "Adresse sélectionnée".into();
             }
             if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
                 self.dock_expanded.set(false);
