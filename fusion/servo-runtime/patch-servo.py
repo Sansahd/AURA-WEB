@@ -738,4 +738,82 @@ replace_once(
 """
 )
 
+
+# --- Gekko Privacy Shield V3: block third-party cookies in Servo itself. ---
+replace_once(
+    http_loader,
+    """fn set_request_cookies(
+    url: &ServoUrl,
+    headers: &mut HeaderMap,
+    cookie_jar: &RwLock<CookieStorage>,
+) {
+""",
+    """fn quantic_blocks_third_party_cookies(request: &Request) -> bool {
+    // A user-initiated top-level navigation must be allowed to carry that
+    // destination site's first-party cookies. Frames and all subresources
+    // remain subject to the same-site boundary below.
+    if request.mode == RequestMode::Navigate &&
+        request.destination == Destination::Document
+    {
+        return false;
+    }
+
+    let Origin::Origin(request_origin) = &request.origin else {
+        // Privacy Shield is fail-closed when Servo has not resolved a
+        // subresource origin yet.
+        return true;
+    };
+
+    !is_same_site(request_origin, &request.current_url().origin())
+}
+
+fn set_request_cookies(
+    url: &ServoUrl,
+    headers: &mut HeaderMap,
+    cookie_jar: &RwLock<CookieStorage>,
+) {
+"""
+)
+
+replace_once(
+    http_loader,
+    """        set_request_cookies(
+            &current_url,
+            &mut http_request.headers,
+            &context.state.cookie_jar,
+        );
+""",
+    """        if quantic_blocks_third_party_cookies(http_request) {
+            http_request.headers.remove(header::COOKIE);
+            debug!(
+                "Gekko Privacy Shield blocked third-party request cookies for {}",
+                current_url
+            );
+        } else {
+            set_request_cookies(
+                &current_url,
+                &mut http_request.headers,
+                &context.state.cookie_jar,
+            );
+        }
+"""
+)
+
+replace_once(
+    http_loader,
+    """    if credentials_flag {
+        set_cookies_from_headers(&url, &response.headers, &context.state.cookie_jar);
+    }
+""",
+    """    if credentials_flag && !quantic_blocks_third_party_cookies(request) {
+        set_cookies_from_headers(&url, &response.headers, &context.state.cookie_jar);
+    } else if credentials_flag {
+        debug!(
+            "Gekko Privacy Shield ignored third-party Set-Cookie for {}",
+            url
+        );
+    }
+"""
+)
+
 print("Quantic Servo Gekko Fusion patch applied")
