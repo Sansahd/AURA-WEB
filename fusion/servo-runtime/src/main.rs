@@ -2698,6 +2698,12 @@ mod gekko_product_tests {
 
     #[test]
     #[test]
+    #[test]
+    fn h3_web_resource_load_can_leave_ui_thread() {
+        fn assert_send<T: Send>() {}
+        assert_send::<WebResourceLoad>();
+    }
+
     fn h3_origin_accepts_only_https() {
         assert_eq!(
             FusionState::h3_origin(&Url::parse("https://example.com/path").unwrap()).as_deref(),
