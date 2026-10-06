@@ -333,8 +333,11 @@ impl servo::WebViewDelegate for FusionDelegate {
         });
     }
 
-    fn notify_load_status_changed(&self, _webview: WebView, load_status: LoadStatus) {
+    fn notify_load_status_changed(&self, webview: WebView, load_status: LoadStatus) {
         self.with_state(|state| {
+            if state.active_webview() != webview {
+                return;
+            }
             if matches!(load_status, LoadStatus::Started) {
                 state.begin_transition();
             }
