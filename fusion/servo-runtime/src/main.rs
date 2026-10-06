@@ -20,7 +20,7 @@ use servo::{
     KeyboardEvent, LoadStatus, Location, Modifiers as ServoModifiers,
     MouseButton as ServoMouseButton, MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent,
     MouseMoveEvent, NamedKey as ServoNamedKey, NavigationRequest, OffscreenRenderingContext,
-    PermissionRequest, RenderingContext, Servo, ServoBuilder, StorageType, WebResourceLoad, WebResourceResponse,
+    CookieSource, PermissionRequest, RenderingContext, Servo, ServoBuilder, StorageType, UserContentManager, UserScript, WebResourceLoad, WebResourceResponse,
     CreateNewWebViewRequest, WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
 };
 use embedder_traits::EventLoopWaker;
@@ -39,6 +39,38 @@ const QUANTIC_PORTAL: &str = START_URL;
 const SEARCH_PREFIX: &str = "https://duckduckgo.com/?q=";
 const MAIL_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com/mail/";
 const PULSE_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com/pulse/";
+const DOWNLOAD_BRIDGE_SCRIPT: &str = r#"
+(() => {
+  if (window.__quanticDownloadBridge) return;
+  window.__quanticDownloadBridge = true;
+
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0) return;
+    const source = event.target;
+    const anchor = source && source.closest ? source.closest("a[download]") : null;
+    if (!anchor || !anchor.href) return;
+
+    let target;
+    try {
+      target = new URL(anchor.href, document.baseURI);
+    } catch (_) {
+      return;
+    }
+
+    if (target.protocol !== "http:" && target.protocol !== "https:") return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const filename = anchor.getAttribute("download") || "";
+    window.location.href =
+      "quantic-download://request/?url=" +
+      encodeURIComponent(target.href) +
+      "&filename=" +
+      encodeURIComponent(filename);
+  }, true);
+})();
+"#;
 
 const BG: egui::Color32 = egui::Color32::from_rgb(10, 10, 11);
 const PANEL: egui::Color32 = egui::Color32::from_rgba_premultiplied(29, 27, 25, 246);
@@ -83,6 +115,26 @@ fn save_browser_data(data: &BrowserData) {
 
 fn navigation_scheme_allowed(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https" | "about" | "data" | "blob")
+}
+
+fn bridged_download_target(url: &Url) -> Option<(Url, Option<String>)> {
+    if url.scheme() != "quantic-download" {
+        return None;
+    }
+
+    let mut target = None;
+    let mut filename = None;
+    for (key, value) in url.query_pairs() {
+        match key.as_ref() {
+            "url" => target = Url::parse(value.as_ref()).ok(),
+            "filename" if !value.trim().is_empty() => filename = Some(value.into_owned()),
+            _ => {},
+        }
+    }
+
+    target
+        .filter(|url| matches!(url.scheme(), "http" | "https"))
+        .map(|url| (url, filename))
 }
 
 #[derive(Clone)]
@@ -137,6 +189,7 @@ struct FusionState {
     home_open: Cell<bool>,
     history_open: Cell<bool>,
     fullscreen: Cell<bool>,
+    user_content_manager: Rc<UserContentManager>,
 }
 
 struct FusionDelegate {
@@ -255,6 +308,7 @@ impl servo::WebViewDelegate for FusionDelegate {
                 .builder(context.clone())
                 .hidpi_scale_factor(Scale::new(state.window.scale_factor() as f32))
                 .delegate(state.delegate.clone())
+                .user_content_manager(state.user_content_manager.clone())
                 .build();
             let url = webview.url().map(|u| u.to_string()).unwrap_or_else(|| "about:blank".into());
             let mut tabs = state.tabs.borrow_mut();
@@ -285,8 +339,12 @@ impl servo::WebViewDelegate for FusionDelegate {
 
     fn request_navigation(&self, _webview: WebView, request: NavigationRequest) {
         let url = request.url.clone();
-        if is_probable_download_url(&url) {
-            self.with_state(|state| state.start_download(url));
+
+        if let Some((target, suggested_filename)) = bridged_download_target(&url) {
+            self.with_state(|state| state.start_download(target, suggested_filename));
+            request.deny();
+        } else if is_probable_download_url(&url) {
+            self.with_state(|state| state.start_download(url, None));
             request.deny();
         } else if navigation_scheme_allowed(&request.url) {
             request.allow();
@@ -298,6 +356,48 @@ impl servo::WebViewDelegate for FusionDelegate {
             });
             request.deny();
         }
+    }
+
+    fn request_download_path(
+        &self,
+        _webview: WebView,
+        url: Url,
+        suggested_filename: Option<String>,
+    ) -> Option<PathBuf> {
+        let state = self.state.borrow().upgrade()?;
+        let path = downloads::destination_path(&url, suggested_filename.as_deref())?;
+        *state.status.borrow_mut() = format!(
+            "Téléchargement natif · {}",
+            path.file_name().and_then(|name| name.to_str()).unwrap_or("fichier")
+        );
+        state.window.request_redraw();
+        Some(path)
+    }
+
+    fn notify_download_finished(
+        &self,
+        _webview: WebView,
+        path: PathBuf,
+        bytes: u64,
+        error: Option<String>,
+    ) {
+        self.with_state(|state| {
+            match error {
+                None => {
+                    state.downloads_completed.set(state.downloads_completed.get() + 1);
+                    *state.status.borrow_mut() = format!(
+                        "Téléchargé · {} · {:.1} Mo",
+                        path.file_name().and_then(|name| name.to_str()).unwrap_or("fichier"),
+                        bytes as f64 / 1_048_576.0
+                    );
+                },
+                Some(error) => {
+                    *state.status.borrow_mut() =
+                        format!("Téléchargement échoué · {error}");
+                },
+            }
+            state.window.request_redraw();
+        });
     }
 
     fn load_web_resource(&self, _webview: WebView, load: WebResourceLoad) {
@@ -328,7 +428,7 @@ impl servo::WebViewDelegate for FusionDelegate {
 }
 
 impl FusionState {
-    fn start_download(&self, url: Url) {
+    fn start_download(&self, url: Url, suggested_filename: Option<String>) {
         let proxy = self.event_proxy.clone();
         let referrer = {
             let current = self.current_url.borrow();
@@ -338,14 +438,33 @@ impl FusionState {
                 None
             }
         };
+        let cookie_header = {
+            let cookies = self
+                .servo
+                .site_data_manager()
+                .cookies_for_url(url.clone(), CookieSource::HTTP);
+            let values: Vec<String> = cookies
+                .iter()
+                .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
+                .collect();
+            (!values.is_empty()).then(|| values.join("; "))
+        };
         *self.status.borrow_mut() = format!(
             "Téléchargement · {}",
-            url.path_segments().and_then(|mut parts| parts.next_back()).unwrap_or("fichier")
+            suggested_filename
+                .as_deref()
+                .or_else(|| url.path_segments().and_then(|mut parts| parts.next_back()))
+                .unwrap_or("fichier")
         );
         self.window.request_redraw();
 
         thread::spawn(move || {
-            let outcome = downloads::download_to_default(url, None, referrer);
+            let outcome = downloads::download_to_default(
+                url,
+                suggested_filename,
+                cookie_header,
+                referrer,
+            );
             let _ = proxy.send_event(WakeEvent::DownloadFinished(outcome));
         });
     }
@@ -395,6 +514,7 @@ impl FusionState {
             .url(url.clone())
             .hidpi_scale_factor(Scale::new(scale))
             .delegate(self.delegate.clone())
+            .user_content_manager(self.user_content_manager.clone())
             .build();
         let mut tabs = self.tabs.borrow_mut();
         tabs.push(BrowserTab {
@@ -1242,10 +1362,14 @@ impl ApplicationHandler<WakeEvent> for App {
         servo.setup_logging();
 
         let delegate = Rc::new(FusionDelegate::new());
+        let user_content_manager = Rc::new(UserContentManager::new(&servo));
+        user_content_manager.add_script(Rc::new(UserScript::from(DOWNLOAD_BRIDGE_SCRIPT)));
+
         let webview = WebViewBuilder::new(&servo, web_context.clone())
             .url(Url::parse(START_URL).unwrap())
             .hidpi_scale_factor(Scale::new(window.scale_factor() as f32))
             .delegate(delegate.clone())
+            .user_content_manager(user_content_manager.clone())
             .build();
 
         let state = Rc::new(FusionState {
@@ -1279,6 +1403,7 @@ impl ApplicationHandler<WakeEvent> for App {
             home_open: Cell::new(true),
             history_open: Cell::new(false),
             fullscreen: Cell::new(false),
+            user_content_manager,
         });
         delegate.bind(&state);
 
