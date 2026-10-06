@@ -14,4 +14,4 @@ neqo-transport = { git = "https://github.com/mozilla/neqo", tag = "v0.32.0", pac
 nss = { version = "0.16.1", package = "nss-rs", path = "../../vendor/nss-rs" }
 
 [patch."https://github.com/mozilla/nss-rs"]
-nss-rs = { path = "../../vendor/nss-rs" }
+nss = { package = "nss-rs", path = "../../vendor/nss-rs" }
