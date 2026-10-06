@@ -9,13 +9,13 @@
   <link rel="stylesheet" href="persona-sidestage.css">
   <link rel="stylesheet" href="product-suite.css">
   <link rel="stylesheet" href="quantic-glide-brand.css">
-  <title>Quantic Glide</title>
+  <title>GEKKO</title>
 </head>
 <body>
 <div id="shell">
   <header id="chrome">
     <div class="tabs-row">
-      <button id="logo" class="logo no-drag" title="Accueil Quantic Glide" aria-label="Accueil Quantic Glide"><img src="../assets/quantic-glide-mark.svg" alt="Quantic Glide"></button>
+      <button id="logo" class="logo no-drag" title="Accueil GEKKO" aria-label="Accueil GEKKO"><img src="../assets/quantic-glide-mark.svg" alt="GEKKO"></button>
       <div id="tabs" class="tabs no-drag"></div>
       <button id="plus" class="plus no-drag" title="Nouvel onglet" aria-label="Nouvel onglet">+</button>
       <div class="drag-zone"></div>
@@ -25,54 +25,108 @@
         <button data-win="close" aria-label="Fermer">×</button>
       </div>
     </div>
-    <div class="nav-row no-drag">
-      <button id="back" title="Précédent">‹</button>
-      <button id="forward" title="Suivant">›</button>
-      <button id="reload" title="Actualiser">↻</button>
-      <div class="address glass-line"><span class="dot">●</span><input id="address" autocomplete="off" spellcheck="false" placeholder="Rechercher, ouvrir une URL ou exprimer une intention…"></div>
-      <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">😍</button>
-      <button id="sidestage" title="SideStage · Lecteurs persistants" aria-label="Ouvrir SideStage">SIDE</button>
-      <button id="persona" title="Quantic Persona · Personnalisation locale">◈</button>
-      <button id="ai" title="Quantic AI">✦</button>
-      <button id="menu" title="Menu">⋮</button>
-    </div>
   </header>
 
-  <section id="home" class="home">
-    <div class="hero glass">
-      <img src="../assets/quantic-glide-logo.svg" class="hero-logo" alt="Quantic Glide — Movement Without Limits">
-      <h1>Browse without limits.</h1>
-      <p>Naviguez plus loin. Sans perdre le contrôle.</p>
-      <div class="home-search glass-line">
-        <input id="home-search" autocomplete="off" spellcheck="false" placeholder="Quelle est votre prochaine intention ?">
-        <button id="home-go" aria-label="Rechercher">→</button>
+  <nav id="bottom-dock" class="bottom-dock no-drag" aria-label="Navigation GEKKO">
+    <div class="nav-row">
+      <div class="dock-history">
+        <button id="back" title="Précédent" aria-label="Précédent">‹</button>
+        <button id="forward" title="Suivant" aria-label="Suivant">›</button>
+        <button id="reload" title="Actualiser" aria-label="Actualiser">↻</button>
+      </div>
+      <button id="dock-brand" class="dock-brand" title="Accueil GEKKO" aria-label="Accueil GEKKO">
+        <img src="../assets/quantic-glide-mark.svg" alt=""><span>GEKKO</span>
+      </button>
+      <div class="dock-nav">
+        <button id="home-button" title="Accueil" aria-label="Accueil"><span>⌂</span><small>Home</small></button>
+        <button id="discover" title="Découvrir" aria-label="Découvrir"><span>◎</span><small>Discover</small></button>
+        <button id="bookmarks" title="Favoris" aria-label="Favoris"><span>♡</span><small>Bookmarks</small></button>
+        <button id="apps-button" title="Apps Quantic" aria-label="Ouvrir les apps"><span>▦</span><small>Apps</small></button>
+      </div>
+      <div class="address glass-line">
+        <span class="address-search">⌕</span>
+        <input id="address" autocomplete="off" spellcheck="false" placeholder="Search or enter a URL…">
+        <button id="address-go" type="button" title="Ouvrir" aria-label="Ouvrir">→</button>
+      </div>
+      <div class="dock-actions">
+        <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
+        <button id="sidestage" title="SideStage · Lecteurs persistants" aria-label="Ouvrir SideStage">◫</button>
+        <button id="ai" title="AURA" aria-label="AURA">✦</button>
+        <button id="downloads" title="Téléchargements GEKKO" aria-label="Téléchargements">⇩</button>
+        <button id="persona" title="Paramètres" aria-label="Paramètres">⚙</button>
+        <button id="menu" title="Menu" aria-label="Menu">⋮</button>
       </div>
     </div>
-    <div class="quick-row">
-      <button data-q="Rechercher sur le web">Rechercher</button>
-      <button data-q="Comparer des sources">Comparer</button>
-      <button data-q="Planifier un projet">Planifier</button>
-      <button data-q="Apprendre quelque chose">Apprendre</button>
-      <button data-q="Créer quelque chose">Créer</button>
-    </div>
+  </nav>
 
-    <div class="quantic-suite" aria-label="Suite sécurité et transparence Quantic">
-      <button class="quantic-suite-card" data-quantic-suite="shield"><strong>Quantic Shield</strong><span>Protection réseau légère, permissions strictes.</span><span class="suite-status">Actif</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="vault"><strong>Quantic Vault</strong><span>Coffre local chiffré, chargé uniquement à la demande.</span><span class="suite-status">Local · bêta</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="proof"><strong>Quantic Proof</strong><span>SHA-256 local et preuves de build vérifiables.</span><span class="suite-status">Vérifiable</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="transparency"><strong>Transparency</strong><span>Ce que Glide protège, conserve et expose.</span><span class="suite-status">Lisible</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="mail"><strong>Quantic Mail</strong><span>Messagerie Quantic chiffrée, pensée pour fonctionner hors des géants du mail.</span><span class="suite-status">Réseau Quantic</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="analysis"><strong>Providence</strong><span>Analyse séparée du cœur de navigation.</span><span class="suite-status">À la demande</span></button>
+  <div id="navigation-transition" class="navigation-transition" aria-hidden="true">
+    <div class="transition-aura"></div>
+    <img src="../assets/quantic-glide-mark.svg" alt="">
+    <strong>GEKKO</strong>
+  </div>
+
+  <aside id="apps-panel" class="apps-panel hidden" aria-label="Applications Quantic">
+    <div class="apps-panel-head">
+      <div><small>QUANTIC SILLAGE</small><strong>Apps</strong></div>
+      <button id="apps-close" type="button" aria-label="Fermer">×</button>
+    </div>
+    <div class="apps-grid">
+      <button class="app-tile" data-app-url="https://antiquewhite-dolphin-780448.hostingersite.com/"><span>✦</span><strong>AURA</strong><small>Intelligence</small></button>
+      <button class="app-tile" data-app-url="https://mediumorchid-badger-314305.hostingersite.com/mail/"><span>✉</span><strong>Mail</strong><small>Communication</small></button>
+      <button class="app-tile" data-app-url="https://mediumorchid-badger-314305.hostingersite.com/pulse/"><span>◉</span><strong>ZOON</strong><small>Social</small></button>
+      <button class="app-tile" data-app-url="https://mediumorchid-badger-314305.hostingersite.com/news/"><span>⌁</span><strong>News</strong><small>Information</small></button>
+      <button class="app-tile" data-app-url="https://mediumorchid-badger-314305.hostingersite.com/vision/"><span>◇</span><strong>Providence</strong><small>Analyse</small></button>
+      <button class="app-tile" data-app-url="quantic://settings"><span>⚙</span><strong>GEKKO</strong><small>Réglages</small></button>
+    </div>
+  </aside>
+
+  <section id="home" class="home">
+    <div class="gekko-home-scene" aria-label="Nouvel onglet GEKKO">
+      <div class="gekko-home-sky" aria-hidden="true"></div>
+      <div class="gekko-home-aurora" aria-hidden="true"></div>
+      <div class="gekko-home-mountains back" aria-hidden="true"></div>
+      <div class="gekko-home-mountains front" aria-hidden="true"></div>
+      <div class="gekko-home-reflection" aria-hidden="true"></div>
+
+      <div class="gekko-home-tools" aria-label="Actions GEKKO">
+        <button id="home-tool-home" type="button" title="Accueil" aria-label="Accueil">⌂</button>
+        <button id="home-tool-shield" type="button" data-quantic-suite="shield" title="Quantic Shield" aria-label="Quantic Shield">♢</button>
+        <button id="home-tool-apps" type="button" title="Apps Quantic" aria-label="Apps Quantic">▦</button>
+        <button id="home-tool-settings" type="button" title="Paramètres" aria-label="Paramètres">♙</button>
+      </div>
+
+      <div class="gekko-home-brand">
+        <img src="../assets/quantic-glide-mark.svg" alt="GEKKO">
+        <strong>GEKKO</strong>
+        <span>BROWSE FREELY</span>
+      </div>
+
+      <div class="gekko-home-cards" aria-label="Actions rapides GEKKO">
+        <button class="gekko-home-card" data-home-action="private-search">
+          <b>▣</b><strong>Private Search</strong><span>No tracking.<br>Just results.</span>
+        </button>
+        <button class="gekko-home-card" data-home-action="secure-tabs">
+          <b>◇</b><strong>Secure Tabs</strong><span>Keep your<br>browsing yours.</span>
+        </button>
+        <button class="gekko-home-card" data-home-action="fast-light">
+          <b>ϟ</b><strong>Fast &amp; Light</strong><span>Built for a<br>smoother web.</span>
+        </button>
+        <button class="gekko-home-card" data-home-action="explore-more">
+          <b>◒</b><strong>Explore More</strong><span>A cleaner,<br>brighter internet.</span>
+        </button>
+      </div>
+
+      <div class="gekko-home-caption">
+        <span>PRIVATE BY DESIGN</span>
+        <span>FAST &amp; LIGHT</span>
+        <span>A CLEANER WEB</span>
+      </div>
     </div>
 
     <div id="quantic-suite-panel" class="quantic-suite-panel hidden" aria-live="polite">
       <div class="quantic-suite-head"><h2 id="quantic-suite-title">Quantic</h2><button id="quantic-suite-close" type="button" aria-label="Fermer">×</button></div>
       <div id="quantic-suite-body" class="quantic-suite-body"></div>
     </div>
-
-    <footer class="quantic-footer">
-      <a id="quantic-minds-link" href="https://xdsawyerlol.github.io/QuanticMinds/">Quantic Sillage — Ideas Travel Further</a>
-    </footer>
   </section>
 
   <section id="internal-page" class="internal-page hidden" aria-live="polite">
@@ -82,7 +136,7 @@
   <aside id="sidestage-rail" class="hidden" aria-label="SideStage · Lecteurs persistants"></aside>
 
   <aside id="ai-panel" class="ai-panel glass closed">
-    <div class="ai-head"><img src="../assets/quantic-glide-mark.svg" alt="Quantic Glide"><strong>AURA 2.0</strong><button id="ai-close" aria-label="Fermer">×</button></div>
+    <div class="ai-head"><img src="../assets/quantic-glide-mark.svg" alt="GEKKO"><strong>AURA 2.0</strong><button id="ai-close" aria-label="Fermer">×</button></div>
     <div id="ai-engine" class="ai-engine">AURA 2.0 · local</div>
     <div class="orb"></div>
     <p>Assistant de navigation local-first, relié au MoA et au Mesh AURA.</p>

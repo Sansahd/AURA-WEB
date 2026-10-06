@@ -1,14 +1,15 @@
 {
-  "name": "quantic-glide-aura-career",
+  "name": "gekko-browser-aura-career",
   "version": "1.3.1",
-  "description": "Quantic Glide with integrated AURA Career",
+  "description": "GEKKO Browser with integrated AURA Career",
   "main": "src/bootstrap.cjs",
   "author": "Quantic",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/services/career-agent.cjs",
-    "dist": "electron-builder --win nsis --x64 --publish never"
+    "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/renderer/renderer.js && node --check src/services/career-agent.cjs && npm test",
+    "dist": "electron-builder --win nsis --x64 --publish never",
+    "test": "node --test test/*.test.cjs"
   },
   "devDependencies": {
     "electron": "44.1.0",
@@ -16,7 +17,7 @@
   },
   "build": {
     "appId": "com.quantic.glide.career",
-    "productName": "Quantic Glide AURA Career",
+    "productName": "GEKKO Browser",
     "asar": true,
     "files": [
       "src/**/*",
@@ -38,10 +39,10 @@
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Quantic Glide AURA Career",
+      "shortcutName": "GEKKO Browser",
       "runAfterFinish": true
     },
-    "artifactName": "Quantic-Glide-AURA-Career-Setup.${ext}",
+    "artifactName": "GEKKO-Setup.${ext}",
     "directories": {
       "buildResources": "build",
       "output": "dist"

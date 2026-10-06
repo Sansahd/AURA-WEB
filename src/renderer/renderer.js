@@ -10,7 +10,6 @@ const $ = (selector) => document.querySelector(selector);
 const tabsEl = $('#tabs');
 const address = $('#address');
 const home = $('#home');
-const homeSearch = $('#home-search');
 const internalPage = $('#internal-page');
 const internalContent = $('#internal-content');
 const aiPanel = $('#ai-panel');
@@ -21,6 +20,8 @@ const back = $('#back');
 const forward = $('#forward');
 const fav = $('#fav');
 const reload = $('#reload');
+const navigationTransition = $('#navigation-transition');
+const appsPanel = $('#apps-panel');
 const sideStageRail = $('#sidestage-rail');
 let lastWallpaperVersion = -1;
 let lastSideStageKey = '';
@@ -188,7 +189,7 @@ function wallpaperPalette(prompt) {
 function localHash(s){let a=2166136261>>>0,b=2654435761>>>0;for(const ch of String(s||'Quantic')){const c=ch.codePointAt(0)||0;a=Math.imul(a^c,16777619)>>>0;b=Math.imul(b^(c+a),2246822519)>>>0;}return[a,b];}
 function localWallpaperData(prompt){const colors=wallpaperPalette(prompt),[h1,h2]=localHash(prompt);const circles=Array.from({length:12},(_,i)=>{const a=(h1+Math.imul(i+3,2654435761))>>>0,b=(h2+Math.imul(i+7,1597334677))>>>0;return '<circle cx="'+(a%1920)+'" cy="'+(b%1080)+'" r="'+(120+((a^b)%420))+'" fill="'+colors[i%colors.length]+'" opacity="'+(0.09+((a>>>9)%22)/100).toFixed(2)+'"/>';}).join('');const svg='<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><defs><linearGradient id="g"><stop stop-color="'+colors[0]+'"/><stop offset=".5" stop-color="'+colors[1]+'"/><stop offset="1" stop-color="'+colors[2]+'"/></linearGradient><filter id="b"><feGaussianBlur stdDeviation="68"/></filter></defs><rect width="1920" height="1080" fill="url(#g)"/><g filter="url(#b)">'+circles+'</g><rect width="1920" height="1080" fill="#020617" opacity=".18"/></svg>';return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));}
 function renderPersonaSettings(data){const appearance=data.settings?.appearance||{};const section=el('section','internal-section');section.append(el('h2','','Quantic Persona · 100 % local'),el('div','persona-note','Couleurs, verre et fond sont calculés et stockés sur cet appareil. Aucun compte ni cloud n’est requis.'));const grid=el('div','persona-grid');const accentBox=el('div','persona-control');accentBox.append(el('label','','Couleur d’accent'));const accent=document.createElement('input');accent.type='color';accent.value=appearance.accent||'#7aa2ff';accent.oninput=()=>document.documentElement.style.setProperty('--quantic-accent',accent.value);accent.onchange=()=>fire(window.quantic.setSetting('appearance',{accent:accent.value}));accentBox.append(accent);const glassBox=el('div','persona-control');glassBox.append(el('label','','Intensité du verre'));const glass=document.createElement('input');glass.type='range';glass.min='.25';glass.max='.95';glass.step='.05';glass.value=String(appearance.glassOpacity??.72);glass.onchange=()=>fire(window.quantic.setSetting('appearance',{glassOpacity:Number(glass.value)}));glassBox.append(glass);const radiusBox=el('div','persona-control');radiusBox.append(el('label','','Arrondi de la fenêtre'));const radius=document.createElement('input');radius.type='range';radius.min='6';radius.max='28';radius.value=String(appearance.radius??14);radius.onchange=()=>fire(window.quantic.setSetting('appearance',{radius:Number(radius.value)}));radiusBox.append(radius);grid.append(accentBox,glassBox,radiusBox);section.append(grid);const wallpaper=el('div','persona-control');wallpaper.style.marginTop='12px';wallpaper.append(el('label','','Fond personnalisé'));const input=document.createElement('input');input.type='text';input.maxLength=512;input.value=appearance.wallpaperPrompt||'';input.placeholder='Ex. forêt cyberpunk bleue, néons et pluie';const actions=el('div','persona-actions');const generate=el('button','pill-button','Générer localement');generate.onclick=()=>{const p=input.value.trim();if(p)fire(window.quantic.setSetting('generateWallpaper',p));};const choose=el('button','pill-button','Choisir une image du PC');choose.onclick=()=>fire(window.quantic.pickWallpaper());const reset=el('button','pill-button','Retirer le fond');reset.onclick=()=>fire(window.quantic.setSetting('resetWallpaper',true));actions.append(generate,choose,reset);wallpaper.append(input,actions,el('div','persona-note','Prompt ou image locale : rien ne quitte votre appareil. PNG, JPG, WEBP et SVG, 20 Mo max.'));section.append(wallpaper);internalContent.append(section);}
-function renderSideStageSettings(data){const s=data.settings?.sideStage||{};const section=el('section','internal-section');section.append(el('h2','','SideStage · lecteurs persistants'),el('div','persona-note','Les lecteurs restent dans des vues Chromium dédiées quand vous changez d’onglet principal.'));const toggle=el('button','pill-button '+(s.enabled!==false?'active':''),s.enabled!==false?'Activé':'Désactivé');toggle.onclick=()=>fire(window.quantic.setSetting('sideStageEnabled',s.enabled===false));section.append(toggle);const box=el('div','persona-control');box.style.marginTop='12px';box.append(el('label','','Largeur du lecteur'));const width=document.createElement('input');width.type='range';width.min='320';width.max='620';width.step='20';width.value=String(s.width||420);width.onchange=()=>fire(window.quantic.setSetting('sideStageWidth',Number(width.value)));box.append(width,el('div','persona-note','YouTube, Twitch et Spotify restent actifs pendant la navigation. Netflix nécessite Widevine pour les contenus DRM.'));section.append(box);internalContent.append(section);}
+function renderSideStageSettings(data){const s=data.settings?.sideStage||{};const section=el('section','internal-section');section.append(el('h2','','SideStage · lecteurs persistants'),el('div','persona-note','Les lecteurs restent actifs dans SideStage quand vous changez d’onglet principal.'));const toggle=el('button','pill-button '+(s.enabled!==false?'active':''),s.enabled!==false?'Activé':'Désactivé');toggle.onclick=()=>fire(window.quantic.setSetting('sideStageEnabled',s.enabled===false));section.append(toggle);const box=el('div','persona-control');box.style.marginTop='12px';box.append(el('label','','Largeur du lecteur'));const width=document.createElement('input');width.type='range';width.min='320';width.max='620';width.step='20';width.value=String(s.width||420);width.onchange=()=>fire(window.quantic.setSetting('sideStageWidth',Number(width.value)));box.append(width,el('div','persona-note','YouTube, Twitch et Spotify restent actifs pendant la navigation. Netflix nécessite Widevine pour les contenus DRM.'));section.append(box);internalContent.append(section);}
 
 function renderSettings(data) {
   const head = el('div', 'internal-head');
@@ -259,7 +260,7 @@ function renderConnecting(data) {
   const privatePhase = data.phase === 'private-network';
   text.append(el('h1', '', host), el('p', '', privatePhase ? 'Connexion privée en cours…' : 'Chargement de la page…'));
   const status = el('span', 'status');
-  status.append(el('span', 'status-dot'), document.createTextNode(privatePhase ? (data.veil?.status || 'initialisation') : 'Chromium'));
+  status.append(el('span', 'status-dot'), document.createTextNode(privatePhase ? (data.veil?.status || 'initialisation') : 'GEKKO'));
   head.append(text, status);
   internalContent.append(head);
   const box = el('div', 'error-card');
@@ -281,7 +282,7 @@ function renderCareer(data) {
   const text = el('div');
   text.append(
     el('h1', '', 'AURA Career'),
-    el('p', '', career.running ? 'Recherche et candidatures en cours dans Glide.' : 'Agent de candidature intégré à Glide.')
+    el('p', '', career.running ? 'Recherche et candidatures en cours dans GEKKO.' : 'Agent de candidature intégré à GEKKO.')
   );
   const status = el('span', 'status');
   status.append(el('span', 'status-dot'), document.createTextNode(career.running ? 'actif' : 'au repos'));
@@ -436,11 +437,14 @@ function render() {
 
   back.disabled = !tab?.canGoBack;
   forward.disabled = !tab?.canGoForward;
-  fav.textContent = '😍';
+  fav.textContent = tab?.favorite ? '★' : '☆';
   fav.classList.toggle('active', Boolean(tab?.favorite));
   fav.title = tab?.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris';
   reload.textContent = tab?.loading ? '×' : '↻';
   reload.title = tab?.loading ? 'Arrêter' : 'Actualiser';
+  navigationTransition?.classList.toggle('active', Boolean(tab?.transitioning));
+  navigationTransition?.setAttribute('aria-hidden', tab?.transitioning ? 'false' : 'true');
+  $('#home-button')?.classList.toggle('active', state.internal?.kind === 'home');
 
   setInternalVisibility();
   renderInternal();
@@ -472,6 +476,22 @@ window.quantic.onState(acceptState);
 fire(window.quantic.state().then(acceptState));
 
 $('#logo').onclick = () => fire(window.quantic.home());
+$('#dock-brand').onclick = () => fire(window.quantic.home());
+$('#home-button').onclick = () => fire(window.quantic.home());
+$('#discover').onclick = () => { address.value = 'Découvrir le web'; address.focus(); address.select(); };
+$('#bookmarks').onclick = () => fire(window.quantic.newTab('quantic://favorites'));
+$('#downloads').onclick = () => fire(window.quantic.navigate('https://mediumorchid-badger-314305.hostingersite.com/downloads/#gekko'));
+$('#apps-button').onclick = () => appsPanel?.classList.toggle('hidden');
+$('#home-tool-apps').onclick = () => appsPanel?.classList.toggle('hidden');
+$('#home-tool-home').onclick = () => fire(window.quantic.home());
+$('#home-tool-settings').onclick = () => fire(window.quantic.newTab('quantic://settings'));
+$('#apps-close').onclick = () => appsPanel?.classList.add('hidden');
+document.querySelectorAll('[data-app-url]').forEach((button) => {
+  button.onclick = () => {
+    appsPanel?.classList.add('hidden');
+    fire(window.quantic.newTab(button.dataset.appUrl));
+  };
+});
 $('#plus').onclick = () => fire(window.quantic.newTab());
 $('#plus').oncontextmenu = (event) => { event.preventDefault(); fire(window.quantic.plusMenu()); };
 $('#menu').onclick = () => fire(window.quantic.mainMenu());
@@ -495,21 +515,50 @@ address.onkeydown = (event) => {
     fire(window.quantic.navigate(value));
   }
 };
+$('#address-go').onclick = () => {
+  const value = address.value;
+  if (!value.trim()) return;
+  address.blur();
+  fire(window.quantic.navigate(value));
+};
 address.onfocus = () => fire(window.quantic.chromeLock(true));
 address.onblur = () => fire(window.quantic.chromeLock(false));
 
-function goHomeSearch() {
-  const query = homeSearch.value.trim();
-  if (query) fire(window.quantic.navigate(query));
-}
-$('#home-go').onclick = goHomeSearch;
-homeSearch.onkeydown = (event) => { if (event.key === 'Enter') goHomeSearch(); };
 document.querySelectorAll('[data-q]').forEach((button) => {
-  button.onclick = () => { homeSearch.value = button.dataset.q; homeSearch.focus(); };
+  button.onclick = () => {
+    address.value = button.dataset.q;
+    address.focus();
+    address.select();
+  };
+});
+
+document.querySelectorAll('[data-home-action]').forEach((button) => {
+  button.onclick = () => {
+    const action = button.dataset.homeAction;
+    if (action === 'private-search') {
+      address.value = '';
+      address.focus();
+      address.select();
+      return;
+    }
+    if (action === 'secure-tabs') {
+      fire(window.quantic.newTab('quantic://settings'));
+      return;
+    }
+    if (action === 'fast-light') {
+      fire(window.quantic.navigate('quantic://settings'));
+      return;
+    }
+    if (action === 'explore-more') {
+      address.value = 'Découvrir le web';
+      address.focus();
+      address.select();
+    }
+  };
 });
 
 window.quantic.onFocusAddress(() => { address.focus(); address.select(); });
-window.quantic.onFocusHomeSearch(() => homeSearch.focus());
+window.quantic.onFocusHomeSearch(() => { address.focus(); address.select(); });
 
 async function runAi(action, prompt = '') {
   if (aiBusy) return;
@@ -544,3 +593,9 @@ aiPrompt.onkeydown = (event) => {
     $('#ai-send').click();
   }
 };
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && appsPanel && !appsPanel.classList.contains('hidden')) {
+    appsPanel.classList.add('hidden');
+  }
+});
