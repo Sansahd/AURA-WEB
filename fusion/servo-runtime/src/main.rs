@@ -5,7 +5,6 @@ use std::cell::{Cell, RefCell};
 use std::error::Error;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
-use std::thread;
 use std::fs;
 use std::path::PathBuf;
 
@@ -20,10 +19,11 @@ use servo::{
     KeyboardEvent, LoadStatus, Location, Modifiers as ServoModifiers,
     MouseButton as ServoMouseButton, MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent,
     MouseMoveEvent, NamedKey as ServoNamedKey, NavigationRequest, OffscreenRenderingContext,
-    CookieSource, PermissionRequest, RenderingContext, Servo, ServoBuilder, StorageType, UserContentManager, UserScript, WebResourceLoad, WebResourceResponse,
+    PermissionRequest, RenderingContext, Servo, ServoBuilder, StorageType, UserContentManager, UserScript, WebResourceLoad, WebResourceResponse,
     CreateNewWebViewRequest, WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
 };
-use embedder_traits::EventLoopWaker;
+use embedder_traits::{EventLoopWaker, UrlRequest};
+use http::{HeaderMap, HeaderValue};
 use url::Url;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent};
@@ -31,7 +31,6 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WinitKey, ModifiersState, NamedKey as WinitNamedKey};
 use winit::window::{Fullscreen, Window};
 
-use downloads::DownloadOutcome;
 use privacy::{PrivacyStats, classify_resource};
 
 const START_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com";
@@ -141,10 +140,7 @@ fn bridged_download_target(url: &Url) -> Option<(Url, Option<String>)> {
 struct Waker(EventLoopProxy<WakeEvent>);
 
 #[derive(Debug)]
-enum WakeEvent {
-    Servo,
-    DownloadFinished(DownloadOutcome),
-}
+struct WakeEvent;
 
 impl EventLoopWaker for Waker {
     fn clone_box(&self) -> Box<dyn EventLoopWaker> {
@@ -152,7 +148,7 @@ impl EventLoopWaker for Waker {
     }
 
     fn wake(&self) {
-        let _ = self.0.send_event(WakeEvent::Servo);
+        let _ = self.0.send_event(WakeEvent);
     }
 }
 
@@ -183,7 +179,6 @@ struct FusionState {
     privacy_stats: RefCell<PrivacyStats>,
     permissions_denied: Cell<u64>,
     downloads_completed: Cell<u64>,
-    event_proxy: EventLoopProxy<WakeEvent>,
     quick_panel_open: Cell<bool>,
     browser_data: RefCell<BrowserData>,
     home_open: Cell<bool>,
@@ -341,7 +336,7 @@ impl servo::WebViewDelegate for FusionDelegate {
         let url = request.url.clone();
 
         if let Some((target, suggested_filename)) = bridged_download_target(&url) {
-            self.with_state(|state| state.start_download(target, suggested_filename));
+            self.with_state(|state| state.start_forced_download(target, suggested_filename));
             request.deny();
         } else if navigation_scheme_allowed(&request.url) {
             request.allow();
@@ -425,45 +420,40 @@ impl servo::WebViewDelegate for FusionDelegate {
 }
 
 impl FusionState {
-    fn start_download(&self, url: Url, suggested_filename: Option<String>) {
-        let proxy = self.event_proxy.clone();
-        let referrer = {
-            let current = self.current_url.borrow();
-            if current.starts_with("http://") || current.starts_with("https://") {
-                Some(current.clone())
-            } else {
-                None
+    fn start_forced_download(&self, url: Url, suggested_filename: Option<String>) {
+        let mut headers = HeaderMap::new();
+        let marker = suggested_filename
+            .as_deref()
+            .map(urlencoding::encode)
+            .map(|value| value.into_owned())
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "1".into());
+
+        if let Ok(value) = HeaderValue::from_str(&marker) {
+            headers.insert("x-quantic-download", value);
+        } else {
+            headers.insert("x-quantic-download", HeaderValue::from_static("1"));
+        }
+
+        let current = self.current_url.borrow().clone();
+        if current.starts_with("http://") || current.starts_with("https://") {
+            if let Ok(value) = HeaderValue::from_str(&current) {
+                headers.insert(http::header::REFERER, value);
             }
-        };
-        let cookie_header = {
-            let cookies = self
-                .servo
-                .site_data_manager()
-                .cookies_for_url(url.clone(), CookieSource::HTTP);
-            let values: Vec<String> = cookies
-                .iter()
-                .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
-                .collect();
-            (!values.is_empty()).then(|| values.join("; "))
-        };
+        }
+
         *self.status.borrow_mut() = format!(
-            "Téléchargement · {}",
+            "Téléchargement Servo · {}",
             suggested_filename
                 .as_deref()
                 .or_else(|| url.path_segments().and_then(|mut parts| parts.next_back()))
                 .unwrap_or("fichier")
         );
-        self.window.request_redraw();
 
-        thread::spawn(move || {
-            let outcome = downloads::download_to_default(
-                url,
-                suggested_filename,
-                cookie_header,
-                referrer,
-            );
-            let _ = proxy.send_event(WakeEvent::DownloadFinished(outcome));
-        });
+        self.active_webview()
+            .load_request(UrlRequest::new(url).headers(headers));
+        self.servo.spin_event_loop();
+        self.window.request_redraw();
     }
 
     fn clear_private_state(&self) {
@@ -1394,7 +1384,6 @@ impl ApplicationHandler<WakeEvent> for App {
             privacy_stats: RefCell::new(PrivacyStats::default()),
             permissions_denied: Cell::new(0),
             downloads_completed: Cell::new(0),
-            event_proxy: waker.0.clone(),
             quick_panel_open: Cell::new(false),
             browser_data: RefCell::new(load_browser_data()),
             home_open: Cell::new(true),
@@ -1432,22 +1421,9 @@ impl ApplicationHandler<WakeEvent> for App {
         *self = Self::Running(state);
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: WakeEvent) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: WakeEvent) {
         if let Self::Running(state) = self {
-            match event {
-                WakeEvent::Servo => state.servo.spin_event_loop(),
-                WakeEvent::DownloadFinished(DownloadOutcome::Completed { path, bytes }) => {
-                    state.downloads_completed.set(state.downloads_completed.get() + 1);
-                    *state.status.borrow_mut() = format!(
-                        "Téléchargé · {} · {:.1} Mo",
-                        path.file_name().and_then(|name| name.to_str()).unwrap_or("fichier"),
-                        bytes as f64 / 1_048_576.0
-                    );
-                }
-                WakeEvent::DownloadFinished(DownloadOutcome::Failed { url, error }) => {
-                    *state.status.borrow_mut() = format!("Téléchargement échoué · {error} · {url}");
-                }
-            }
+            state.servo.spin_event_loop();
             state.window.request_redraw();
         }
     }
