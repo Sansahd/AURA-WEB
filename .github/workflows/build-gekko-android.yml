@@ -99,7 +99,7 @@ jobs:
         env:
           ANDROID_NDK_ROOT: ${{ steps.ndk.outputs.ndk-path }}
         run: |
-          ./mach build --locked --target aarch64-linux-android --profile release
+          ./mach build --target aarch64-linux-android --profile release
           test -f target/aarch64-linux-android/release/servoapp.apk
           cp target/aarch64-linux-android/release/servoapp.apk "$GITHUB_WORKSPACE/Quantic-Gekko-Android-arm64.apk"
 
