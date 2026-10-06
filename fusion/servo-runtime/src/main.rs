@@ -31,7 +31,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WinitKey, ModifiersState, NamedKey as WinitNamedKey};
 use winit::window::{Fullscreen, Window};
 
-use downloads::{DownloadOutcome, is_probable_download_url};
+use downloads::DownloadOutcome;
 use privacy::{PrivacyStats, classify_resource};
 
 const START_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com";
@@ -342,9 +342,6 @@ impl servo::WebViewDelegate for FusionDelegate {
 
         if let Some((target, suggested_filename)) = bridged_download_target(&url) {
             self.with_state(|state| state.start_download(target, suggested_filename));
-            request.deny();
-        } else if is_probable_download_url(&url) {
-            self.with_state(|state| state.start_download(url, None));
             request.deny();
         } else if navigation_scheme_allowed(&request.url) {
             request.allow();
