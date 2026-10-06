@@ -1992,7 +1992,7 @@ impl FusionState {
         Some(url.origin().ascii_serialization())
     }
 
-    fn h3_headers(request: &servo_embedder_traits::WebResourceRequest) -> Vec<(String, Vec<u8>)> {
+    fn h3_headers(request: &embedder_traits::WebResourceRequest) -> Vec<(String, Vec<u8>)> {
         request
             .headers
             .iter()
@@ -2008,7 +2008,7 @@ impl FusionState {
             .collect()
     }
 
-    fn h3_request_is_safe(request: &servo_embedder_traits::WebResourceRequest) -> bool {
+    fn h3_request_is_safe(request: &embedder_traits::WebResourceRequest) -> bool {
         request.is_for_main_frame
             && request.url.scheme() == "https"
             && matches!(request.method.as_str(), "GET" | "HEAD")
@@ -2697,13 +2697,12 @@ mod gekko_product_tests {
     }
 
     #[test]
-    #[test]
-    #[test]
     fn h3_web_resource_load_can_leave_ui_thread() {
         fn assert_send<T: Send>() {}
         assert_send::<WebResourceLoad>();
     }
 
+    #[test]
     fn h3_origin_accepts_only_https() {
         assert_eq!(
             FusionState::h3_origin(&Url::parse("https://example.com/path").unwrap()).as_deref(),
@@ -2712,6 +2711,7 @@ mod gekko_product_tests {
         assert!(FusionState::h3_origin(&Url::parse("http://example.com/").unwrap()).is_none());
     }
 
+    #[test]
     fn address_normalizer_prefers_https_and_search() {
         assert_eq!(
             FusionState::normalize_target("example.com").unwrap().as_str(),
