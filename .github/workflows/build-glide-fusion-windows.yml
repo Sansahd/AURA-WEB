@@ -74,10 +74,7 @@ jobs:
           New-Item -ItemType Directory -Force dist\portable | Out-Null
           Copy-Item "dist\QuanticGekko.exe" "dist\portable\QuanticGekko.exe"
           New-Item -ItemType File -Force "dist\portable\portable.flag" | Out-Null
-          @'
-Gekko Portable
-Les données, favoris, sessions et téléchargements restent dans le dossier GekkoData à côté de l'exécutable.
-          '@ | Set-Content -Encoding UTF8 "dist\portable\LISEZ-MOI.txt"
+          "Gekko Portable`nLes données, favoris, sessions et téléchargements restent dans le dossier GekkoData à côté de l'exécutable." | Set-Content -Encoding UTF8 "dist\portable\LISEZ-MOI.txt"
           Compress-Archive -Path "dist\portable\*" -DestinationPath "Quantic-Gekko-Portable.zip" -Force
 
           @'
