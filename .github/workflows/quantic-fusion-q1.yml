@@ -142,9 +142,11 @@ jobs:
 
   mozilla-network:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Verify Mozilla Neqo source provenance
         run: |
           grep -q 'mozilla/neqo' quantic-engine/THIRD_PARTY_FUSION.md
