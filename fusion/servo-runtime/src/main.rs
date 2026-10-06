@@ -313,6 +313,30 @@ impl FusionState {
         self.window.request_redraw();
     }
 
+    fn select_tab(&self, index: usize) {
+        let tabs = self.tabs.borrow();
+        if index >= tabs.len() { return; }
+        self.active_tab.set(index);
+        let url = tabs[index].url.borrow().clone();
+        drop(tabs);
+        *self.current_url.borrow_mut() = url.clone();
+        *self.dock_input.borrow_mut() = url;
+        self.home_open.set(false);
+        self.window.request_redraw();
+    }
+
+    fn cycle_tab(&self, backwards: bool) {
+        let len = self.tabs.borrow().len();
+        if len < 2 { return; }
+        let current = self.active_tab.get();
+        let next = if backwards {
+            if current == 0 { len - 1 } else { current - 1 }
+        } else {
+            (current + 1) % len
+        };
+        self.select_tab(next);
+    }
+
     fn close_active_tab(&self) {
         let mut tabs = self.tabs.borrow_mut();
         if tabs.len() <= 1 {
@@ -451,12 +475,16 @@ impl FusionState {
                                     .corner_radius(14.0)
                                     .min_size(egui::vec2(86.0, 28.0))
                             ).clicked() {
-                                self.active_tab.set(index);
-                                let url = self.tabs.borrow()[index].url.borrow().clone();
-                                *self.current_url.borrow_mut() = url.clone();
-                                *self.dock_input.borrow_mut() = url;
-                                self.home_open.set(false);
+                                self.select_tab(index);
                             }
+                        }
+                        if self.tabs.borrow().len() > 1 && ui.add(
+                            egui::Button::new(egui::RichText::new("×").size(13.0).color(MUTED))
+                                .fill(BG)
+                                .corner_radius(14.0)
+                                .min_size(egui::vec2(28.0, 28.0))
+                        ).on_hover_text("Fermer l’onglet · Ctrl+W").clicked() {
+                            self.close_active_tab();
                         }
                         if ui.add(
                             egui::Button::new(egui::RichText::new("+").strong().size(15.0).color(ACCENT))
@@ -1207,9 +1235,13 @@ impl ApplicationHandler<WakeEvent> for App {
                     && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("t"));
                 let is_close_tab_shortcut = command
                     && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("w"));
+                let is_cycle_tab_shortcut = command
+                    && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::Tab));
 
                 if event.state == ElementState::Pressed {
-                    if is_new_tab_shortcut {
+                    if is_cycle_tab_shortcut {
+                        state.cycle_tab(modifiers.shift_key());
+                    } else if is_new_tab_shortcut {
                         if let Ok(url) = Url::parse("about:blank") {
                             state.new_tab(url);
                             state.home_open.set(true);
@@ -1233,7 +1265,7 @@ impl ApplicationHandler<WakeEvent> for App {
                     } else if !is_location_shortcut {
                         state.handle_keyboard_input(event);
                     }
-                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut && !is_home_shortcut && !is_new_tab_shortcut && !is_close_tab_shortcut {
+                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut && !is_home_shortcut && !is_new_tab_shortcut && !is_close_tab_shortcut && !is_cycle_tab_shortcut {
                     state.handle_keyboard_input(event);
                 }
             }
