@@ -1,3 +1,4 @@
+mod aura;
 mod downloads;
 mod privacy;
 
@@ -5,6 +6,7 @@ use std::cell::{Cell, RefCell};
 use std::error::Error;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
+use std::thread;
 use std::time::{Duration, Instant};
 use std::fs;
 use std::path::PathBuf;
@@ -16,7 +18,7 @@ use egui_glow::{CallbackFn, EguiGlow};
 use euclid::{Point2D, Rect, Scale, Size2D};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use servo::{
-    Code, CompositionEvent, CompositionState, ImeEvent, InputEvent, Key as ServoKey, KeyState,
+    Code, CompositionEvent, JSValue, CompositionState, ImeEvent, InputEvent, Key as ServoKey, KeyState,
     KeyboardEvent, LoadStatus, Location, Modifiers as ServoModifiers,
     MouseButton as ServoMouseButton, MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent,
     MouseMoveEvent, NamedKey as ServoNamedKey, NavigationRequest, OffscreenRenderingContext,
@@ -32,6 +34,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WinitKey, ModifiersState, NamedKey as WinitNamedKey};
 use winit::window::{Fullscreen, Window};
 
+use aura::{AuraAction, AuraReply};
 use privacy::{PrivacyStats, classify_resource};
 
 const GEKKO_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -208,7 +211,10 @@ fn bridged_download_target(url: &Url) -> Option<(Url, Option<String>)> {
 struct Waker(EventLoopProxy<WakeEvent>);
 
 #[derive(Debug)]
-struct WakeEvent;
+enum WakeEvent {
+    Servo,
+    Aura(AuraReply),
+}
 
 impl EventLoopWaker for Waker {
     fn clone_box(&self) -> Box<dyn EventLoopWaker> {
@@ -216,7 +222,7 @@ impl EventLoopWaker for Waker {
     }
 
     fn wake(&self) {
-        let _ = self.0.send_event(WakeEvent);
+        let _ = self.0.send_event(WakeEvent::Servo);
     }
 }
 
@@ -257,6 +263,12 @@ struct FusionState {
     ladybird_tokens: Cell<u64>,
     ladybird_invalid: Cell<u64>,
     user_content_manager: Rc<UserContentManager>,
+    event_proxy: EventLoopProxy<WakeEvent>,
+    aura_busy: Cell<bool>,
+    aura_panel_open: Cell<bool>,
+    aura_answer: RefCell<String>,
+    aura_engine: RefCell<String>,
+    aura_error: RefCell<String>,
 }
 
 struct FusionDelegate {
@@ -691,6 +703,95 @@ impl FusionState {
         Url::parse(&format!("{SEARCH_PREFIX}{}", urlencoding::encode(value))).ok()
     }
 
+    fn ask_aura(&self, prompt: String) {
+        if prompt.trim().is_empty() {
+            self.aura_panel_open.set(true);
+            self.quick_panel_open.set(false);
+            *self.status.borrow_mut() = "AURA prête".into();
+            self.window.request_redraw();
+            return;
+        }
+
+        self.aura_busy.set(true);
+        self.aura_panel_open.set(true);
+        self.quick_panel_open.set(false);
+        *self.aura_answer.borrow_mut() = String::new();
+        *self.aura_error.borrow_mut() = String::new();
+        *self.status.borrow_mut() = "AURA analyse la page…".into();
+        self.window.request_redraw();
+
+        let proxy = self.event_proxy.clone();
+        self.active_webview().evaluate_javascript(
+            r#"JSON.stringify({
+                url: location.href,
+                title: document.title,
+                text: document.body ? document.body.innerText.slice(0, 12000) : ""
+            })"#,
+            move |result| {
+                let page_context = match result {
+                    Ok(JSValue::String(value)) => value,
+                    Ok(other) => format!("{other:?}"),
+                    Err(error) => format!("Contexte page indisponible: {error:?}"),
+                };
+                thread::spawn(move || {
+                    let reply = aura::generate(&prompt, &page_context);
+                    let _ = proxy.send_event(WakeEvent::Aura(reply));
+                });
+            },
+        );
+        self.servo.spin_event_loop();
+    }
+
+    fn apply_aura_actions(&self, actions: Vec<AuraAction>) {
+        for action in actions.into_iter().take(6) {
+            match action {
+                AuraAction::Navigate { url } => {
+                    if let Ok(url) = Url::parse(&url) {
+                        if matches!(url.scheme(), "http" | "https") {
+                            self.active_webview().load(url);
+                        }
+                    }
+                }
+                AuraAction::NewTab { url } => {
+                    if let Ok(url) = Url::parse(&url) {
+                        if matches!(url.scheme(), "http" | "https") {
+                            self.new_tab(url);
+                        }
+                    }
+                }
+                AuraAction::Search { query } => {
+                    if let Ok(url) = Url::parse(&format!("{SEARCH_PREFIX}{}", urlencoding::encode(&query))) {
+                        self.active_webview().load(url);
+                    }
+                }
+                AuraAction::Back => self.active_webview().go_back(1),
+                AuraAction::Forward => self.active_webview().go_forward(1),
+                AuraAction::Reload => self.active_webview().reload(),
+                AuraAction::Click { selector } => {
+                    if let Ok(selector) = serde_json::to_string(&selector) {
+                        let script = format!(
+                            "(() => {{ const el = document.querySelector({selector}); if (!el) return false; el.click(); return true; }})()"
+                        );
+                        self.active_webview().evaluate_javascript(script, |_| {});
+                    }
+                }
+                AuraAction::Fill { selector, value } => {
+                    if let (Ok(selector), Ok(value)) = (
+                        serde_json::to_string(&selector),
+                        serde_json::to_string(&value),
+                    ) {
+                        let script = format!(
+                            "(() => {{ const el = document.querySelector({selector}); if (!el) return false; el.focus(); el.value = {value}; el.dispatchEvent(new Event('input', {{bubbles:true}})); el.dispatchEvent(new Event('change', {{bubbles:true}})); return true; }})()"
+                        );
+                        self.active_webview().evaluate_javascript(script, |_| {});
+                    }
+                }
+            }
+        }
+        self.servo.spin_event_loop();
+        self.window.request_redraw();
+    }
+
     fn execute_dock(&self) {
         let raw = self.dock_input.borrow().trim().to_string();
         if raw.is_empty() {
@@ -711,12 +812,8 @@ impl FusionState {
                 self.active_webview().load(url);
             }
         } else if lower == "@aura" || lower.starts_with("@aura ") {
-            let prompt = raw.strip_prefix("@aura").unwrap_or("").trim();
-            *self.status.borrow_mut() = if prompt.is_empty() {
-                "AURA prête".into()
-            } else {
-                format!("AURA · {prompt}")
-            };
+            let prompt = raw.strip_prefix("@aura").unwrap_or("").trim().to_string();
+            self.ask_aura(prompt);
         } else if matches!(lower.as_str(), "> accueil" | "> home") {
             self.home_open.set(true);
             *self.status.borrow_mut() = "Accueil Gekko".into();
@@ -855,6 +952,62 @@ impl FusionState {
                         });
                     });
                 });
+
+            if self.aura_panel_open.get() {
+                egui::SidePanel::right("aura_panel")
+                    .exact_width(360.0)
+                    .frame(
+                        egui::Frame::new()
+                            .fill(PANEL)
+                            .stroke(egui::Stroke::new(1.0, ACCENT_SOFT))
+                            .inner_margin(egui::Margin::same(18))
+                    )
+                    .show(ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new("AURA").strong().size(15.0).color(ACCENT));
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.add(egui::Button::new("×").frame(false)).clicked() {
+                                    self.aura_panel_open.set(false);
+                                }
+                            });
+                        });
+                        ui.label(egui::RichText::new("Assistant navigateur local").size(9.0).color(MUTED));
+                        ui.add_space(12.0);
+
+                        if self.aura_busy.get() {
+                            ui.label(egui::RichText::new("Analyse de la page en cours…").size(10.0).color(TEXT));
+                        } else {
+                            let engine = self.aura_engine.borrow();
+                            if !engine.is_empty() {
+                                ui.label(egui::RichText::new(format!("Moteur · {engine}")).size(8.5).color(MUTED));
+                                ui.add_space(7.0);
+                            }
+                            let answer = self.aura_answer.borrow();
+                            if answer.is_empty() {
+                                ui.label(egui::RichText::new("Saisis @aura suivi de ta demande. AURA reçoit un extrait limité de la page active et peut utiliser des actions navigateur bornées.").size(10.0).color(MUTED));
+                            } else {
+                                ui.label(egui::RichText::new(answer.as_str()).size(10.5).color(TEXT));
+                            }
+                            let error = self.aura_error.borrow();
+                            if !error.is_empty() {
+                                ui.add_space(10.0);
+                                ui.label(egui::RichText::new(error.as_str()).size(8.5).color(egui::Color32::from_rgb(214, 151, 112)));
+                            }
+                        }
+
+                        ui.add_space(14.0);
+                        if ui.add_sized(
+                            [ui.available_width(), 34.0],
+                            egui::Button::new(egui::RichText::new("Demander à AURA").size(10.0).color(TEXT))
+                                .fill(ACCENT_SOFT)
+                                .corner_radius(16.0)
+                        ).clicked() {
+                            *self.dock_input.borrow_mut() = "@aura ".into();
+                            self.dock_expanded.set(true);
+                            self.dock_focus_requested.set(true);
+                        }
+                    });
+            }
 
             if self.quick_panel_open.get() {
                 egui::SidePanel::right("quantic_panel")
@@ -1527,6 +1680,12 @@ impl ApplicationHandler<WakeEvent> for App {
             ladybird_tokens: Cell::new(0),
             ladybird_invalid: Cell::new(0),
             user_content_manager,
+            event_proxy: waker.0.clone(),
+            aura_busy: Cell::new(false),
+            aura_panel_open: Cell::new(false),
+            aura_answer: RefCell::new(String::new()),
+            aura_engine: RefCell::new(String::new()),
+            aura_error: RefCell::new(String::new()),
         });
         delegate.bind(&state);
 
@@ -1558,9 +1717,23 @@ impl ApplicationHandler<WakeEvent> for App {
         *self = Self::Running(state);
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: WakeEvent) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: WakeEvent) {
         if let Self::Running(state) = self {
-            state.servo.spin_event_loop();
+            match event {
+                WakeEvent::Servo => state.servo.spin_event_loop(),
+                WakeEvent::Aura(reply) => {
+                    state.aura_busy.set(false);
+                    *state.aura_answer.borrow_mut() = reply.answer;
+                    *state.aura_engine.borrow_mut() = if reply.model.is_empty() {
+                        reply.engine
+                    } else {
+                        format!("{} · {}", reply.engine, reply.model)
+                    };
+                    *state.aura_error.borrow_mut() = reply.error.unwrap_or_default();
+                    state.apply_aura_actions(reply.actions);
+                    *state.status.borrow_mut() = "AURA · réponse reçue".into();
+                }
+            }
             state.window.request_redraw();
         }
     }
