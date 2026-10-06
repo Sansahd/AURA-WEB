@@ -509,6 +509,31 @@ document.querySelectorAll('[data-q]').forEach((button) => {
   };
 });
 
+document.querySelectorAll('[data-home-action]').forEach((button) => {
+  button.onclick = () => {
+    const action = button.dataset.homeAction;
+    if (action === 'private-search') {
+      address.value = '';
+      address.focus();
+      address.select();
+      return;
+    }
+    if (action === 'secure-tabs') {
+      fire(window.quantic.newTab('quantic://settings'));
+      return;
+    }
+    if (action === 'fast-light') {
+      fire(window.quantic.navigate('quantic://settings'));
+      return;
+    }
+    if (action === 'explore-more') {
+      address.value = 'Découvrir le web';
+      address.focus();
+      address.select();
+    }
+  };
+});
+
 window.quantic.onFocusAddress(() => { address.focus(); address.select(); });
 window.quantic.onFocusHomeSearch(() => { address.focus(); address.select(); });
 
