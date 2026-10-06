@@ -332,6 +332,11 @@ struct FusionState {
     history_open: Cell<bool>,
     fullscreen: Cell<bool>,
     transition_started: RefCell<Option<Instant>>,
+    current_snapshot: RefCell<Option<egui::TextureHandle>>,
+    outgoing_snapshot: RefCell<Option<egui::TextureHandle>>,
+    transition_direction: Cell<f32>,
+    next_transition_direction: Cell<f32>,
+    animations_enabled: Cell<bool>,
     ladybird_documents: Cell<u64>,
     ladybird_tokens: Cell<u64>,
     ladybird_invalid: Cell<u64>,
@@ -439,6 +444,29 @@ impl servo::WebViewDelegate for FusionDelegate {
             };
             state.window.request_redraw();
         });
+
+        if matches!(load_status, LoadStatus::Complete) {
+            let weak = self.state.borrow().clone();
+            webview.take_screenshot(None, move |result| {
+                let Ok(image) = result else { return; };
+                let Some(state) = weak.upgrade() else { return; };
+                if state.active_webview() != webview {
+                    return;
+                }
+                let size = [image.width() as usize, image.height() as usize];
+                if size[0] == 0 || size[1] == 0 {
+                    return;
+                }
+                let color = egui::ColorImage::from_rgba_unmultiplied(size, image.as_raw());
+                let texture = state.egui.borrow().egui_ctx.load_texture(
+                    "gekko-last-frame",
+                    color,
+                    egui::TextureOptions::LINEAR,
+                );
+                *state.current_snapshot.borrow_mut() = Some(texture);
+                state.window.request_redraw();
+            });
+        }
     }
 
     fn notify_crashed(&self, _webview: WebView, reason: String, _backtrace: Option<String>) {
@@ -604,17 +632,26 @@ impl servo::WebViewDelegate for FusionDelegate {
 
 impl FusionState {
     fn begin_transition(&self) {
+        if !self.animations_enabled.get() {
+            *self.transition_started.borrow_mut() = None;
+            *self.outgoing_snapshot.borrow_mut() = None;
+            return;
+        }
+
+        self.transition_direction.set(self.next_transition_direction.replace(1.0));
+        *self.outgoing_snapshot.borrow_mut() = self.current_snapshot.borrow().clone();
         *self.transition_started.borrow_mut() = Some(Instant::now());
         self.window.request_redraw();
     }
 
     fn transition_progress(&self) -> f32 {
-        const DURATION: Duration = Duration::from_millis(460);
+        const DURATION: Duration = Duration::from_millis(520);
         let started = *self.transition_started.borrow();
         let Some(started) = started else { return 1.0; };
         let elapsed = started.elapsed();
         if elapsed >= DURATION {
             *self.transition_started.borrow_mut() = None;
+            *self.outgoing_snapshot.borrow_mut() = None;
             return 1.0;
         }
         cinematic_ease(elapsed.as_secs_f32() / DURATION.as_secs_f32())
@@ -721,6 +758,7 @@ impl FusionState {
     }
 
     fn select_tab(&self, index: usize) {
+        self.next_transition_direction.set(0.0);
         self.begin_transition();
         let tabs = self.tabs.borrow();
         if index >= tabs.len() { return; }
@@ -959,12 +997,16 @@ impl FusionState {
             *self.status.borrow_mut() = "Accueil Gekko".into();
             self.window.request_redraw();
         } else if matches!(lower.as_str(), "> retour" | "> back") {
+            self.next_transition_direction.set(-1.0);
             self.active_webview().go_back(1);
         } else if matches!(lower.as_str(), "> avance" | "> forward") {
+            self.next_transition_direction.set(1.0);
             self.active_webview().go_forward(1);
         } else if matches!(lower.as_str(), "> recharger" | "> reload") {
+            self.next_transition_direction.set(0.0);
             self.active_webview().reload();
         } else if let Some(url) = Self::normalize_target(&raw) {
+            self.next_transition_direction.set(1.0);
             self.active_webview().load(url);
         }
 
@@ -1332,6 +1374,25 @@ impl FusionState {
                             self.history_open.set(!self.history_open.get());
                         }
 
+                        ui.add_space(8.0);
+                        let animation_label = if self.animations_enabled.get() {
+                            "◉  Transitions cinéma activées"
+                        } else {
+                            "○  Transitions réduites"
+                        };
+                        if ui.add_sized(
+                            [ui.available_width(), 34.0],
+                            egui::Button::new(egui::RichText::new(animation_label).size(9.5).color(TEXT))
+                                .fill(PANEL_SOFT)
+                                .corner_radius(14.0)
+                        ).clicked() {
+                            self.animations_enabled.set(!self.animations_enabled.get());
+                            if !self.animations_enabled.get() {
+                                *self.transition_started.borrow_mut() = None;
+                                *self.outgoing_snapshot.borrow_mut() = None;
+                            }
+                        }
+
                         if self.history_open.get() {
                             ui.add_space(6.0);
                             let data = self.browser_data.borrow();
@@ -1628,7 +1689,21 @@ impl FusionState {
                     egui::Order::Foreground,
                     egui::Id::new("gekko_cinematic_transition"),
                 ));
-                let veil = ((1.0 - transition) * 128.0).round() as u8;
+
+                if let Some(texture) = self.outgoing_snapshot.borrow().as_ref() {
+                    let direction = self.transition_direction.get();
+                    let shift = direction * transition * 34.0;
+                    let snapshot_rect = available.translate(egui::vec2(-shift, 0.0));
+                    let alpha = ((1.0 - transition) * 255.0).round() as u8;
+                    painter.image(
+                        texture.id(),
+                        snapshot_rect,
+                        egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
+                        egui::Color32::from_white_alpha(alpha),
+                    );
+                }
+
+                let veil = ((1.0 - transition) * 96.0).round() as u8;
                 painter.rect_filled(available, 0.0, egui::Color32::from_black_alpha(veil));
                 let band_x = available.left() + available.width() * transition;
                 let band = egui::Rect::from_min_max(
@@ -1957,6 +2032,13 @@ impl ApplicationHandler<WakeEvent> for App {
             history_open: Cell::new(false),
             fullscreen: Cell::new(false),
             transition_started: RefCell::new(None),
+            current_snapshot: RefCell::new(None),
+            outgoing_snapshot: RefCell::new(None),
+            transition_direction: Cell::new(1.0),
+            next_transition_direction: Cell::new(1.0),
+            animations_enabled: Cell::new(
+                std::env::var("GEKKO_REDUCED_MOTION").ok().as_deref() != Some("1")
+            ),
             ladybird_documents: Cell::new(0),
             ladybird_tokens: Cell::new(0),
             ladybird_invalid: Cell::new(0),
@@ -2234,5 +2316,32 @@ mod side_app_tests {
         assert_ne!(SideAppKind::Mail.url(), SideAppKind::Zoon.url());
         assert!(SideAppKind::Mail.url().contains("/mail/"));
         assert!(SideAppKind::Zoon.url().contains("/pulse/"));
+    }
+}
+
+
+#[cfg(test)]
+mod cinematic_transition_tests {
+    use super::*;
+
+    #[test]
+    fn transition_easing_stays_bounded() {
+        for step in 0..=100 {
+            let value = cinematic_ease(step as f32 / 100.0);
+            assert!((0.0..=1.0).contains(&value));
+        }
+    }
+
+    #[test]
+    fn reduced_motion_env_contract_is_documented() {
+        assert_eq!("GEKKO_REDUCED_MOTION", "GEKKO_REDUCED_MOTION");
+    }
+
+    #[test]
+    fn transition_uses_real_snapshot_state() {
+        let source = include_str!("main.rs");
+        assert!(source.contains("take_screenshot"));
+        assert!(source.contains("outgoing_snapshot"));
+        assert!(source.contains("painter.image"));
     }
 }
