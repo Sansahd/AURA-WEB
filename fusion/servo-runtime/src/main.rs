@@ -5,6 +5,7 @@ use std::cell::{Cell, RefCell};
 use std::error::Error;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use std::fs;
 use std::path::PathBuf;
 
@@ -95,12 +96,17 @@ struct BrowserData {
 }
 
 fn browser_data_path() -> Option<PathBuf> {
-    dirs::data_local_dir().map(|root| root.join("Quantic").join("Glide").join("browser-data.json"))
+    dirs::data_local_dir().map(|root| root.join("Quantic").join("Gekko").join("browser-data.json"))
+}
+
+fn legacy_browser_data_path() -> Option<PathBuf> {
+    dirs::data_local_dir().map(|root| root.join("Quantic").join("Gekko").join("browser-data.json"))
 }
 
 fn load_browser_data() -> BrowserData {
     browser_data_path()
         .and_then(|path| fs::read_to_string(path).ok())
+        .or_else(|| legacy_browser_data_path().and_then(|path| fs::read_to_string(path).ok()))
         .and_then(|raw| serde_json::from_str(&raw).ok())
         .unwrap_or_default()
 }
@@ -112,6 +118,63 @@ fn save_browser_data(data: &BrowserData) {
     }
     if let Ok(raw) = serde_json::to_string_pretty(data) {
         let _ = fs::write(path, raw);
+    }
+}
+
+
+fn cinematic_ease(progress: f32) -> f32 {
+    let progress = progress.clamp(0.0, 1.0);
+    1.0 - (1.0 - progress).powi(3)
+}
+
+fn paint_gekko_mark(ui: &mut egui::Ui, size: f32) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(size, size), egui::Sense::hover());
+    let painter = ui.painter();
+    let center = rect.center();
+    let radius = size * 0.34;
+
+    painter.circle_filled(center, radius, egui::Color32::from_rgb(22, 28, 24));
+    painter.circle_stroke(center, radius, egui::Stroke::new(size * 0.035, ACCENT));
+    painter.line_segment(
+        [center + egui::vec2(-radius * 0.78, 0.0), center + egui::vec2(radius * 0.78, 0.0)],
+        egui::Stroke::new(size * 0.018, egui::Color32::from_rgb(186, 153, 82)),
+    );
+    painter.line_segment(
+        [center + egui::vec2(0.0, -radius * 0.82), center + egui::vec2(0.0, radius * 0.82)],
+        egui::Stroke::new(size * 0.018, egui::Color32::from_rgb(186, 153, 82)),
+    );
+    painter.circle_stroke(
+        center + egui::vec2(0.0, -radius * 0.04),
+        radius * 0.58,
+        egui::Stroke::new(size * 0.012, egui::Color32::from_rgb(112, 132, 113)),
+    );
+
+    // Gekko: body hugging the planet instead of a detached mascot.
+    let body = [
+        center + egui::vec2(radius * 0.62, -radius * 0.72),
+        center + egui::vec2(radius * 0.92, -radius * 0.42),
+        center + egui::vec2(radius * 0.98, -radius * 0.02),
+        center + egui::vec2(radius * 0.82, radius * 0.38),
+        center + egui::vec2(radius * 0.52, radius * 0.70),
+    ];
+    for pair in body.windows(2) {
+        painter.line_segment(
+            [pair[0], pair[1]],
+            egui::Stroke::new(size * 0.075, egui::Color32::from_rgb(223, 190, 84)),
+        );
+    }
+    painter.circle_filled(body[0], size * 0.075, egui::Color32::from_rgb(246, 211, 99));
+    painter.circle_filled(body[0] + egui::vec2(size * 0.028, -size * 0.012), size * 0.012, BG);
+
+    for (joint, dir) in [
+        (body[1], egui::vec2(-0.20, -0.18)),
+        (body[2], egui::vec2(0.22, -0.10)),
+        (body[3], egui::vec2(-0.20, 0.18)),
+        (body[4], egui::vec2(0.18, 0.14)),
+    ] {
+        let foot = joint + dir * size;
+        painter.line_segment([joint, foot], egui::Stroke::new(size * 0.026, egui::Color32::from_rgb(223, 190, 84)));
+        painter.circle_filled(foot, size * 0.023, egui::Color32::from_rgb(246, 211, 99));
     }
 }
 
@@ -188,6 +251,10 @@ struct FusionState {
     home_open: Cell<bool>,
     history_open: Cell<bool>,
     fullscreen: Cell<bool>,
+    transition_started: RefCell<Option<Instant>>,
+    ladybird_documents: Cell<u64>,
+    ladybird_tokens: Cell<u64>,
+    ladybird_invalid: Cell<u64>,
     user_content_manager: Rc<UserContentManager>,
 }
 
@@ -252,7 +319,7 @@ impl servo::WebViewDelegate for FusionDelegate {
         self.with_state(|state| {
             let title = title
                 .filter(|value| !value.trim().is_empty())
-                .unwrap_or_else(|| "Glide".into());
+                .unwrap_or_else(|| "Gekko".into());
             {
                 let tabs = state.tabs.borrow();
                 if let Some(tab) = tabs.iter().find(|tab| tab.webview == webview) {
@@ -260,17 +327,20 @@ impl servo::WebViewDelegate for FusionDelegate {
                 }
             }
             if state.active_webview() == webview {
-                state.window.set_title(&format!("{title} — Quantic Glide Fusion"));
+                state.window.set_title(&format!("{title} — Gekko"));
             }
         });
     }
 
     fn notify_load_status_changed(&self, _webview: WebView, load_status: LoadStatus) {
         self.with_state(|state| {
+            if matches!(load_status, LoadStatus::Started) {
+                state.begin_transition();
+            }
             *state.status.borrow_mut() = match load_status {
-                LoadStatus::Started => "Chargement…".into(),
-                LoadStatus::HeadParsed => "Rendu…".into(),
-                LoadStatus::Complete => "Prêt".into(),
+                LoadStatus::Started => "Gekko · transition…".into(),
+                LoadStatus::HeadParsed => "Gekko · rendu…".into(),
+                LoadStatus::Complete => "Gekko · prêt".into(),
             };
             state.window.request_redraw();
         });
@@ -396,6 +466,20 @@ impl servo::WebViewDelegate for FusionDelegate {
         });
     }
 
+    fn notify_ladybird_document_audit(
+        &self,
+        _webview: WebView,
+        token_count: u64,
+        invalid_count: u64,
+    ) {
+        self.with_state(|state| {
+            state.ladybird_documents.set(state.ladybird_documents.get() + 1);
+            state.ladybird_tokens.set(state.ladybird_tokens.get().saturating_add(token_count));
+            state.ladybird_invalid.set(state.ladybird_invalid.get().saturating_add(invalid_count));
+            state.window.request_redraw();
+        });
+    }
+
     fn load_web_resource(&self, _webview: WebView, load: WebResourceLoad) {
         let reason = classify_resource(
             &load.request.url,
@@ -424,6 +508,23 @@ impl servo::WebViewDelegate for FusionDelegate {
 }
 
 impl FusionState {
+    fn begin_transition(&self) {
+        *self.transition_started.borrow_mut() = Some(Instant::now());
+        self.window.request_redraw();
+    }
+
+    fn transition_progress(&self) -> f32 {
+        const DURATION: Duration = Duration::from_millis(460);
+        let started = *self.transition_started.borrow();
+        let Some(started) = started else { return 1.0; };
+        let elapsed = started.elapsed();
+        if elapsed >= DURATION {
+            *self.transition_started.borrow_mut() = None;
+            return 1.0;
+        }
+        cinematic_ease(elapsed.as_secs_f32() / DURATION.as_secs_f32())
+    }
+
     fn start_forced_download(&self, url: Url, suggested_filename: Option<String>) {
         let mut headers = HeaderMap::new();
         let marker = suggested_filename
@@ -554,7 +655,7 @@ impl FusionState {
         if tabs.len() <= 1 {
             drop(tabs);
             self.home_open.set(true);
-            *self.status.borrow_mut() = "Accueil Glide".into();
+            *self.status.borrow_mut() = "Accueil Gekko".into();
             return;
         }
         let index = self.active_tab.get().min(tabs.len() - 1);
@@ -613,7 +714,7 @@ impl FusionState {
             };
         } else if matches!(lower.as_str(), "> accueil" | "> home") {
             self.home_open.set(true);
-            *self.status.borrow_mut() = "Accueil Glide".into();
+            *self.status.borrow_mut() = "Accueil Gekko".into();
             self.window.request_redraw();
         } else if matches!(lower.as_str(), "> retour" | "> back") {
             self.active_webview().go_back(1);
@@ -662,13 +763,9 @@ impl FusionState {
                 )
                 .show(ctx, |ui| {
                     ui.horizontal_centered(|ui| {
-                        let (rect, _) = ui.allocate_exact_size(egui::vec2(30.0, 30.0), egui::Sense::hover());
-                        ui.painter().circle_filled(rect.center(), 13.0, ACCENT);
-                        ui.painter().circle_filled(rect.center(), 8.5, egui::Color32::from_rgb(34, 27, 18));
-                        ui.painter().circle_filled(rect.center() + egui::vec2(3.0, -3.0), 3.0, egui::Color32::from_rgb(255, 221, 145));
-
+                        paint_gekko_mark(ui, 30.0);
                         ui.add_space(4.0);
-                        ui.label(egui::RichText::new("GLIDE").strong().size(15.0).color(TEXT));
+                        ui.label(egui::RichText::new("GEKKO").strong().size(15.0).color(TEXT));
                         ui.label(egui::RichText::new("FUSION").strong().size(10.0).color(ACCENT));
 
                         ui.add_space(12.0);
@@ -877,6 +974,12 @@ impl FusionState {
                         ui.label(egui::RichText::new(format!("{} télémétrie · {} fingerprint · {} HTTP", stats.telemetry, stats.fingerprinting, stats.insecure)).size(9.0).color(MUTED));
                         ui.label(egui::RichText::new(format!("{} permissions refusées", self.permissions_denied.get())).size(10.0).color(TEXT));
                         ui.label(egui::RichText::new(format!("{} téléchargements terminés", self.downloads_completed.get())).size(10.0).color(TEXT));
+                        ui.label(egui::RichText::new(format!(
+                            "Ladybird actif · {} page(s) · {} tokens · {} invalides",
+                            self.ladybird_documents.get(),
+                            self.ladybird_tokens.get(),
+                            self.ladybird_invalid.get()
+                        )).size(9.0).color(MUTED));
                         ui.add_space(8.0);
                         ui.label(egui::RichText::new("Privacy Shield V2 · cache, cookies et stockages Web effacés à la fermeture.").size(9.0).color(MUTED));
                     });
@@ -1015,19 +1118,20 @@ impl FusionState {
                 });
 
             let available = ctx.available_rect();
+            let transition = self.transition_progress();
+            if transition < 1.0 {
+                ctx.request_repaint();
+            }
             if self.home_open.get() {
                 egui::CentralPanel::default()
                     .frame(egui::Frame::new().fill(BG))
                     .show(ctx, |ui| {
                         ui.add_space((ui.available_height() * 0.18).min(130.0));
                         ui.vertical_centered(|ui| {
-                            let (logo, _) = ui.allocate_exact_size(egui::vec2(86.0, 86.0), egui::Sense::hover());
-                            ui.painter().circle_filled(logo.center(), 40.0, ACCENT);
-                            ui.painter().circle_filled(logo.center(), 29.0, egui::Color32::from_rgb(31, 25, 18));
-                            ui.painter().circle_filled(logo.center() + egui::vec2(10.0, -10.0), 7.0, egui::Color32::from_rgb(255, 224, 154));
+                            paint_gekko_mark(ui, 96.0);
                             ui.add_space(10.0);
-                            ui.label(egui::RichText::new("GLIDE").strong().size(28.0).color(TEXT));
-                            ui.label(egui::RichText::new("Le Web, sans Chromium.").size(11.0).color(MUTED));
+                            ui.label(egui::RichText::new("GEKKO").strong().size(28.0).color(TEXT));
+                            ui.label(egui::RichText::new("Le web, sans compromis.").size(11.0).color(MUTED));
                             ui.add_space(24.0);
 
                             if ui.add_sized(
@@ -1110,7 +1214,7 @@ impl FusionState {
             if !self.home_open.get() {
             if let Some(render_to_parent) = active_context.render_to_parent_callback() {
                 ctx.layer_painter(LayerId::background()).add(PaintCallback {
-                    rect: available,
+                    rect: available.translate(egui::vec2((1.0 - transition) * 18.0, 0.0)),
                     callback: Arc::new(CallbackFn::new(move |info, painter| {
                         let clip = info.viewport_in_pixels();
                         let rect = Rect::new(
@@ -1121,6 +1225,25 @@ impl FusionState {
                     })),
                 });
             }
+            }
+
+            if transition < 1.0 && !self.home_open.get() {
+                let painter = ctx.layer_painter(egui::LayerId::new(
+                    egui::Order::Foreground,
+                    egui::Id::new("gekko_cinematic_transition"),
+                ));
+                let veil = ((1.0 - transition) * 128.0).round() as u8;
+                painter.rect_filled(available, 0.0, egui::Color32::from_black_alpha(veil));
+                let band_x = available.left() + available.width() * transition;
+                let band = egui::Rect::from_min_max(
+                    egui::pos2((band_x - 34.0).max(available.left()), available.top()),
+                    egui::pos2((band_x + 12.0).min(available.right()), available.bottom()),
+                );
+                painter.rect_filled(
+                    band,
+                    0.0,
+                    egui::Color32::from_rgba_premultiplied(246, 181, 64, ((1.0 - transition) * 42.0) as u8),
+                );
             }
 
             if ctx.input(|i| (i.modifiers.ctrl || i.modifiers.command) && i.key_pressed(egui::Key::L)) {
@@ -1320,10 +1443,10 @@ impl ApplicationHandler<WakeEvent> for App {
 
         let window = event_loop.create_window(
             Window::default_attributes()
-                .with_title("Quantic Glide Fusion")
+                .with_title("Gekko — Quantic Browser")
                 .with_inner_size(winit::dpi::PhysicalSize::new(1440_u32, 900_u32))
                 .with_min_inner_size(winit::dpi::PhysicalSize::new(980_u32, 680_u32)),
-        ).expect("create Glide window");
+        ).expect("create Gekko window");
 
         let display_handle = event_loop.display_handle().expect("display handle");
         let window_handle = window.window_handle().expect("window handle");
@@ -1369,7 +1492,7 @@ impl ApplicationHandler<WakeEvent> for App {
             tabs: RefCell::new(vec![BrowserTab {
                 webview,
                 context: web_context,
-                title: RefCell::new("Glide".into()),
+                title: RefCell::new("Gekko".into()),
                 url: RefCell::new(START_URL.to_string()),
             }]),
             active_tab: Cell::new(0),
@@ -1378,7 +1501,7 @@ impl ApplicationHandler<WakeEvent> for App {
             egui: RefCell::new(egui),
             dock_input: RefCell::new(START_URL.to_string()),
             current_url: RefCell::new(START_URL.to_string()),
-            status: RefCell::new("Glide Fusion prêt".into()),
+            status: RefCell::new("Gekko prêt".into()),
             dock_expanded: Cell::new(false),
             dock_focus_requested: Cell::new(false),
             content_height_points: Cell::new(700.0),
@@ -1393,6 +1516,10 @@ impl ApplicationHandler<WakeEvent> for App {
             home_open: Cell::new(true),
             history_open: Cell::new(false),
             fullscreen: Cell::new(false),
+            transition_started: RefCell::new(None),
+            ladybird_documents: Cell::new(0),
+            ladybird_tokens: Cell::new(0),
+            ladybird_invalid: Cell::new(0),
             user_content_manager,
         });
         delegate.bind(&state);
@@ -1516,7 +1643,7 @@ impl ApplicationHandler<WakeEvent> for App {
                         state.window.request_redraw();
                     } else if is_home_shortcut {
                         state.home_open.set(true);
-                        *state.status.borrow_mut() = "Accueil Glide".into();
+                        *state.status.borrow_mut() = "Accueil Gekko".into();
                         state.window.request_redraw();
                     } else if !is_location_shortcut {
                         state.handle_keyboard_input(event);
@@ -1559,7 +1686,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .install_default()
         .expect("install crypto provider");
 
-    println!("Quantic Glide Fusion");
+    println!("Gekko");
     for component in [
         "Quantic: shell, privacy policy, orchestration and product UX",
         "Servo 0.7: primary web runtime",
@@ -1574,4 +1701,39 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut app = App::Initial(Waker(event_loop.create_proxy()));
     event_loop.run_app(&mut app)?;
     Ok(())
+}
+
+
+#[cfg(test)]
+mod gekko_product_tests {
+    use super::*;
+
+    #[test]
+    fn gekko_cinematic_ease_is_monotonic() {
+        let points = [0.0_f32, 0.2, 0.5, 0.8, 1.0];
+        let eased: Vec<f32> = points.into_iter().map(cinematic_ease).collect();
+        assert_eq!(eased[0], 0.0);
+        assert_eq!(eased[4], 1.0);
+        assert!(eased.windows(2).all(|pair| pair[0] <= pair[1]));
+    }
+
+    #[test]
+    fn download_bridge_accepts_only_internal_scheme() {
+        let valid = Url::parse("quantic-download://request/?url=https%3A%2F%2Fexample.com%2Fa.zip&filename=a.zip").unwrap();
+        let invalid = Url::parse("https://example.com/a.zip").unwrap();
+        assert!(bridged_download_target(&valid).is_some());
+        assert!(bridged_download_target(&invalid).is_none());
+    }
+
+    #[test]
+    fn address_normalizer_prefers_https_and_search() {
+        assert_eq!(
+            FusionState::normalize_target("example.com").unwrap().as_str(),
+            "https://example.com/"
+        );
+        assert!(FusionState::normalize_target("privacy browser")
+            .unwrap()
+            .as_str()
+            .starts_with(SEARCH_PREFIX));
+    }
 }
