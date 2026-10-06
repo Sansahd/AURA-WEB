@@ -454,7 +454,6 @@ impl FusionState {
         drop(tabs);
         *self.current_url.borrow_mut() = url.clone();
         *self.dock_input.borrow_mut() = url;
-        drop(tabs);
         self.persist_session();
         self.window.request_redraw();
     }
@@ -1388,9 +1387,13 @@ impl ApplicationHandler<WakeEvent> for App {
                     && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("w"));
                 let is_cycle_tab_shortcut = command
                     && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::Tab));
+                let is_exit_fullscreen = state.fullscreen.get()
+                    && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::Escape));
 
                 if event.state == ElementState::Pressed {
-                    if is_cycle_tab_shortcut {
+                    if is_exit_fullscreen {
+                        state.active_webview().exit_fullscreen();
+                    } else if is_cycle_tab_shortcut {
                         state.cycle_tab(modifiers.shift_key());
                     } else if is_new_tab_shortcut {
                         if let Ok(url) = Url::parse("about:blank") {
@@ -1416,7 +1419,7 @@ impl ApplicationHandler<WakeEvent> for App {
                     } else if !is_location_shortcut {
                         state.handle_keyboard_input(event);
                     }
-                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut && !is_home_shortcut && !is_new_tab_shortcut && !is_close_tab_shortcut && !is_cycle_tab_shortcut {
+                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut && !is_home_shortcut && !is_new_tab_shortcut && !is_close_tab_shortcut && !is_cycle_tab_shortcut && !is_exit_fullscreen {
                     state.handle_keyboard_input(event);
                 }
             }
