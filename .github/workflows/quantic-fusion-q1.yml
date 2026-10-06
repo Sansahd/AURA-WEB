@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "quantic-fusion-servo-gecko-ladybird"
+      - "gekko-next-privacy-aura"
     paths:
       - "quantic-engine/**"
       - "fusion/**"
