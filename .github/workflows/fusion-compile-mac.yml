@@ -28,8 +28,8 @@ jobs:
         with:
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
-      - name: Check Glide Dock core
-        run: cargo check --bin qglide --no-default-features
+      - name: Check Gekko core
+        run: cargo check --bin qgekko --no-default-features
       - name: Check Ladybird HTML Fusion
         run: cargo check --lib --features fusion-ladybird-html
       - name: Run engine compatibility tests
