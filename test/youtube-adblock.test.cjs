@@ -17,6 +17,11 @@ const {
   parseDirectRequest,
   isAllowedDirectStreamUrl,
   isDrmFormat,
+  codecFromMime,
+  isVideoOnly,
+  isAudioOnly,
+  selectAdaptiveFormats,
+  streamIsUsable,
   directPlayerSource
 } = require('../src/services/youtube-direct.cjs');
 
@@ -122,17 +127,113 @@ test('GEKKO Direct refuses formats marked as DRM', () => {
   assert.equal(isDrmFormat({ mime_type: 'video/mp4' }), false);
 });
 
+test('GEKKO Direct selects the best adaptive pair up to 4K', () => {
+  const formats = [
+    {
+      has_video: true, has_audio: false, height: 1080, fps: 60, bitrate: 4_000_000,
+      mime_type: 'video/mp4; codecs="avc1.64002a"', quality_label: '1080p60'
+    },
+    {
+      has_video: true, has_audio: false, height: 1440, fps: 30, bitrate: 6_000_000,
+      mime_type: 'video/webm; codecs="vp9"', quality_label: '1440p'
+    },
+    {
+      has_video: true, has_audio: false, height: 2160, fps: 60, bitrate: 12_000_000,
+      mime_type: 'video/webm; codecs="vp9"', quality_label: '2160p60'
+    },
+    {
+      has_video: true, has_audio: false, height: 4320, fps: 60, bitrate: 25_000_000,
+      mime_type: 'video/webm; codecs="vp9"', quality_label: '4320p60'
+    },
+    {
+      has_video: false, has_audio: true, bitrate: 128_000, audio_channels: 2,
+      mime_type: 'audio/mp4; codecs="mp4a.40.2"'
+    },
+    {
+      has_video: false, has_audio: true, bitrate: 160_000, audio_channels: 2,
+      mime_type: 'audio/webm; codecs="opus"'
+    }
+  ];
+
+  const selected = selectAdaptiveFormats(formats);
+  assert.equal(selected.video.height, 2160);
+  assert.equal(selected.video.quality_label, '2160p60');
+  assert.equal(selected.audio.bitrate, 160_000);
+  assert.deepEqual(selected.availableHeights, [2160, 1440, 1080]);
+  assert.equal(codecFromMime(selected.video.mime_type), 'vp9');
+  assert.equal(isVideoOnly(selected.video), true);
+  assert.equal(isAudioOnly(selected.audio), true);
+});
+
+test('GEKKO Direct ignores DRM adaptive candidates and respects 2160p ceiling', () => {
+  const formats = [
+    {
+      has_video: true, has_audio: false, height: 2160, fps: 60, bitrate: 20_000_000,
+      mime_type: 'video/webm; codecs="vp9"', is_drm: true
+    },
+    {
+      has_video: true, has_audio: false, height: 1440, fps: 60, bitrate: 9_000_000,
+      mime_type: 'video/webm; codecs="vp9"'
+    },
+    {
+      has_audio: true, has_video: false, bitrate: 128_000,
+      mime_type: 'audio/webm; codecs="opus"'
+    }
+  ];
+  const selected = selectAdaptiveFormats(formats);
+  assert.equal(selected.video.height, 1440);
+});
+
+test('GEKKO Direct validates both legs of an adaptive stream', () => {
+  assert.equal(streamIsUsable({
+    mode: 'adaptive',
+    video: { url: 'https://v.googlevideo.com/videoplayback?id=v' },
+    audio: { url: 'https://a.googlevideo.com/videoplayback?id=a' }
+  }), true);
+  assert.equal(streamIsUsable({
+    mode: 'adaptive',
+    video: { url: 'https://v.googlevideo.com/videoplayback?id=v' },
+    audio: { url: 'https://evil.example/audio' }
+  }), false);
+});
+
 test('GEKKO Direct player is reversible and preserves normal YouTube fallback', () => {
   const source = directPlayerSource({
+    mode: 'adaptive',
     videoId: 'dQw4w9WgXcQ',
-    url: 'https://rr1---sn-ab5l6n7z.googlevideo.com/videoplayback?id=abc',
-    quality: '720p',
-    mime: 'video/mp4'
+    quality: '2160p60',
+    availableHeights: [2160, 1440, 1080],
+    video: {
+      url: 'https://rr1---sn-ab5l6n7z.googlevideo.com/videoplayback?id=video',
+      quality: '2160p60',
+      mime: 'video/webm; codecs="vp9"',
+      height: 2160,
+      fps: 60
+    },
+    audio: {
+      url: 'https://rr1---sn-ab5l6n7z.googlevideo.com/videoplayback?id=audio',
+      mime: 'audio/webm; codecs="opus"',
+      bitrate: 160000
+    },
+    fallback: {
+      url: 'https://rr1---sn-ab5l6n7z.googlevideo.com/videoplayback?id=fallback',
+      quality: '720p',
+      mime: 'video/mp4'
+    }
   });
   assert.match(source, /GEKKO DIRECT/);
   assert.match(source, /Player YouTube/);
   assert.match(source, /nativeVideo\.currentTime/);
+  assert.match(source, /A\/V SYNC/);
+  assert.match(source, /syncAudio/);
+  assert.match(source, /HARD_DRIFT/);
+  assert.match(source, /SOFT_DRIFT/);
+  assert.match(source, /audio\.playbackRate/);
+  assert.match(source, /setInterval/);
+  assert.match(source, /250/);
+  assert.match(source, /useProgressiveFallback/);
   assert.match(source, /video\.addEventListener\('error'/);
+  assert.match(source, /audio\.addEventListener\('error'/);
   assert.match(source, /destroy\(true, 30000\)/);
 });
 
