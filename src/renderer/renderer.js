@@ -474,7 +474,11 @@ window.quantic.onState(acceptState);
 fire(window.quantic.state().then(acceptState));
 
 $('#logo').onclick = () => fire(window.quantic.home());
+$('#dock-brand').onclick = () => fire(window.quantic.home());
 $('#home-button').onclick = () => fire(window.quantic.home());
+$('#discover').onclick = () => { address.value = 'Découvrir le web'; address.focus(); address.select(); };
+$('#bookmarks').onclick = () => fire(window.quantic.newTab('quantic://favorites'));
+$('#downloads').onclick = () => fire(window.quantic.navigate('https://mediumorchid-badger-314305.hostingersite.com/downloads/#gekko'));
 $('#plus').onclick = () => fire(window.quantic.newTab());
 $('#plus').oncontextmenu = (event) => { event.preventDefault(); fire(window.quantic.plusMenu()); };
 $('#menu').onclick = () => fire(window.quantic.mainMenu());
@@ -497,6 +501,12 @@ address.onkeydown = (event) => {
     address.blur();
     fire(window.quantic.navigate(value));
   }
+};
+$('#address-go').onclick = () => {
+  const value = address.value;
+  if (!value.trim()) return;
+  address.blur();
+  fire(window.quantic.navigate(value));
 };
 address.onfocus = () => fire(window.quantic.chromeLock(true));
 address.onblur = () => fire(window.quantic.chromeLock(false));
