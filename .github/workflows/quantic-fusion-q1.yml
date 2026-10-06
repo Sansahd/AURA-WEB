@@ -1,4 +1,4 @@
-name: Quantic Fusion Q1
+name: Gekko Fusion Quality Gate
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: quantic-fusion-q1-${{ github.sha }}
+  group: gekko-fusion-quality-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -53,8 +53,11 @@ jobs:
           }
           Write-Host "FUSION DEPENDENCY CONTRACT PASSED"
 
-      - name: Check Quantic Fusion Servo runtime
+      - name: Check Gekko Servo runtime
         run: cargo check
+
+      - name: Run Gekko runtime unit tests
+        run: cargo test
 
 
   mozilla-network:
@@ -84,3 +87,9 @@ jobs:
         run: cargo check --features fusion-ladybird-html --lib
       - name: Run focused Ladybird HTML contract smoke test
         run: cargo run --quiet --features fusion-ladybird-html --example ladybird_contract
+
+      - name: Run Quantic Engine compatibility contracts
+        run: cargo test --lib --tests --features fusion-ladybird-html
+
+      - name: Compile compatibility and WPT runners
+        run: cargo check --bin qcompat --bin qwpt --features fusion-ladybird-html
