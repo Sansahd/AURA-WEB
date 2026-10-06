@@ -540,9 +540,13 @@ async function activateYouTubeDirect(tab, requestUrl = '') {
 
     tab.youtubeDirect = {
       status: 'active',
+      mode: stream.mode || 'progressive',
       videoId: pageVideoId,
       quality: stream.quality || '',
-      mime: stream.mime || ''
+      mime: stream.mime || stream.video?.mime || '',
+      height: Number(stream.height || stream.video?.height || 0),
+      fps: Number(stream.fps || stream.video?.fps || 0),
+      availableHeights: Array.isArray(stream.availableHeights) ? stream.availableHeights : []
     };
     await setYouTubeDirectResult(wc, true);
     emitState(true);
