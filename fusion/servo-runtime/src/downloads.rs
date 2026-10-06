@@ -1,5 +1,7 @@
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use url::Url;
 
@@ -70,7 +72,58 @@ pub fn destination_path(url: &Url, suggested_filename: Option<&str>) -> Option<P
     Some(unique_path(&dir, &filename))
 }
 
-#[cfg(test)]
+
+pub fn partial_path(path: &Path) -> PathBuf {
+    let mut value = path.as_os_str().to_os_string();
+    value.push(".part");
+    PathBuf::from(value)
+}
+
+pub fn cancel_marker(path: &Path) -> PathBuf {
+    let mut value = path.as_os_str().to_os_string();
+    value.push(".part.cancel");
+    PathBuf::from(value)
+}
+
+pub fn request_cancel(path: &Path) -> std::io::Result<()> {
+    let marker = cancel_marker(path);
+    if let Some(parent) = marker.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    File::create(marker)?.write_all(b"cancel")?;
+    Ok(())
+}
+
+pub fn clear_cancel_marker(path: &Path) {
+    let _ = fs::remove_file(cancel_marker(path));
+}
+
+pub fn reveal_in_folder(path: &Path) -> std::io::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg(format!("/select,{}", path.display()))
+            .spawn()?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open").arg("-R").arg(path).spawn()?;
+        return Ok(());
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let target = path.parent().unwrap_or(path);
+        Command::new("xdg-open").arg(target).spawn()?;
+        return Ok(());
+    }
+
+    #[allow(unreachable_code)]
+    Ok(())
+}
+
 mod tests {
     use super::*;
 
@@ -84,5 +137,18 @@ mod tests {
     fn derives_a_name_from_extensionless_urls() {
         let url = Url::parse("https://example.com/export?id=42").unwrap();
         assert_eq!(fallback_filename(&url), "export");
+    }
+
+    #[test]
+    fn cancellation_marker_is_sidecar_of_partial_file() {
+        let path = PathBuf::from("report.zip");
+        assert_eq!(
+            cancel_marker(&path).file_name().and_then(|name| name.to_str()),
+            Some("report.zip.part.cancel")
+        );
+        assert_eq!(
+            partial_path(&path).file_name().and_then(|name| name.to_str()),
+            Some("report.zip.part")
+        );
     }
 }
