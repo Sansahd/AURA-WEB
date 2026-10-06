@@ -51,7 +51,8 @@ function youtubeGuardSource() {
       observer: null,
       patchedResponse: false,
       adSince: 0,
-      directRequested: false
+      directRequested: false,
+      directCooldownUntil: 0
     };
 
     function scrub(value, seen = new WeakSet()) {
@@ -143,6 +144,7 @@ function youtubeGuardSource() {
     }
 
     function requestDirect() {
+      if (Date.now() < state.directCooldownUntil) return false;
       if (state.directRequested || window.__gekkoDirectPlayerV1?.snapshot?.().active) return false;
       const videoId = currentVideoId();
       if (!/^[A-Za-z0-9_-]{6,32}$/.test(videoId)) return false;
@@ -338,6 +340,11 @@ function youtubeGuardSource() {
             state.directRequested = false;
           }
         }
+      },
+      resetDirect(cooldownMs = 0) {
+        state.directRequested = false;
+        state.adSince = 0;
+        state.directCooldownUntil = Date.now() + Math.max(0, Number(cooldownMs || 0));
       }
     };
     refresh();
