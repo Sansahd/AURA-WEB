@@ -275,6 +275,34 @@ struct BrowserTab {
     url: RefCell<String>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SideAppKind {
+    Mail,
+    Zoon,
+}
+
+impl SideAppKind {
+    fn url(self) -> &'static str {
+        match self {
+            Self::Mail => MAIL_URL,
+            Self::Zoon => PULSE_URL,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Mail => "Quantic Mail",
+            Self::Zoon => "ZOON",
+        }
+    }
+}
+
+struct SideSurface {
+    kind: SideAppKind,
+    webview: WebView,
+    context: Rc<OffscreenRenderingContext>,
+}
+
 struct FusionState {
     window: Window,
     servo: Servo,
@@ -314,6 +342,9 @@ struct FusionState {
     pending_permission: RefCell<Option<PermissionRequest>>,
     pending_permission_label: RefCell<String>,
     permissions_allowed: Cell<u64>,
+    side_surface: RefCell<Option<SideSurface>>,
+    side_rect: RefCell<Option<egui::Rect>>,
+    side_focus: Cell<bool>,
 }
 
 struct FusionDelegate {
@@ -732,6 +763,70 @@ impl FusionState {
         self.window.request_redraw();
     }
 
+    fn open_side_app(&self, kind: SideAppKind) {
+        if self.side_surface.borrow().as_ref().is_some_and(|surface| surface.kind == kind) {
+            self.side_focus.set(true);
+            self.window.request_redraw();
+            return;
+        }
+
+        let size = self.window.inner_size();
+        let context = Rc::new(self.window_context.offscreen_context(
+            winit::dpi::PhysicalSize::new(420_u32, size.height.saturating_sub(90).max(1))
+        ));
+        let webview = WebViewBuilder::new(&self.servo, context.clone())
+            .url(Url::parse(kind.url()).expect("side app url"))
+            .hidpi_scale_factor(Scale::new(self.window.scale_factor() as f32))
+            .delegate(self.delegate.clone())
+            .user_content_manager(self.user_content_manager.clone())
+            .build();
+
+        *self.side_surface.borrow_mut() = Some(SideSurface { kind, webview, context });
+        self.side_focus.set(true);
+        self.aura_panel_open.set(false);
+        self.quick_panel_open.set(false);
+        *self.status.borrow_mut() = format!("{} · panneau latéral", kind.label());
+        self.servo.spin_event_loop();
+        self.window.request_redraw();
+    }
+
+    fn close_side_app(&self) {
+        self.side_surface.borrow_mut().take();
+        *self.side_rect.borrow_mut() = None;
+        self.side_focus.set(false);
+        self.window.request_redraw();
+    }
+
+    fn side_webview(&self) -> Option<WebView> {
+        self.side_surface.borrow().as_ref().map(|surface| surface.webview.clone())
+    }
+
+    fn focused_webview(&self) -> WebView {
+        if self.side_focus.get() {
+            if let Some(webview) = self.side_webview() {
+                return webview;
+            }
+        }
+        self.active_webview()
+    }
+
+    fn point_in_side(&self, x: f32, y: f32) -> bool {
+        self.side_rect
+            .borrow()
+            .as_ref()
+            .is_some_and(|rect| rect.contains(egui::pos2(x, y)))
+    }
+
+    fn side_webview_point(&self, x: f32, y: f32) -> Option<servo::DevicePoint> {
+        let rect = *self.side_rect.borrow();
+        let rect = rect?;
+        let scale = self.window.scale_factor() as f32;
+        Some(servo::DevicePoint::new(
+            (x - rect.left()) * scale,
+            (y - rect.top()) * scale,
+        ))
+    }
+
     fn normalize_target(raw: &str) -> Option<Url> {
         let value = raw.trim();
         if value.is_empty() {
@@ -758,6 +853,7 @@ impl FusionState {
         }
 
         self.aura_busy.set(true);
+        self.close_side_app();
         self.aura_panel_open.set(true);
         self.quick_panel_open.set(false);
         *self.aura_answer.borrow_mut() = String::new();
@@ -845,13 +941,9 @@ impl FusionState {
         let lower = raw.to_ascii_lowercase();
 
         if lower == "@mail" || lower.starts_with("@mail ") {
-            if let Ok(url) = Url::parse(MAIL_URL) {
-                self.active_webview().load(url);
-            }
+            self.open_side_app(SideAppKind::Mail);
         } else if lower == "@pulse" || lower.starts_with("@pulse ") {
-            if let Ok(url) = Url::parse(PULSE_URL) {
-                self.active_webview().load(url);
-            }
+            self.open_side_app(SideAppKind::Zoon);
         } else if lower == "@quantic" || lower.starts_with("@quantic ") {
             if let Ok(url) = Url::parse(QUANTIC_PORTAL) {
                 self.active_webview().load(url);
@@ -1032,6 +1124,62 @@ impl FusionState {
                                 }
                             }
                         });
+                    });
+            }
+
+            let side_surface = self.side_surface.borrow().as_ref().map(|surface| {
+                (surface.kind, surface.webview.clone(), surface.context.clone())
+            });
+            if let Some((kind, webview, context)) = side_surface {
+                egui::SidePanel::right("quantic_side_app")
+                    .exact_width(420.0)
+                    .frame(
+                        egui::Frame::new()
+                            .fill(PANEL)
+                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .inner_margin(egui::Margin::same(10))
+                    )
+                    .show(ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new(kind.label()).strong().size(13.0).color(TEXT));
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.add(egui::Button::new("×").frame(false)).clicked() {
+                                    self.close_side_app();
+                                }
+                            });
+                        });
+                        ui.add_space(6.0);
+                        let wanted = egui::vec2(ui.available_width(), ui.available_height().max(1.0));
+                        let (rect, response) = ui.allocate_exact_size(wanted, egui::Sense::click_and_drag());
+                        *self.side_rect.borrow_mut() = Some(rect);
+                        if response.clicked() {
+                            self.side_focus.set(true);
+                        }
+
+                        let ppp = ctx.pixels_per_point();
+                        let size = winit::dpi::PhysicalSize::new(
+                            (rect.width() * ppp).max(1.0) as u32,
+                            (rect.height() * ppp).max(1.0) as u32,
+                        );
+                        if context.size() != size {
+                            context.resize(size);
+                            webview.resize(size);
+                        }
+                        webview.paint();
+
+                        if let Some(render_to_parent) = context.render_to_parent_callback() {
+                            ctx.layer_painter(ui.layer_id()).add(PaintCallback {
+                                rect,
+                                callback: Arc::new(CallbackFn::new(move |info, painter| {
+                                    let clip = info.viewport_in_pixels();
+                                    let rect = Rect::new(
+                                        Point2D::new(clip.left_px, clip.from_bottom_px),
+                                        Size2D::new(clip.width_px, clip.height_px),
+                                    );
+                                    render_to_parent(painter.gl().as_ref(), rect);
+                                })),
+                            });
+                        }
                     });
             }
 
@@ -1526,6 +1674,13 @@ impl FusionState {
         let y = position.y as f32 / scale;
         self.cursor_point.set((x, y));
 
+        if self.point_in_side(x, y) {
+            if let (Some(webview), Some(point)) = (self.side_webview(), self.side_webview_point(x, y)) {
+                webview.notify_input_event(InputEvent::MouseMove(MouseMoveEvent::new(point.into())));
+                return;
+            }
+        }
+
         if self.point_in_webview(x, y) {
             self.active_webview().notify_input_event(InputEvent::MouseMove(MouseMoveEvent::new(
                 self.webview_point(x, y).into(),
@@ -1539,7 +1694,8 @@ impl FusionState {
 
     fn handle_mouse_button(&self, button: MouseButton, state: ElementState) {
         let (x, y) = self.cursor_point.get();
-        if !self.point_in_webview(x, y) {
+        let side_target = self.point_in_side(x, y);
+        if !side_target && !self.point_in_webview(x, y) {
             return;
         }
 
@@ -1556,16 +1712,29 @@ impl FusionState {
             ElementState::Released => MouseButtonAction::Up,
         };
 
-        self.active_webview().notify_input_event(InputEvent::MouseButton(MouseButtonEvent::new(
-            action,
-            button,
-            self.webview_point(x, y).into(),
-        )));
+        if side_target {
+            self.side_focus.set(true);
+            if let (Some(webview), Some(point)) = (self.side_webview(), self.side_webview_point(x, y)) {
+                webview.notify_input_event(InputEvent::MouseButton(MouseButtonEvent::new(
+                    action,
+                    button,
+                    point.into(),
+                )));
+            }
+        } else {
+            self.side_focus.set(false);
+            self.active_webview().notify_input_event(InputEvent::MouseButton(MouseButtonEvent::new(
+                action,
+                button,
+                self.webview_point(x, y).into(),
+            )));
+        }
     }
 
     fn handle_wheel(&self, delta: MouseScrollDelta) {
         let (x, y) = self.cursor_point.get();
-        if !self.point_in_webview(x, y) {
+        let side_target = self.point_in_side(x, y);
+        if !side_target && !self.point_in_webview(x, y) {
             return;
         }
 
@@ -1573,10 +1742,19 @@ impl FusionState {
             MouseScrollDelta::LineDelta(x, y) => ((x * 38.0) as f64, (y * 38.0) as f64),
             MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
         };
-        self.active_webview().notify_input_event(InputEvent::Wheel(WheelEvent::new(
-            WheelDelta { x: dx, y: dy, z: 0.0, mode: WheelMode::DeltaPixel },
-            self.webview_point(x, y).into(),
-        )));
+        if side_target {
+            if let (Some(webview), Some(point)) = (self.side_webview(), self.side_webview_point(x, y)) {
+                webview.notify_input_event(InputEvent::Wheel(WheelEvent::new(
+                    WheelDelta { x: dx, y: dy, z: 0.0, mode: WheelMode::DeltaPixel },
+                    point.into(),
+                )));
+            }
+        } else {
+            self.active_webview().notify_input_event(InputEvent::Wheel(WheelEvent::new(
+                WheelDelta { x: dx, y: dy, z: 0.0, mode: WheelMode::DeltaPixel },
+                self.webview_point(x, y).into(),
+            )));
+        }
     }
 
     fn servo_modifiers(&self) -> ServoModifiers {
@@ -1608,7 +1786,7 @@ impl FusionState {
             ElementState::Pressed => KeyState::Down,
             ElementState::Released => KeyState::Up,
         };
-        self.active_webview().notify_input_event(InputEvent::Keyboard(
+        self.focused_webview().notify_input_event(InputEvent::Keyboard(
             KeyboardEvent::new_without_event(
                 state,
                 key,
@@ -1673,7 +1851,7 @@ impl FusionState {
             }),
             Ime::Disabled => ImeEvent::Dismissed,
         };
-        self.active_webview().notify_input_event(InputEvent::Ime(event));
+        self.focused_webview().notify_input_event(InputEvent::Ime(event));
     }
 }
 
@@ -1785,6 +1963,9 @@ impl ApplicationHandler<WakeEvent> for App {
             pending_permission: RefCell::new(None),
             pending_permission_label: RefCell::new(String::new()),
             permissions_allowed: Cell::new(0),
+            side_surface: RefCell::new(None),
+            side_rect: RefCell::new(None),
+            side_focus: Cell::new(false),
         });
         delegate.bind(&state);
 
@@ -2033,5 +2214,18 @@ mod privacy_v3_tests {
         let path = legacy_browser_data_path().expect("legacy data path");
         assert!(path.to_string_lossy().contains("Glide"));
         assert!(!path.to_string_lossy().ends_with("Gekko\\browser-data.json"));
+    }
+}
+
+
+#[cfg(test)]
+mod side_app_tests {
+    use super::*;
+
+    #[test]
+    fn side_apps_have_distinct_urls() {
+        assert_ne!(SideAppKind::Mail.url(), SideAppKind::Zoon.url());
+        assert!(SideAppKind::Mail.url().contains("/mail/"));
+        assert!(SideAppKind::Zoon.url().contains("/pulse/"));
     }
 }
