@@ -6,6 +6,9 @@ on:
     paths:
       - "quantic-engine/**"
       - "fusion/servo-runtime/**"
+      - "fusion/mozilla-network/**"
+      - "vendor/nss-rs"
+      - ".gitmodules"
       - ".github/workflows/fusion-compile-mac.yml"
   workflow_dispatch:
 
@@ -48,6 +51,10 @@ jobs:
       - name: Apply Quantic Servo native-download patch
         run: python patch-servo.py
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install pinned NSS for live Neqo runtime
+        uses: mozilla/nss-rs/install-nss@ba8a3f6acffc7e25749054969ccbbb3ca615df7f
+        with:
+          working-directory: fusion/mozilla-network
       - name: Resolve Servo 0.7 Fusion
         run: cargo tree > servo-tree.txt
       - name: Verify Servo Mozilla stack
