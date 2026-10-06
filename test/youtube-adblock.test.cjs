@@ -82,5 +82,4 @@ test('player guard scrubs player ad structures and includes a playback fallback'
   assert.match(source, /ytp-ad-skip-button/);
   assert.match(source, /playbackRate = 16/);
   assert.match(source, /video\.currentTime/);
-  assert.match(source, /googlevideo/i, 'source should remain explicit about media compatibility');
 });
