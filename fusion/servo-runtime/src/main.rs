@@ -105,6 +105,7 @@ struct FusionState {
     modifiers_state: Cell<ModifiersState>,
     blocked_resources: Cell<u64>,
     permissions_denied: Cell<u64>,
+    quick_panel_open: Cell<bool>,
 }
 
 struct FusionDelegate {
@@ -343,11 +344,75 @@ impl FusionState {
                                 self.dock_expanded.set(true);
                                 self.dock_focus_requested.set(true);
                             }
+                            ui.add_space(5.0);
+                            if ui.add(
+                                egui::Button::new(egui::RichText::new("☰").size(15.0).color(TEXT))
+                                    .fill(PANEL_SOFT)
+                                    .corner_radius(16.0)
+                                    .min_size(egui::vec2(32.0, 32.0))
+                            ).on_hover_text("Services Quantic").clicked() {
+                                self.quick_panel_open.set(!self.quick_panel_open.get());
+                            }
                             ui.add_space(4.0);
                             ui.label(egui::RichText::new("● privé").size(9.0).color(MUTED));
                         });
                     });
                 });
+
+            if self.quick_panel_open.get() {
+                egui::SidePanel::right("quantic_panel")
+                    .exact_width(250.0)
+                    .frame(
+                        egui::Frame::new()
+                            .fill(PANEL)
+                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .inner_margin(egui::Margin::same(16))
+                    )
+                    .show(ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new("QUANTIC").strong().size(14.0).color(TEXT));
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.add(egui::Button::new("×").frame(false)).clicked() {
+                                    self.quick_panel_open.set(false);
+                                }
+                            });
+                        });
+                        ui.label(egui::RichText::new("Accès rapide").size(9.5).color(MUTED));
+                        ui.add_space(14.0);
+
+                        for (icon, label, command) in [
+                            ("✦", "AURA", "@aura "),
+                            ("✉", "Quantic Mail", "@mail"),
+                            ("●", "ZOON", "@pulse"),
+                            ("⌂", "Accueil Quantic", "> accueil"),
+                        ] {
+                            if ui.add_sized(
+                                [ui.available_width(), 42.0],
+                                egui::Button::new(
+                                    egui::RichText::new(format!("{icon}   {label}")).strong().size(11.0).color(TEXT)
+                                )
+                                .fill(PANEL_SOFT)
+                                .stroke(egui::Stroke::new(1.0, BORDER))
+                                .corner_radius(18.0)
+                            ).clicked() {
+                                *self.dock_input.borrow_mut() = command.to_string();
+                                execute = true;
+                                self.quick_panel_open.set(false);
+                            }
+                            ui.add_space(6.0);
+                        }
+
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.add_space(10.0);
+                        ui.label(egui::RichText::new("PROTECTION").strong().size(9.0).color(ACCENT));
+                        ui.add_space(6.0);
+                        ui.label(egui::RichText::new(format!("{} ressources bloquées", self.blocked_resources.get())).size(10.0).color(TEXT));
+                        ui.label(egui::RichText::new(format!("{} permissions refusées", self.permissions_denied.get())).size(10.0).color(TEXT));
+                        ui.add_space(8.0);
+                        ui.label(egui::RichText::new("Les données techniques restent discrètes et accessibles ici.").size(9.0).color(MUTED));
+                    });
+            }
 
             let dock_height = if self.dock_expanded.get() { 126.0 } else { 86.0 };
             egui::TopBottomPanel::bottom("glide_dock")
@@ -476,15 +541,7 @@ impl FusionState {
                         ui.horizontal_centered(|ui| {
                             ui.label(egui::RichText::new(self.status.borrow().as_str()).size(8.5).color(MUTED));
                             ui.label(egui::RichText::new("•").size(8.0).color(BORDER));
-                            ui.label(
-                                egui::RichText::new(format!(
-                                    "{} bloqués · {} permissions",
-                                    self.blocked_resources.get(),
-                                    self.permissions_denied.get()
-                                ))
-                                .size(8.5)
-                                .color(MUTED),
-                            );
+                            ui.label(egui::RichText::new("Protection active").size(8.5).color(MUTED));
                         });
                     });
                 });
@@ -769,6 +826,7 @@ impl ApplicationHandler<WakeEvent> for App {
             modifiers_state: Cell::new(ModifiersState::empty()),
             blocked_resources: Cell::new(0),
             permissions_denied: Cell::new(0),
+            quick_panel_open: Cell::new(false),
         });
         delegate.bind(&state);
 
