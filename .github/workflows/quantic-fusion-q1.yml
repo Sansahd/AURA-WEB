@@ -91,6 +91,54 @@ jobs:
       - name: Run Gekko runtime unit tests
         run: cargo test
 
+      - name: Build Gekko E2E executable
+        run: cargo build
+
+      - name: Run real Gekko WebView E2E smoke
+        shell: pwsh
+        run: |
+          $fixtureDir = (Resolve-Path "tests/fixtures").Path
+          $server = Start-Process python -ArgumentList @("-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", $fixtureDir) -PassThru
+          try {
+            Start-Sleep -Seconds 2
+            $env:GEKKO_START_URL = "http://127.0.0.1:8765/smoke.html"
+            $env:GEKKO_SMOKE_OUTPUT = (Join-Path $PWD "gekko-smoke.json")
+            $env:GEKKO_REDUCED_MOTION = "1"
+            $exe = Join-Path $PWD "target/debug/quantic-gekko-servo-runtime.exe"
+            $app = Start-Process $exe -PassThru
+            try {
+              Wait-Process -Id $app.Id -Timeout 60 -ErrorAction Stop
+            } catch {
+              Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+              throw "Gekko E2E smoke timed out"
+            }
+            if (!(Test-Path $env:GEKKO_SMOKE_OUTPUT)) {
+              throw "Gekko E2E output was not produced"
+            }
+            $data = Get-Content $env:GEKKO_SMOKE_OUTPUT -Raw | ConvertFrom-Json
+            foreach ($pair in @{
+              dom = $true
+              result = "ready"
+              marker = "ok"
+              params = "7"
+              events = 1
+              encodedLength = 3
+              storage = "ok"
+              urlApi = $true
+              promiseApi = $true
+              textEncoderApi = $true
+              webrtcBlocked = $true
+            }.GetEnumerator()) {
+              if ($data.($pair.Key) -ne $pair.Value) {
+                $data | ConvertTo-Json -Depth 5 | Write-Host
+                throw "Gekko E2E assertion failed: $($pair.Key)"
+              }
+            }
+            Write-Host "GEKKO REAL WEBVIEW E2E PASSED"
+          } finally {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+          }
+
 
   mozilla-network:
     runs-on: ubuntu-latest
