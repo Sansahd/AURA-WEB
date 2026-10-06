@@ -816,4 +816,37 @@ replace_once(
 """
 )
 
+
+# --- Gekko async embedder responders: allow H3 interception off the UI thread. ---
+responders = SERVO / "components/servo/responders.rs"
+replace_once(
+    responders,
+    """pub(crate) trait AbstractSender {
+    type Message;
+""",
+    """pub(crate) trait AbstractSender: Send {
+    type Message;
+"""
+)
+replace_once(
+    responders,
+    """impl<T: Serialize> AbstractSender for GenericSender<T> {""",
+    """impl<T: Serialize + Send> AbstractSender for GenericSender<T> {"""
+)
+replace_once(
+    responders,
+    """impl<T> AbstractSender for TokioSender<T> {""",
+    """impl<T: Send> AbstractSender for TokioSender<T> {"""
+)
+replace_once(
+    responders,
+    """impl<T> AbstractSender for OneshotSender<T> {""",
+    """impl<T: Send> AbstractSender for OneshotSender<T> {"""
+)
+replace_once(
+    responders,
+    """impl<T: Serialize + 'static> AutomaticResponder<T> {""",
+    """impl<T: Serialize + Send + 'static> AutomaticResponder<T> {"""
+)
+
 print("Quantic Servo Gekko Fusion patch applied")
