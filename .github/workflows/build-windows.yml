@@ -51,13 +51,16 @@ jobs:
             "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
             "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
           )
-          $uninstall = foreach ($root in $uninstallRoots) {
-            if (Test-Path $root) {
-              Get-ChildItem $root -ErrorAction SilentlyContinue |
-                Get-ItemProperty |
-                Where-Object { $_.DisplayName -like "GEKKO Browser*" }
+          $uninstallCandidates = @(
+            foreach ($root in $uninstallRoots) {
+              if (Test-Path $root) {
+                Get-ChildItem $root -ErrorAction SilentlyContinue |
+                  Get-ItemProperty |
+                  Where-Object { $_.DisplayName -like "GEKKO Browser*" }
+              }
             }
-          } | Select-Object -First 1
+          )
+          $uninstall = $uninstallCandidates | Select-Object -First 1
 
           Write-Host "Installed:" $exe.FullName
           Write-Host "Uninstaller:" $uninstaller.FullName
