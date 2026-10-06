@@ -17,7 +17,7 @@ use servo::{
     MouseButton as ServoMouseButton, MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent,
     MouseMoveEvent, NamedKey as ServoNamedKey, NavigationRequest, OffscreenRenderingContext,
     PermissionRequest, RenderingContext, Servo, ServoBuilder, WebResourceLoad, WebResourceResponse,
-    WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
+    CreateNewWebViewRequest, WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
 };
 use embedder_traits::EventLoopWaker;
 use url::Url;
@@ -25,7 +25,7 @@ use winit::application::ApplicationHandler;
 use winit::event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WinitKey, ModifiersState, NamedKey as WinitNamedKey};
-use winit::window::Window;
+use winit::window::{Fullscreen, Window};
 
 const START_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com";
 const QUANTIC_PORTAL: &str = START_URL;
@@ -152,6 +152,7 @@ struct FusionState {
     browser_data: RefCell<BrowserData>,
     home_open: Cell<bool>,
     history_open: Cell<bool>,
+    fullscreen: Cell<bool>,
 }
 
 struct FusionDelegate {
@@ -246,7 +247,50 @@ impl servo::WebViewDelegate for FusionDelegate {
         });
     }
 
-    fn request_permission(&self, _webview: WebView, request: PermissionRequest) {
+    fn notify_fullscreen_state_changed(&self, webview: WebView, is_fullscreen: bool) {
+        self.with_state(|state| {
+            if state.active_webview() != webview { return; }
+            state.fullscreen.set(is_fullscreen);
+            state.window.set_fullscreen(if is_fullscreen {
+                Some(Fullscreen::Borderless(None))
+            } else {
+                None
+            });
+            *state.status.borrow_mut() = if is_fullscreen { "Plein écran".into() } else { "Mode fenêtre".into() };
+            state.window.request_redraw();
+        });
+    }
+
+    fn request_create_new(&self, _parent_webview: WebView, request: CreateNewWebViewRequest) {
+        self.with_state(|state| {
+            let size = state.window.inner_size();
+            let context = Rc::new(state.window_context.offscreen_context(
+                winit::dpi::PhysicalSize::new(size.width.max(1), size.height.saturating_sub(140).max(1))
+            ));
+            let webview = request
+                .builder(context.clone())
+                .hidpi_scale_factor(Scale::new(state.window.scale_factor() as f32))
+                .delegate(state.delegate.clone())
+                .build();
+            let url = webview.url().map(|u| u.to_string()).unwrap_or_else(|| "about:blank".into());
+            let mut tabs = state.tabs.borrow_mut();
+            tabs.push(BrowserTab {
+                webview,
+                context,
+                title: RefCell::new("Nouvel onglet".into()),
+                url: RefCell::new(url.clone()),
+            });
+            state.active_tab.set(tabs.len() - 1);
+            drop(tabs);
+            *state.current_url.borrow_mut() = url.clone();
+            *state.dock_input.borrow_mut() = url;
+            state.home_open.set(false);
+            state.persist_session();
+            state.window.request_redraw();
+        });
+    }
+
+        fn request_permission(&self, _webview: WebView, request: PermissionRequest) {
         self.with_state(|state| {
             state.permissions_denied.set(state.permissions_denied.get() + 1);
             *state.status.borrow_mut() = format!("Permission bloquée · {:?}", request.feature());
@@ -1191,6 +1235,7 @@ impl ApplicationHandler<WakeEvent> for App {
             browser_data: RefCell::new(load_browser_data()),
             home_open: Cell::new(true),
             history_open: Cell::new(false),
+            fullscreen: Cell::new(false),
         });
         delegate.bind(&state);
 
