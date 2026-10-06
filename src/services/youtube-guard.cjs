@@ -145,7 +145,7 @@ function youtubeGuardSource() {
 
     function requestDirect() {
       if (Date.now() < state.directCooldownUntil) return false;
-      if (state.directRequested || window.__gekkoDirectPlayerV1?.snapshot?.().active) return false;
+      if (state.directRequested || (window.__gekkoDirectPlayerV2?.snapshot?.().active || window.__gekkoDirectPlayerV1?.snapshot?.().active)) return false;
       const videoId = currentVideoId();
       if (!/^[A-Za-z0-9_-]{6,32}$/.test(videoId)) return false;
       state.directRequested = true;
@@ -236,7 +236,7 @@ function youtubeGuardSource() {
       const player = document.querySelector('#movie_player');
       const adShowing = Boolean(player && player.classList.contains('ad-showing'));
 
-      if (window.__gekkoDirectPlayerV1?.snapshot?.().active) {
+      if ((window.__gekkoDirectPlayerV2?.snapshot?.().active || window.__gekkoDirectPlayerV1?.snapshot?.().active)) {
         state.adSince = 0;
         return;
       }
