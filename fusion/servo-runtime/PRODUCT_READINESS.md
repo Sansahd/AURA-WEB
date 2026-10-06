@@ -42,3 +42,5 @@ Release gate must execute:
 ## Product-level gate
 
 A release is not called 8.5/10 globally if the current HEAD fails any mandatory quality job. Scores are evidence-based, not branding.
+
+The GitHub quality gate enforces these runtime hooks and rejects legacy Glide branding before release.
