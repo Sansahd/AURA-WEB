@@ -22,7 +22,7 @@ use servo::{
     KeyboardEvent, LoadStatus, Location, Modifiers as ServoModifiers,
     MouseButton as ServoMouseButton, MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent,
     MouseMoveEvent, NamedKey as ServoNamedKey, NavigationRequest, OffscreenRenderingContext,
-    PermissionRequest, RenderingContext, Servo, ServoBuilder, StorageType, UserContentManager, UserScript, WebResourceLoad, WebResourceResponse,
+    PermissionRequest, Preferences, RenderingContext, Servo, ServoBuilder, StorageType, UserContentManager, UserScript, WebResourceLoad, WebResourceResponse,
     CreateNewWebViewRequest, WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
 };
 use embedder_traits::{EventLoopWaker, UrlRequest};
@@ -77,6 +77,48 @@ const DOWNLOAD_BRIDGE_SCRIPT: &str = r#"
       "&filename=" +
       encodeURIComponent(filename);
   }, true);
+})();
+"#;
+
+const PRIVACY_HARDENING_SCRIPT: &str = r#"
+(() => {
+  if (window.__gekkoPrivacyV3) return;
+  window.__gekkoPrivacyV3 = true;
+
+  const define = (target, name, value) => {
+    try {
+      Object.defineProperty(target, name, { configurable: true, get: () => value });
+    } catch (_) {}
+  };
+
+  try {
+    define(Navigator.prototype, "hardwareConcurrency", 4);
+    if ("deviceMemory" in navigator) define(Navigator.prototype, "deviceMemory", 8);
+    define(Screen.prototype, "colorDepth", 24);
+    define(Screen.prototype, "pixelDepth", 24);
+  } catch (_) {}
+
+  try {
+    const realNow = performance.now.bind(performance);
+    Object.defineProperty(performance, "now", {
+      configurable: true,
+      value: () => Math.round(realNow() * 2) / 2
+    });
+  } catch (_) {}
+
+  // WebRTC is disabled in Servo preferences. These guards keep that policy
+  // fail-closed if the underlying default changes.
+  for (const name of ["RTCPeerConnection", "webkitRTCPeerConnection", "RTCDataChannel"]) {
+    try { Object.defineProperty(window, name, { configurable: true, value: undefined }); } catch (_) {}
+  }
+
+  try {
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia = () =>
+        Promise.reject(new DOMException("Bloqué par Gekko Privacy Shield V3", "NotAllowedError"));
+      navigator.mediaDevices.enumerateDevices = async () => [];
+    }
+  } catch (_) {}
 })();
 "#;
 
@@ -269,6 +311,9 @@ struct FusionState {
     aura_answer: RefCell<String>,
     aura_engine: RefCell<String>,
     aura_error: RefCell<String>,
+    pending_permission: RefCell<Option<PermissionRequest>>,
+    pending_permission_label: RefCell<String>,
+    permissions_allowed: Cell<u64>,
 }
 
 struct FusionDelegate {
@@ -415,11 +460,11 @@ impl servo::WebViewDelegate for FusionDelegate {
 
     fn request_permission(&self, _webview: WebView, request: PermissionRequest) {
         self.with_state(|state| {
-            state.permissions_denied.set(state.permissions_denied.get() + 1);
-            *state.status.borrow_mut() = format!("Permission bloquée · {:?}", request.feature());
+            *state.pending_permission_label.borrow_mut() = format!("{:?}", request.feature());
+            *state.pending_permission.borrow_mut() = Some(request);
+            *state.status.borrow_mut() = "Permission demandée par la page".into();
             state.window.request_redraw();
         });
-        request.deny();
     }
 
     fn request_navigation(&self, _webview: WebView, request: NavigationRequest) {
@@ -953,6 +998,43 @@ impl FusionState {
                     });
                 });
 
+            if self.pending_permission.borrow().is_some() {
+                let label = self.pending_permission_label.borrow().clone();
+                egui::Window::new("Permission Gekko")
+                    .collapsible(false)
+                    .resizable(false)
+                    .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 72.0))
+                    .show(ctx, |ui| {
+                        ui.label(egui::RichText::new("Ce site demande une permission").strong().color(TEXT));
+                        ui.label(egui::RichText::new(label).size(9.5).color(MUTED));
+                        ui.add_space(8.0);
+                        ui.horizontal(|ui| {
+                            if ui.add(
+                                egui::Button::new("Autoriser cette fois")
+                                    .fill(ACCENT_SOFT)
+                                    .corner_radius(14.0)
+                            ).clicked() {
+                                if let Some(request) = self.pending_permission.borrow_mut().take() {
+                                    request.allow();
+                                    self.permissions_allowed.set(self.permissions_allowed.get() + 1);
+                                    *self.status.borrow_mut() = "Permission autorisée une fois".into();
+                                }
+                            }
+                            if ui.add(
+                                egui::Button::new("Bloquer")
+                                    .fill(PANEL_SOFT)
+                                    .corner_radius(14.0)
+                            ).clicked() {
+                                if let Some(request) = self.pending_permission.borrow_mut().take() {
+                                    request.deny();
+                                    self.permissions_denied.set(self.permissions_denied.get() + 1);
+                                    *self.status.borrow_mut() = "Permission bloquée".into();
+                                }
+                            }
+                        });
+                    });
+            }
+
             if self.aura_panel_open.get() {
                 egui::SidePanel::right("aura_panel")
                     .exact_width(360.0)
@@ -1131,7 +1213,11 @@ impl FusionState {
                         let stats = *self.privacy_stats.borrow();
                         ui.label(egui::RichText::new(format!("{} pubs · {} analytics · {} social", stats.advertising, stats.analytics, stats.social)).size(9.0).color(MUTED));
                         ui.label(egui::RichText::new(format!("{} télémétrie · {} fingerprint · {} HTTP", stats.telemetry, stats.fingerprinting, stats.insecure)).size(9.0).color(MUTED));
-                        ui.label(egui::RichText::new(format!("{} permissions refusées", self.permissions_denied.get())).size(10.0).color(TEXT));
+                        ui.label(egui::RichText::new(format!(
+                            "{} permissions autorisées · {} bloquées",
+                            self.permissions_allowed.get(),
+                            self.permissions_denied.get()
+                        )).size(10.0).color(TEXT));
                         ui.label(egui::RichText::new(format!("{} téléchargements terminés", self.downloads_completed.get())).size(10.0).color(TEXT));
                         ui.label(egui::RichText::new(format!(
                             "Ladybird actif · {} page(s) · {} tokens · {} invalides",
@@ -1140,7 +1226,7 @@ impl FusionState {
                             self.ladybird_invalid.get()
                         )).size(9.0).color(MUTED));
                         ui.add_space(8.0);
-                        ui.label(egui::RichText::new("Privacy Shield V2 · cache, cookies et stockages Web effacés à la fermeture.").size(9.0).color(MUTED));
+                        ui.label(egui::RichText::new("Privacy Shield V3 · WebRTC désactivé, empreinte réduite, cache/cookies/stockages effacés à la fermeture.").size(9.0).color(MUTED));
                     });
             }
 
@@ -1629,14 +1715,24 @@ impl ApplicationHandler<WakeEvent> for App {
             false,
         );
 
+        let mut preferences = Preferences::default();
+        preferences.dom_webrtc_enabled = false;
+        preferences.dom_webrtc_transceiver_enabled = false;
+        preferences.dom_bluetooth_enabled = false;
+        preferences.dom_geolocation_enabled = true;
+        preferences.dom_notification_enabled = true;
+        preferences.dom_permissions_enabled = true;
+
         let servo = ServoBuilder::default()
             .event_loop_waker(Box::new(waker.clone()))
+            .preferences(preferences)
             .build();
         servo.setup_logging();
 
         let delegate = Rc::new(FusionDelegate::new());
         let user_content_manager = Rc::new(UserContentManager::new(&servo));
         user_content_manager.add_script(Rc::new(UserScript::from(DOWNLOAD_BRIDGE_SCRIPT)));
+        user_content_manager.add_script(Rc::new(UserScript::from(PRIVACY_HARDENING_SCRIPT)));
 
         let webview = WebViewBuilder::new(&servo, web_context.clone())
             .url(Url::parse(START_URL).unwrap())
@@ -1686,6 +1782,9 @@ impl ApplicationHandler<WakeEvent> for App {
             aura_answer: RefCell::new(String::new()),
             aura_engine: RefCell::new(String::new()),
             aura_error: RefCell::new(String::new()),
+            pending_permission: RefCell::new(None),
+            pending_permission_label: RefCell::new(String::new()),
+            permissions_allowed: Cell::new(0),
         });
         delegate.bind(&state);
 
@@ -1914,5 +2013,25 @@ mod gekko_product_tests {
             .unwrap()
             .as_str()
             .starts_with(SEARCH_PREFIX));
+    }
+}
+
+
+#[cfg(test)]
+mod privacy_v3_tests {
+    use super::*;
+
+    #[test]
+    fn privacy_v3_script_has_webrtc_guard() {
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("RTCPeerConnection"));
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("hardwareConcurrency"));
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("performance"));
+    }
+
+    #[test]
+    fn legacy_data_path_points_to_glide() {
+        let path = legacy_browser_data_path().expect("legacy data path");
+        assert!(path.to_string_lossy().contains("Glide"));
+        assert!(!path.to_string_lossy().ends_with("Gekko\\browser-data.json"));
     }
 }
