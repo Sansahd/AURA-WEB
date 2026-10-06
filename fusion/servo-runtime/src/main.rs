@@ -139,6 +139,7 @@ struct FusionState {
     quick_panel_open: Cell<bool>,
     browser_data: RefCell<BrowserData>,
     home_open: Cell<bool>,
+    history_open: Cell<bool>,
 }
 
 struct FusionDelegate {
@@ -480,6 +481,42 @@ impl FusionState {
 
                         ui.add_space(12.0);
                         ui.separator();
+                        ui.add_space(10.0);
+
+                        if ui.add_sized(
+                            [ui.available_width(), 34.0],
+                            egui::Button::new(egui::RichText::new("◷  Historique local").size(10.0).color(TEXT))
+                                .fill(PANEL_SOFT)
+                                .corner_radius(16.0)
+                        ).clicked() {
+                            self.history_open.set(!self.history_open.get());
+                        }
+
+                        if self.history_open.get() {
+                            ui.add_space(6.0);
+                            let data = self.browser_data.borrow();
+                            if data.history.is_empty() {
+                                ui.label(egui::RichText::new("Aucun historique").size(9.0).color(MUTED));
+                            } else {
+                                for item in data.history.iter().take(8) {
+                                    let label = Url::parse(item).ok()
+                                        .and_then(|u| u.host_str().map(str::to_string))
+                                        .unwrap_or_else(|| item.clone());
+                                    if ui.add(egui::Button::new(egui::RichText::new(label).size(9.0).color(MUTED)).frame(false)).clicked() {
+                                        *self.dock_input.borrow_mut() = item.clone();
+                                        execute = true;
+                                    }
+                                }
+                            }
+                            drop(data);
+                            if ui.add(egui::Button::new(egui::RichText::new("Effacer l’historique").size(9.0).color(ACCENT)).frame(false)).clicked() {
+                                let mut data = self.browser_data.borrow_mut();
+                                data.history.clear();
+                                save_browser_data(&data);
+                                *self.status.borrow_mut() = "Historique effacé".into();
+                            }
+                        }
+
                         ui.add_space(10.0);
                         ui.label(egui::RichText::new("PROTECTION").strong().size(9.0).color(ACCENT));
                         ui.add_space(6.0);
@@ -983,6 +1020,7 @@ impl ApplicationHandler<WakeEvent> for App {
             quick_panel_open: Cell::new(false),
             browser_data: RefCell::new(load_browser_data()),
             home_open: Cell::new(true),
+            history_open: Cell::new(false),
         });
         delegate.bind(&state);
 
@@ -1044,6 +1082,7 @@ impl ApplicationHandler<WakeEvent> for App {
                     && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("r"));
                 let is_back_shortcut = alt && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::ArrowLeft));
                 let is_forward_shortcut = alt && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::ArrowRight));
+                let is_home_shortcut = alt && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::Home));
 
                 if event.state == ElementState::Pressed {
                     if is_reload_shortcut {
@@ -1055,10 +1094,14 @@ impl ApplicationHandler<WakeEvent> for App {
                     } else if is_forward_shortcut {
                         state.webview.go_forward(1);
                         state.window.request_redraw();
+                    } else if is_home_shortcut {
+                        state.home_open.set(true);
+                        *state.status.borrow_mut() = "Accueil Glide".into();
+                        state.window.request_redraw();
                     } else if !is_location_shortcut {
                         state.handle_keyboard_input(event);
                     }
-                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut {
+                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut && !is_home_shortcut {
                     state.handle_keyboard_input(event);
                 }
             }
