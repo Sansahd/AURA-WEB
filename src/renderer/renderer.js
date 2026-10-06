@@ -478,7 +478,7 @@ fire(window.quantic.state().then(acceptState));
 $('#logo').onclick = () => fire(window.quantic.home());
 $('#dock-brand').onclick = () => fire(window.quantic.home());
 $('#home-button').onclick = () => fire(window.quantic.home());
-$('#discover').onclick = () => { address.value = 'Découvrir le web'; address.focus(); address.select(); };
+$('#discover').onclick = () => fire(window.quantic.navigate('Découvrir le web'));
 $('#bookmarks').onclick = () => fire(window.quantic.newTab('quantic://favorites'));
 $('#downloads').onclick = () => fire(window.quantic.navigate('https://mediumorchid-badger-314305.hostingersite.com/downloads/#gekko'));
 $('#apps-button').onclick = () => appsPanel?.classList.toggle('hidden');
@@ -550,9 +550,7 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
       return;
     }
     if (action === 'explore-more') {
-      address.value = 'Découvrir le web';
-      address.focus();
-      address.select();
+      fire(window.quantic.navigate('Découvrir le web'));
     }
   };
 });
