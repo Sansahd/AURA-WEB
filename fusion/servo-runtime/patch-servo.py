@@ -612,8 +612,6 @@ replace_once(
     part.push(".part");
     PathBuf::from(part)
 }
-
-fn set_default_accept_encoding(headers: &mut HeaderMap) {
 """,
     """fn partial_download_path(path: &Path) -> PathBuf {
     let mut part = path.as_os_str().to_os_string();
@@ -626,8 +624,6 @@ fn cancel_download_path(path: &Path) -> PathBuf {
     marker.push(".part.cancel");
     PathBuf::from(marker)
 }
-
-fn set_default_accept_encoding(headers: &mut HeaderMap) {
 """
 )
 
