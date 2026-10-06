@@ -51,6 +51,7 @@ jobs:
         run: |
           $runtime = Get-Content src/main.rs -Raw
           $youtube = Get-Content src/youtube.rs -Raw
+          $youtubeJs = Get-Content src/youtube-clean.js -Raw
           $cargo = Get-Content Cargo.toml -Raw
           foreach ($needle in @(
             'paint_gekko_mark',
@@ -85,14 +86,22 @@ jobs:
             throw "Live Neqo runtime dependency missing"
           }
           foreach ($needle in @(
+            'googlevideo.com',
+            'is_youtube_ad_resource',
+            'include_str!("youtube-clean.js")'
+          )) {
+            if ($youtube -notmatch [regex]::Escape($needle)) {
+              throw "YouTube native blocker contract missing: $needle"
+            }
+          }
+          foreach ($needle in @(
             '/youtubei/v1/player',
             'adPlacements',
-            'googlevideo.com',
             'MutationObserver',
             'ad-showing'
           )) {
-            if ($youtube -notmatch [regex]::Escape($needle)) {
-              throw "YouTube Clean Playback contract missing: $needle"
+            if ($youtubeJs -notmatch [regex]::Escape($needle)) {
+              throw "YouTube Clean Playback script contract missing: $needle"
             }
           }
           Write-Host "GEKKO PRODUCT CONTRACT PASSED"
@@ -115,6 +124,9 @@ jobs:
             throw "Forbidden browser dependency detected"
           }
           Write-Host "FUSION DEPENDENCY CONTRACT PASSED"
+
+      - name: Validate YouTube Clean Playback JavaScript
+        run: node --check src/youtube-clean.js
 
       - name: Check Gekko Servo runtime
         run: cargo check
