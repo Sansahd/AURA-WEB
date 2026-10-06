@@ -259,6 +259,7 @@ struct Waker(EventLoopProxy<WakeEvent>);
 enum WakeEvent {
     Servo,
     Aura(AuraReply),
+    SmokeComplete,
 }
 
 impl EventLoopWaker for Waker {
@@ -387,6 +388,7 @@ struct FusionState {
     side_focus: Cell<bool>,
     downloads: RefCell<Vec<DownloadEntry>>,
     downloads_panel_open: Cell<bool>,
+    smoke_probe_started: Cell<bool>,
 }
 
 struct FusionDelegate {
@@ -502,6 +504,51 @@ impl servo::WebViewDelegate for FusionDelegate {
             });
         }
     }
+
+        if matches!(load_status, LoadStatus::Complete) {
+            let weak = self.state.borrow().clone();
+            let webview_for_probe = webview.clone();
+            if let Some(state) = weak.upgrade() {
+                if std::env::var_os("GEKKO_SMOKE_OUTPUT").is_some()
+                    && !state.smoke_probe_started.replace(true)
+                    && state.active_webview() == webview_for_probe
+                {
+                    let proxy = state.event_proxy.clone();
+                    webview_for_probe.evaluate_javascript(
+                        r#"JSON.stringify({
+                            url: location.href,
+                            title: document.title,
+                            dom: !!document.querySelector("#gekko-smoke"),
+                            result: document.querySelector("#result")?.textContent || "",
+                            marker: window.__gekkoSmoke?.marker || "",
+                            params: window.__gekkoSmoke?.params || "",
+                            events: window.__gekkoSmoke?.events || 0,
+                            encodedLength: window.__gekkoSmoke?.encodedLength || 0,
+                            storage: window.__gekkoSmoke?.storage || "",
+                            urlApi: typeof URL === "function",
+                            promiseApi: typeof Promise === "function",
+                            textEncoderApi: typeof TextEncoder === "function",
+                            webrtcBlocked: typeof RTCPeerConnection === "undefined"
+                        })"#,
+                        move |result| {
+                            let payload = match result {
+                                Ok(JSValue::String(value)) => value,
+                                Ok(value) => serde_json::json!({
+                                    "error": format!("unexpected JS value: {value:?}")
+                                }).to_string(),
+                                Err(error) => serde_json::json!({
+                                    "error": format!("javascript evaluation failed: {error:?}")
+                                }).to_string(),
+                            };
+                            if let Ok(path) = std::env::var("GEKKO_SMOKE_OUTPUT") {
+                                let _ = fs::write(path, payload);
+                            }
+                            let _ = proxy.send_event(WakeEvent::SmokeComplete);
+                        },
+                    );
+                }
+            }
+        }
 
     fn notify_crashed(&self, _webview: WebView, reason: String, _backtrace: Option<String>) {
         self.with_state(|state| {
@@ -2148,8 +2195,14 @@ impl ApplicationHandler<WakeEvent> for App {
         user_content_manager.add_script(Rc::new(UserScript::from(DOWNLOAD_BRIDGE_SCRIPT)));
         user_content_manager.add_script(Rc::new(UserScript::from(PRIVACY_HARDENING_SCRIPT)));
 
+        let configured_start = std::env::var("GEKKO_START_URL")
+            .ok()
+            .and_then(|value| Url::parse(&value).ok())
+            .unwrap_or_else(|| Url::parse(START_URL).unwrap());
+        let configured_start_text = configured_start.to_string();
+
         let webview = WebViewBuilder::new(&servo, web_context.clone())
-            .url(Url::parse(START_URL).unwrap())
+            .url(configured_start)
             .hidpi_scale_factor(Scale::new(window.scale_factor() as f32))
             .delegate(delegate.clone())
             .user_content_manager(user_content_manager.clone())
@@ -2162,14 +2215,14 @@ impl ApplicationHandler<WakeEvent> for App {
                 webview,
                 context: web_context,
                 title: RefCell::new("Gekko".into()),
-                url: RefCell::new(START_URL.to_string()),
+                url: RefCell::new(configured_start_text.clone()),
             }]),
             active_tab: Cell::new(0),
             delegate: delegate.clone(),
             window_context,
             egui: RefCell::new(egui),
-            dock_input: RefCell::new(START_URL.to_string()),
-            current_url: RefCell::new(START_URL.to_string()),
+            dock_input: RefCell::new(configured_start_text.clone()),
+            current_url: RefCell::new(configured_start_text),
             status: RefCell::new(if paths::portable_mode() {
                 "Gekko portable · données sur ce support".into()
             } else {
@@ -2215,6 +2268,7 @@ impl ApplicationHandler<WakeEvent> for App {
             side_focus: Cell::new(false),
             downloads: RefCell::new(Vec::new()),
             downloads_panel_open: Cell::new(false),
+            smoke_probe_started: Cell::new(false),
         });
         delegate.bind(&state);
 
@@ -2222,7 +2276,7 @@ impl ApplicationHandler<WakeEvent> for App {
             let data = state.browser_data.borrow();
             (data.session_tabs.clone(), data.active_tab)
         };
-        if !restore_urls.is_empty() {
+        if std::env::var_os("GEKKO_SMOKE_OUTPUT").is_none() && !restore_urls.is_empty() {
             {
                 let mut tabs = state.tabs.borrow_mut();
                 if let Some(first) = restore_urls.first().and_then(|raw| Url::parse(raw).ok()) {
@@ -2246,7 +2300,7 @@ impl ApplicationHandler<WakeEvent> for App {
         *self = Self::Running(state);
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: WakeEvent) {
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: WakeEvent) {
         if let Self::Running(state) = self {
             match event {
                 WakeEvent::Servo => state.servo.spin_event_loop(),
@@ -2261,6 +2315,10 @@ impl ApplicationHandler<WakeEvent> for App {
                     *state.aura_error.borrow_mut() = reply.error.unwrap_or_default();
                     state.apply_aura_actions(reply.actions);
                     *state.status.borrow_mut() = "AURA · réponse reçue".into();
+                }
+                WakeEvent::SmokeComplete => {
+                    state.clear_private_state();
+                    event_loop.exit();
                 }
             }
             state.window.request_redraw();
