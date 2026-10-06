@@ -119,12 +119,20 @@ impl EventLoopWaker for Waker {
     }
 }
 
+struct BrowserTab {
+    webview: WebView,
+    context: Rc<OffscreenRenderingContext>,
+    title: RefCell<String>,
+    url: RefCell<String>,
+}
+
 struct FusionState {
     window: Window,
     servo: Servo,
-    webview: WebView,
+    tabs: RefCell<Vec<BrowserTab>>,
+    active_tab: Cell<usize>,
+    delegate: Rc<FusionDelegate>,
     window_context: Rc<WindowRenderingContext>,
-    web_context: Rc<OffscreenRenderingContext>,
     egui: RefCell<EguiGlow>,
     dock_input: RefCell<String>,
     current_url: RefCell<String>,
@@ -259,6 +267,56 @@ impl servo::WebViewDelegate for FusionDelegate {
 }
 
 impl FusionState {
+    fn active_webview(&self) -> WebView {
+        self.tabs.borrow()[self.active_tab.get()].webview.clone()
+    }
+
+    fn new_tab(&self, url: Url) {
+        let scale = self.window.scale_factor() as f32;
+        let size = self.window.inner_size();
+        let context = Rc::new(self.window_context.offscreen_context(
+            winit::dpi::PhysicalSize::new(size.width.max(1), size.height.saturating_sub(140).max(1))
+        ));
+        let webview = WebViewBuilder::new(&self.servo, context.clone())
+            .url(url.clone())
+            .hidpi_scale_factor(Scale::new(scale))
+            .delegate(self.delegate.clone())
+            .build();
+        let mut tabs = self.tabs.borrow_mut();
+        tabs.push(BrowserTab {
+            webview,
+            context,
+            title: RefCell::new("Nouvel onglet".into()),
+            url: RefCell::new(url.to_string()),
+        });
+        self.active_tab.set(tabs.len() - 1);
+        drop(tabs);
+        *self.current_url.borrow_mut() = url.to_string();
+        *self.dock_input.borrow_mut() = url.to_string();
+        self.home_open.set(false);
+        self.servo.spin_event_loop();
+        self.window.request_redraw();
+    }
+
+    fn close_active_tab(&self) {
+        let mut tabs = self.tabs.borrow_mut();
+        if tabs.len() <= 1 {
+            drop(tabs);
+            self.home_open.set(true);
+            *self.status.borrow_mut() = "Accueil Glide".into();
+            return;
+        }
+        let index = self.active_tab.get().min(tabs.len() - 1);
+        tabs.remove(index);
+        let next = index.min(tabs.len() - 1);
+        self.active_tab.set(next);
+        let url = tabs[next].url.borrow().clone();
+        drop(tabs);
+        *self.current_url.borrow_mut() = url.clone();
+        *self.dock_input.borrow_mut() = url;
+        self.window.request_redraw();
+    }
+
     fn normalize_target(raw: &str) -> Option<Url> {
         let value = raw.trim();
         if value.is_empty() {
@@ -284,15 +342,15 @@ impl FusionState {
 
         if lower == "@mail" || lower.starts_with("@mail ") {
             if let Ok(url) = Url::parse(MAIL_URL) {
-                self.webview.load(url);
+                self.active_webview().load(url);
             }
         } else if lower == "@pulse" || lower.starts_with("@pulse ") {
             if let Ok(url) = Url::parse(PULSE_URL) {
-                self.webview.load(url);
+                self.active_webview().load(url);
             }
         } else if lower == "@quantic" || lower.starts_with("@quantic ") {
             if let Ok(url) = Url::parse(QUANTIC_PORTAL) {
-                self.webview.load(url);
+                self.active_webview().load(url);
             }
         } else if lower == "@aura" || lower.starts_with("@aura ") {
             let prompt = raw.strip_prefix("@aura").unwrap_or("").trim();
@@ -306,13 +364,13 @@ impl FusionState {
             *self.status.borrow_mut() = "Accueil Glide".into();
             self.window.request_redraw();
         } else if matches!(lower.as_str(), "> retour" | "> back") {
-            self.webview.go_back(1);
+            self.active_webview().go_back(1);
         } else if matches!(lower.as_str(), "> avance" | "> forward") {
-            self.webview.go_forward(1);
+            self.active_webview().go_forward(1);
         } else if matches!(lower.as_str(), "> recharger" | "> reload") {
-            self.webview.reload();
+            self.active_webview().reload();
         } else if let Some(url) = Self::normalize_target(&raw) {
-            self.webview.load(url);
+            self.active_webview().load(url);
         }
 
         self.dock_expanded.set(false);
@@ -581,25 +639,25 @@ impl FusionState {
                                         )
                                     };
 
-                                    if nav(ui, self.webview.can_go_back(), "‹")
+                                    if nav(ui, self.active_webview().can_go_back(), "‹")
                                         .on_hover_text("Retour · Alt+←")
                                         .clicked()
                                     {
-                                        self.webview.go_back(1);
+                                        self.active_webview().go_back(1);
                                         *self.status.borrow_mut() = "Retour".into();
                                     }
-                                    if nav(ui, self.webview.can_go_forward(), "›")
+                                    if nav(ui, self.active_webview().can_go_forward(), "›")
                                         .on_hover_text("Suivant · Alt+→")
                                         .clicked()
                                     {
-                                        self.webview.go_forward(1);
+                                        self.active_webview().go_forward(1);
                                         *self.status.borrow_mut() = "Suivant".into();
                                     }
                                     if nav(ui, true, "↻")
                                         .on_hover_text("Recharger · Ctrl+R")
                                         .clicked()
                                     {
-                                        self.webview.reload();
+                                        self.active_webview().reload();
                                         *self.status.borrow_mut() = "Actualisation…".into();
                                     }
 
@@ -739,17 +797,21 @@ impl FusionState {
             let width = (available.width() * pixels_per_point).max(1.0) as u32;
             let height = (available.height() * pixels_per_point).max(1.0) as u32;
             let size = winit::dpi::PhysicalSize::new(width, height);
-            if self.web_context.size() != size {
-                self.web_context.resize(size);
-                self.webview.resize(size);
+            let active_context = {
+                let tabs = self.tabs.borrow();
+                tabs[self.active_tab.get()].context.clone()
+            };
+            if active_context.size() != size {
+                active_context.resize(size);
+                self.active_webview().resize(size);
             }
 
             if !self.home_open.get() {
-                self.webview.paint();
+                self.active_webview().paint();
             }
 
             if !self.home_open.get() {
-            if let Some(render_to_parent) = self.web_context.render_to_parent_callback() {
+            if let Some(render_to_parent) = active_context.render_to_parent_callback() {
                 ctx.layer_painter(LayerId::background()).add(PaintCallback {
                     rect: available,
                     callback: Arc::new(CallbackFn::new(move |info, painter| {
@@ -800,11 +862,11 @@ impl FusionState {
         self.cursor_point.set((x, y));
 
         if self.point_in_webview(x, y) {
-            self.webview.notify_input_event(InputEvent::MouseMove(MouseMoveEvent::new(
+            self.active_webview().notify_input_event(InputEvent::MouseMove(MouseMoveEvent::new(
                 self.webview_point(x, y).into(),
             )));
         } else {
-            self.webview.notify_input_event(InputEvent::MouseLeftViewport(
+            self.active_webview().notify_input_event(InputEvent::MouseLeftViewport(
                 MouseLeftViewportEvent::default(),
             ));
         }
@@ -829,7 +891,7 @@ impl FusionState {
             ElementState::Released => MouseButtonAction::Up,
         };
 
-        self.webview.notify_input_event(InputEvent::MouseButton(MouseButtonEvent::new(
+        self.active_webview().notify_input_event(InputEvent::MouseButton(MouseButtonEvent::new(
             action,
             button,
             self.webview_point(x, y).into(),
@@ -846,7 +908,7 @@ impl FusionState {
             MouseScrollDelta::LineDelta(x, y) => ((x * 38.0) as f64, (y * 38.0) as f64),
             MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
         };
-        self.webview.notify_input_event(InputEvent::Wheel(WheelEvent::new(
+        self.active_webview().notify_input_event(InputEvent::Wheel(WheelEvent::new(
             WheelDelta { x: dx, y: dy, z: 0.0, mode: WheelMode::DeltaPixel },
             self.webview_point(x, y).into(),
         )));
@@ -881,7 +943,7 @@ impl FusionState {
             ElementState::Pressed => KeyState::Down,
             ElementState::Released => KeyState::Up,
         };
-        self.webview.notify_input_event(InputEvent::Keyboard(
+        self.active_webview().notify_input_event(InputEvent::Keyboard(
             KeyboardEvent::new_without_event(
                 state,
                 key,
@@ -946,7 +1008,7 @@ impl FusionState {
             }),
             Ime::Disabled => ImeEvent::Dismissed,
         };
-        self.webview.notify_input_event(InputEvent::Ime(event));
+        self.active_webview().notify_input_event(InputEvent::Ime(event));
     }
 }
 
@@ -1003,9 +1065,15 @@ impl ApplicationHandler<WakeEvent> for App {
         let state = Rc::new(FusionState {
             window,
             servo,
-            webview,
+            tabs: RefCell::new(vec![BrowserTab {
+                webview,
+                context: web_context,
+                title: RefCell::new("Glide".into()),
+                url: RefCell::new(START_URL.to_string()),
+            }]),
+            active_tab: Cell::new(0),
+            delegate: delegate.clone(),
             window_context,
-            web_context,
             egui: RefCell::new(egui),
             dock_input: RefCell::new(START_URL.to_string()),
             current_url: RefCell::new(START_URL.to_string()),
@@ -1086,13 +1154,13 @@ impl ApplicationHandler<WakeEvent> for App {
 
                 if event.state == ElementState::Pressed {
                     if is_reload_shortcut {
-                        state.webview.reload();
+                        state.active_webview().reload();
                         state.window.request_redraw();
                     } else if is_back_shortcut {
-                        state.webview.go_back(1);
+                        state.active_webview().go_back(1);
                         state.window.request_redraw();
                     } else if is_forward_shortcut {
-                        state.webview.go_forward(1);
+                        state.active_webview().go_forward(1);
                         state.window.request_redraw();
                     } else if is_home_shortcut {
                         state.home_open.set(true);
