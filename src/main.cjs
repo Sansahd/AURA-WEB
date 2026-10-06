@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const { QuanticStore } = require('./services/store.cjs');
 const { QuanticVeil } = require('./services/veil.cjs');
 const { installPrivacyLayer } = require('./services/privacy.cjs');
+const { installYouTubeGuard, isYouTubeUrl } = require('./services/youtube-guard.cjs');
+const { DIRECT_SCHEME_PREFIX, extractYouTubeVideoId, parseDirectRequest, YouTubeDirectResolver, installYouTubeDirectPlayer, removeYouTubeDirectPlayer } = require('./services/youtube-direct.cjs');
 const { buildInternalState, internalTitle } = require('./core/internal-state.cjs');
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
@@ -66,6 +68,7 @@ let auraClient;
 let auraPresence;
 let careerAgent;
 let careerTimer;
+let youtubeDirectResolver;
 let browserSession;
 let normalSession;
 let privateSession;
@@ -108,6 +111,7 @@ function tabState(tab) {
     loading: Boolean(tab.loading),
     transitioning: Boolean(tab.transitioning),
     sleeping: Boolean(tab.sleeping),
+    youtubeDirect: tab.youtubeDirect || null,
     favorite: Boolean(store?.isFavorite(tab.url)),
     ...navState(isExternal(tab.url) ? tab.view?.webContents : null)
   };
@@ -486,6 +490,78 @@ function revealTabView(tab) {
   emitState(true);
 }
 
+async function setYouTubeDirectResult(wc, ok, error = '') {
+  if (!wc || wc.isDestroyed()) return;
+  const payload = JSON.stringify({ ok: Boolean(ok), error: String(error || '').slice(0, 180) }).replace(/</g, '\\u003c');
+  await wc.executeJavaScript(`(() => {
+    try {
+      window.__gekkoYoutubeAdGuardV1?.directResult?.(${payload});
+    } catch {}
+  })()`, true).catch(() => {});
+}
+
+async function activateYouTubeDirect(tab, requestUrl = '') {
+  const wc = tab?.view?.webContents;
+  if (!tab || !wc || wc.isDestroyed()) return { ok: false, error: 'webcontents-unavailable' };
+
+  if (isPrivateMode()) {
+    const error = 'GEKKO Direct est désactivé en navigation privée pour éviter une fuite hors Tor.';
+    tab.youtubeDirect = { status: 'blocked-private', error };
+    await setYouTubeDirectResult(wc, false, error);
+    emitState(true);
+    return { ok: false, error: 'private-mode-disabled' };
+  }
+
+  const pageUrl = wc.getURL() || tab.url || '';
+  const pageVideoId = extractYouTubeVideoId(pageUrl);
+  const requestedVideoId = parseDirectRequest(requestUrl) || pageVideoId;
+
+  if (!pageVideoId || !requestedVideoId || pageVideoId !== requestedVideoId) {
+    const error = 'Vidéo YouTube active introuvable.';
+    tab.youtubeDirect = { status: 'error', error };
+    await setYouTubeDirectResult(wc, false, error);
+    emitState(true);
+    return { ok: false, error: 'video-mismatch' };
+  }
+
+  tab.youtubeDirect = { status: 'resolving', videoId: pageVideoId };
+  emitState(true);
+
+  try {
+    youtubeDirectResolver ||= new YouTubeDirectResolver();
+    const stream = await youtubeDirectResolver.resolve(pageVideoId);
+
+    if (!tabs.has(tab.id) || tab.view?.webContents !== wc || extractYouTubeVideoId(wc.getURL()) !== pageVideoId) {
+      return { ok: false, error: 'navigation-changed' };
+    }
+
+    const injected = await installYouTubeDirectPlayer(wc, stream);
+    if (!injected?.ok) throw new Error(injected?.error || 'Lecteur direct indisponible');
+
+    tab.youtubeDirect = {
+      status: 'active',
+      videoId: pageVideoId,
+      quality: stream.quality || '',
+      mime: stream.mime || ''
+    };
+    await setYouTubeDirectResult(wc, true);
+    emitState(true);
+    return { ok: true, stream: tab.youtubeDirect };
+  } catch (error) {
+    const message = String(error?.message || error || 'Flux direct indisponible');
+    tab.youtubeDirect = { status: 'error', videoId: pageVideoId, error: message.slice(0, 180) };
+    await setYouTubeDirectResult(wc, false, message);
+    emitState(true);
+    return { ok: false, error: message };
+  }
+}
+
+async function clearYouTubeDirect(tab) {
+  const wc = tab?.view?.webContents;
+  if (wc && !wc.isDestroyed()) await removeYouTubeDirectPlayer(wc);
+  if (tab) tab.youtubeDirect = null;
+}
+
 function createView(tab) {
   if (tab.view) return tab.view;
 
@@ -530,6 +606,11 @@ function createView(tab) {
   });
 
   wc.on('will-navigate', async (event, url) => {
+    if (String(url || '').startsWith(DIRECT_SCHEME_PREFIX)) {
+      event.preventDefault();
+      activateYouTubeDirect(tab, url).catch(() => {});
+      return;
+    }
     if (isInternal(url)) {
       event.preventDefault();
       showInternal(tab, url);
@@ -561,6 +642,7 @@ function createView(tab) {
     // Reveal only after Chromium has a real document. This eliminates the
     // default white WebContentsView frame between navigation and first content.
     if (tab.awaitingPage) revealTabView(tab);
+    if (isYouTubeUrl(wc.getURL())) installYouTubeGuard(wc).catch(() => {});
   });
 
   wc.on('did-stop-loading', () => {
@@ -581,12 +663,18 @@ function createView(tab) {
   wc.on('did-navigate', (_event, url) => {
     if (url && url !== tab.url) tab.url = url;
     syncFromView(tab, true);
+    clearYouTubeDirect(tab).catch(() => {});
+    if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
     emitState();
   });
 
   wc.on('did-navigate-in-page', (_event, url) => {
+    const previousDirectId = tab.youtubeDirect?.videoId || '';
     if (url && url !== tab.url) tab.url = url;
     syncFromView(tab, true);
+    const nextVideoId = extractYouTubeVideoId(url);
+    if (previousDirectId && previousDirectId !== nextVideoId) clearYouTubeDirect(tab).catch(() => {});
+    if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
     emitState();
   });
 
