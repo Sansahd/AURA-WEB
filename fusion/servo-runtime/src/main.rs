@@ -483,10 +483,11 @@ impl servo::WebViewDelegate for FusionDelegate {
 
         if matches!(load_status, LoadStatus::Complete) {
             let weak = self.state.borrow().clone();
-            webview.take_screenshot(None, move |result| {
+            let snapshot_webview = webview.clone();
+            snapshot_webview.clone().take_screenshot(None, move |result| {
                 let Ok(image) = result else { return; };
                 let Some(state) = weak.upgrade() else { return; };
-                if state.active_webview() != webview {
+                if state.active_webview() != snapshot_webview {
                     return;
                 }
                 let size = [image.width() as usize, image.height() as usize];
@@ -502,10 +503,7 @@ impl servo::WebViewDelegate for FusionDelegate {
                 *state.current_snapshot.borrow_mut() = Some(texture);
                 state.window.request_redraw();
             });
-        }
-    }
 
-        if matches!(load_status, LoadStatus::Complete) {
             let weak = self.state.borrow().clone();
             let webview_for_probe = webview.clone();
             if let Some(state) = weak.upgrade() {
@@ -515,7 +513,7 @@ impl servo::WebViewDelegate for FusionDelegate {
                 {
                     let proxy = state.event_proxy.clone();
                     webview_for_probe.evaluate_javascript(
-                        r#"JSON.stringify({
+                        r##"JSON.stringify({
                             url: location.href,
                             title: document.title,
                             dom: !!document.querySelector("#gekko-smoke"),
@@ -529,7 +527,7 @@ impl servo::WebViewDelegate for FusionDelegate {
                             promiseApi: typeof Promise === "function",
                             textEncoderApi: typeof TextEncoder === "function",
                             webrtcBlocked: typeof RTCPeerConnection === "undefined"
-                        })"#,
+                        })"##,
                         move |result| {
                             let payload = match result {
                                 Ok(JSValue::String(value)) => value,
@@ -549,6 +547,7 @@ impl servo::WebViewDelegate for FusionDelegate {
                 }
             }
         }
+    }
 
     fn notify_crashed(&self, _webview: WebView, reason: String, _backtrace: Option<String>) {
         self.with_state(|state| {
@@ -1080,9 +1079,15 @@ impl FusionState {
                         self.active_webview().load(url);
                     }
                 }
-                AuraAction::Back => self.active_webview().go_back(1),
-                AuraAction::Forward => self.active_webview().go_forward(1),
-                AuraAction::Reload => self.active_webview().reload(),
+                AuraAction::Back => {
+                    self.active_webview().go_back(1);
+                }
+                AuraAction::Forward => {
+                    self.active_webview().go_forward(1);
+                }
+                AuraAction::Reload => {
+                    self.active_webview().reload();
+                },
                 AuraAction::Click { selector } => {
                     if let Ok(selector) = serde_json::to_string(&selector) {
                         let script = format!(
