@@ -25,6 +25,8 @@ jobs:
         working-directory: quantic-engine
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: dtolnay/rust-toolchain@stable
       - name: Check Glide Dock core
         run: cargo check --bin qglide --no-default-features
@@ -39,6 +41,10 @@ jobs:
         working-directory: fusion/servo-runtime
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Apply Quantic Servo native-download patch
+        run: python patch-servo.py
       - uses: dtolnay/rust-toolchain@stable
       - name: Resolve Servo 0.7 Fusion
         run: cargo tree > servo-tree.txt
