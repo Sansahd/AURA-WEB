@@ -1,3 +1,5 @@
+#![deny(future_incompatible)]
+
 mod aura;
 mod downloads;
 mod privacy;
@@ -984,14 +986,14 @@ impl FusionState {
             visuals.widgets.inactive.bg_fill = PANEL;
             visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(18);
             visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(55, 48, 39);
-            visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.2, TEXT);
+            visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.2_f32, TEXT);
             visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(18);
             visuals.widgets.active.bg_fill = ACCENT_SOFT;
-            visuals.widgets.active.fg_stroke = egui::Stroke::new(1.4, ACCENT);
+            visuals.widgets.active.fg_stroke = egui::Stroke::new(1.4_f32, ACCENT);
             visuals.widgets.active.corner_radius = egui::CornerRadius::same(18);
             visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(18);
             visuals.selection.bg_fill = ACCENT_SOFT;
-            visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT);
+            visuals.selection.stroke = egui::Stroke::new(1.0_f32, ACCENT);
             ctx.set_visuals(visuals);
 
             egui::TopBottomPanel::top("fusion_header")
@@ -1022,7 +1024,7 @@ impl FusionState {
                             if ui.add(
                                 egui::Button::new(egui::RichText::new(title).size(9.0).color(if active { TEXT } else { MUTED }))
                                     .fill(if active { PANEL_SOFT } else { BG })
-                                    .stroke(egui::Stroke::new(1.0, if active { ACCENT_SOFT } else { BORDER }))
+                                    .stroke(egui::Stroke::new(1.0_f32, if active { ACCENT_SOFT } else { BORDER }))
                                     .corner_radius(14.0)
                                     .min_size(egui::vec2(86.0, 28.0))
                             ).clicked() {
@@ -1053,7 +1055,7 @@ impl FusionState {
                         ui.add_space(10.0);
                         egui::Frame::new()
                             .fill(PANEL)
-                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .stroke(egui::Stroke::new(1.0_f32, BORDER))
                             .corner_radius(16.0)
                             .inner_margin(egui::Margin::symmetric(14, 6))
                             .show(ui, |ui| {
@@ -1137,7 +1139,7 @@ impl FusionState {
                     .frame(
                         egui::Frame::new()
                             .fill(PANEL)
-                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .stroke(egui::Stroke::new(1.0_f32, BORDER))
                             .inner_margin(egui::Margin::same(10))
                     )
                     .show(ctx, |ui| {
@@ -1190,7 +1192,7 @@ impl FusionState {
                     .frame(
                         egui::Frame::new()
                             .fill(PANEL)
-                            .stroke(egui::Stroke::new(1.0, ACCENT_SOFT))
+                            .stroke(egui::Stroke::new(1.0_f32, ACCENT_SOFT))
                             .inner_margin(egui::Margin::same(18))
                     )
                     .show(ctx, |ui| {
@@ -1246,7 +1248,7 @@ impl FusionState {
                     .frame(
                         egui::Frame::new()
                             .fill(PANEL)
-                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .stroke(egui::Stroke::new(1.0_f32, BORDER))
                             .inner_margin(egui::Margin::same(16))
                     )
                     .show(ctx, |ui| {
@@ -1273,7 +1275,7 @@ impl FusionState {
                                     egui::RichText::new(format!("{icon}   {label}")).strong().size(11.0).color(TEXT)
                                 )
                                 .fill(PANEL_SOFT)
-                                .stroke(egui::Stroke::new(1.0, BORDER))
+                                .stroke(egui::Stroke::new(1.0_f32, BORDER))
                                 .corner_radius(18.0)
                             ).clicked() {
                                 *self.dock_input.borrow_mut() = command.to_string();
@@ -1288,7 +1290,7 @@ impl FusionState {
                             [ui.available_width(), 36.0],
                             egui::Button::new(egui::RichText::new("★  Ajouter aux favoris").size(10.0).color(ACCENT))
                                 .fill(egui::Color32::from_rgb(35, 30, 23))
-                                .stroke(egui::Stroke::new(1.0, ACCENT_SOFT))
+                                .stroke(egui::Stroke::new(1.0_f32, ACCENT_SOFT))
                                 .corner_radius(16.0)
                         ).clicked() {
                             let url = self.current_url.borrow().clone();
@@ -1397,7 +1399,7 @@ impl FusionState {
                                     if ui.add(
                                         egui::Button::new(egui::RichText::new(label).strong().size(10.0).color(TEXT))
                                             .fill(PANEL_SOFT)
-                                            .stroke(egui::Stroke::new(1.0, BORDER))
+                                            .stroke(egui::Stroke::new(1.0_f32, BORDER))
                                             .corner_radius(14.0)
                                             .min_size(egui::vec2(78.0, 30.0))
                                     ).on_hover_text(match label {
@@ -1417,7 +1419,7 @@ impl FusionState {
                         let dock_width = ui.available_width().min(980.0);
                         egui::Frame::new()
                             .fill(PANEL)
-                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .stroke(egui::Stroke::new(1.0_f32, BORDER))
                             .corner_radius(28.0)
                             .inner_margin(egui::Margin::symmetric(12, 9))
                             .show(ui, |ui| {
@@ -1458,7 +1460,7 @@ impl FusionState {
                                     let edit_width = (dock_width - 250.0).max(260.0);
                                     egui::Frame::new()
                                         .fill(egui::Color32::from_rgb(20, 19, 18))
-                                        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(63, 57, 49)))
+                                        .stroke(egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(63, 57, 49)))
                                         .corner_radius(21.0)
                                         .inner_margin(egui::Margin::symmetric(14, 2))
                                         .show(ui, |ui| {
@@ -1511,7 +1513,7 @@ impl FusionState {
                     });
                 });
 
-            let available = ctx.available_rect();
+            let available = ctx.content_rect();
             let transition = self.transition_progress();
             if transition < 1.0 {
                 ctx.request_repaint();
@@ -1534,7 +1536,7 @@ impl FusionState {
                                     egui::RichText::new("⌕   Rechercher ou saisir une adresse").size(12.0).color(MUTED)
                                 )
                                 .fill(PANEL)
-                                .stroke(egui::Stroke::new(1.0, BORDER))
+                                .stroke(egui::Stroke::new(1.0_f32, BORDER))
                                 .corner_radius(24.0)
                             ).clicked() {
                                 self.dock_expanded.set(true);
@@ -1552,7 +1554,7 @@ impl FusionState {
                                     if ui.add(
                                         egui::Button::new(egui::RichText::new(label).size(10.0).color(TEXT))
                                             .fill(PANEL_SOFT)
-                                            .stroke(egui::Stroke::new(1.0, BORDER))
+                                            .stroke(egui::Stroke::new(1.0_f32, BORDER))
                                             .corner_radius(18.0)
                                             .min_size(egui::vec2(92.0, 38.0))
                                     ).clicked() {
