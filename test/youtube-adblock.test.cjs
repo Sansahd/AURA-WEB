@@ -133,7 +133,7 @@ test('GEKKO Direct player is reversible and preserves normal YouTube fallback', 
   assert.match(source, /Player YouTube/);
   assert.match(source, /nativeVideo\.currentTime/);
   assert.match(source, /video\.addEventListener\('error'/);
-  assert.match(source, /destroy\(true\)/);
+  assert.match(source, /destroy\(true, 30000\)/);
 });
 
 test('YouTube guard exposes manual Direct mode and automatic persistent-ad fallback', () => {
