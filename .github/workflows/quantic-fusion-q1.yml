@@ -125,3 +125,9 @@ jobs:
 
       - name: Compile compatibility and WPT runners
         run: cargo check --bin qcompat --bin qwpt --features fusion-ladybird-html
+
+      - name: Run compatibility scorecard
+        run: cargo run --quiet --bin qcompat --features fusion-ladybird-html
+
+      - name: Run executable WPT-style probe
+        run: cargo run --quiet --bin qwpt --features fusion-ladybird-html -- --min-pass-rate 100 tests/wpt_gekko_smoke.js
