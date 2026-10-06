@@ -49,7 +49,9 @@ function youtubeGuardSource() {
       scheduled: false,
       interval: null,
       observer: null,
-      patchedResponse: false
+      patchedResponse: false,
+      adSince: 0,
+      directRequested: false
     };
 
     function scrub(value, seen = new WeakSet()) {
@@ -130,6 +132,60 @@ function youtubeGuardSource() {
       }
     }
 
+    function currentVideoId() {
+      try {
+        const url = new URL(location.href);
+        if (url.pathname === '/watch') return url.searchParams.get('v') || '';
+        const parts = url.pathname.split('/').filter(Boolean);
+        if (['shorts', 'embed', 'live'].includes(parts[0])) return parts[1] || '';
+      } catch {}
+      return '';
+    }
+
+    function requestDirect() {
+      if (state.directRequested || window.__gekkoDirectPlayerV1?.snapshot?.().active) return false;
+      const videoId = currentVideoId();
+      if (!/^[A-Za-z0-9_-]{6,32}$/.test(videoId)) return false;
+      state.directRequested = true;
+      try {
+        location.href = 'gekko-direct://youtube/' + encodeURIComponent(videoId);
+        return true;
+      } catch {
+        state.directRequested = false;
+        return false;
+      }
+    }
+
+    function ensureDirectButton() {
+      if (document.getElementById('gekko-direct-button')) return;
+      const controls = document.querySelector('.ytp-right-controls');
+      if (!controls) return;
+
+      const button = document.createElement('button');
+      button.id = 'gekko-direct-button';
+      button.type = 'button';
+      button.title = 'Lire avec GEKKO Direct';
+      button.textContent = 'G·DIRECT';
+      button.style.cssText = [
+        'height:32px',
+        'margin:0 5px',
+        'padding:0 9px',
+        'border:1px solid rgba(122,255,225,.4)',
+        'border-radius:999px',
+        'background:rgba(3,20,24,.72)',
+        'color:#d9fff7',
+        'font:700 10px/30px system-ui,sans-serif',
+        'letter-spacing:.06em',
+        'cursor:pointer'
+      ].join(';');
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        requestDirect();
+      });
+      controls.prepend(button);
+    }
+
     function clickSkipButtons() {
       const selectors = [
         '.ytp-ad-skip-button',
@@ -178,10 +234,19 @@ function youtubeGuardSource() {
       const player = document.querySelector('#movie_player');
       const adShowing = Boolean(player && player.classList.contains('ad-showing'));
 
+      if (window.__gekkoDirectPlayerV1?.snapshot?.().active) {
+        state.adSince = 0;
+        return;
+      }
+
       if (!adShowing) {
+        state.adSince = 0;
+        state.directRequested = false;
         restorePlayback();
         return;
       }
+
+      if (!state.adSince) state.adSince = Date.now();
 
       clickSkipButtons();
       clearAdChrome();
@@ -210,11 +275,16 @@ function youtubeGuardSource() {
       } catch {}
 
       try { video.play?.().catch?.(() => {}); } catch {}
+
+      if (!state.directRequested && Date.now() - state.adSince >= 1800) {
+        requestDirect();
+      }
     }
 
     function refresh() {
       scrubKnownGlobals();
       clearAdChrome();
+      ensureDirectButton();
       bypassAdPlayback();
     }
 
