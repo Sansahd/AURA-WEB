@@ -35,6 +35,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Install pinned NSS for live Neqo runtime
+        uses: mozilla/nss-rs/install-nss@ba8a3f6acffc7e25749054969ccbbb3ca615df7f
+        with:
+          working-directory: fusion/mozilla-network
+
       - name: Verify Gekko 8.5 product contract
         shell: pwsh
         run: |
