@@ -4,8 +4,8 @@ const DIRECT_SCHEME_PREFIX = 'gekko-direct://youtube/';
 const GOOGLEVIDEO_SUFFIX = 'googlevideo.com';
 const DIRECT_CACHE_MS = 20 * 60_000;
 const MAX_DIRECT_HEIGHT = 2160;
-const SYNC_HARD_DRIFT_SEC = 0.24;
-const SYNC_SOFT_DRIFT_SEC = 0.08;
+const MAX_VIDEO_CANDIDATES = 6;
+const MAX_AUDIO_CANDIDATES = 4;
 
 function hostMatches(host, suffix) {
   return host === suffix || host.endsWith(`.${suffix}`);
@@ -68,123 +68,143 @@ function isDrmFormat(format) {
   );
 }
 
-function codecFromMime(mime = '') {
-  const match = String(mime).match(/codecs?="([^"]+)"/i);
-  return match?.[1] || '';
+function mimeBase(format = {}) {
+  return String(format.mime_type || format.mimeType || '').split(';', 1)[0].trim().toLowerCase();
 }
 
-function mimeOf(format = {}) {
-  return String(format.mime_type || format.mimeType || '');
+function codecName(format = {}) {
+  const mime = String(format.mime_type || format.mimeType || '');
+  const match = mime.match(/codecs?="([^"]+)"/i);
+  return match ? match[1].toLowerCase() : '';
 }
 
-function codecRank(format = {}, kind = 'video') {
-  const codec = codecFromMime(mimeOf(format)).toLowerCase();
-  if (kind === 'audio') {
-    if (codec.includes('opus')) return 4;
-    if (codec.includes('mp4a')) return 3;
-    if (codec.includes('vorbis')) return 2;
-    return 1;
-  }
-
-  // VP9 is the most conservative Chromium choice for high-resolution YouTube.
-  // AV1 is excellent when available but can be more hardware-sensitive.
-  if (codec.includes('vp9') || codec.includes('vp09')) return 5;
-  if (codec.includes('av01')) return 4;
-  if (codec.includes('avc1') || codec.includes('avc')) return 3;
-  if (codec.includes('hev1') || codec.includes('hvc1')) return 2;
-  return 1;
+function videoCodecRank(format = {}) {
+  const codec = codecName(format);
+  if (/av01|av1/.test(codec)) return 4;
+  if (/vp9|vp09/.test(codec)) return 3;
+  if (/avc1|h264/.test(codec)) return 2;
+  if (/hev1|hvc1|hevc/.test(codec)) return 1;
+  return 0;
 }
 
-function isVideoOnly(format = {}) {
-  return Boolean(format.has_video || format.hasVideo) &&
-    !Boolean(format.has_audio || format.hasAudio) &&
-    mimeOf(format).toLowerCase().startsWith('video/');
+function audioCodecRank(format = {}) {
+  const codec = codecName(format);
+  if (/opus/.test(codec)) return 4;
+  if (/mp4a|aac/.test(codec)) return 3;
+  if (/vorbis/.test(codec)) return 2;
+  return 0;
 }
 
-function isAudioOnly(format = {}) {
-  return Boolean(format.has_audio || format.hasAudio) &&
-    !Boolean(format.has_video || format.hasVideo) &&
-    mimeOf(format).toLowerCase().startsWith('audio/');
+function isAdaptiveVideo(format = {}) {
+  return Boolean(
+    format.has_video &&
+    !format.has_audio &&
+    !format.has_text &&
+    !format.is_type_otf &&
+    !isDrmFormat(format) &&
+    Number(format.height || 0) > 0 &&
+    Number(format.height || 0) <= MAX_DIRECT_HEIGHT
+  );
+}
+
+function isAdaptiveAudio(format = {}) {
+  return Boolean(
+    format.has_audio &&
+    !format.has_video &&
+    !format.has_text &&
+    !format.is_type_otf &&
+    !isDrmFormat(format)
+  );
 }
 
 function videoScore(format = {}) {
   const height = Number(format.height || 0);
-  const fps = Number(format.fps || 0);
-  const bitrate = Number(format.bitrate || format.average_bitrate || 0);
-  return [height, Math.min(fps, 60), codecRank(format, 'video'), bitrate];
+  const fps = Math.min(120, Number(format.fps || 0));
+  const bitrate = Math.min(250_000_000, Number(format.bitrate || format.average_bitrate || 0));
+  const codec = videoCodecRank(format);
+  const standardDynamicRange = format.color_info?.transfer_characteristics === 'PQ' ||
+    format.color_info?.transfer_characteristics === 'HLG' ? 0 : 1;
+
+  return (
+    height * 1_000_000_000 +
+    fps * 1_000_000 +
+    codec * 100_000 +
+    standardDynamicRange * 10_000 +
+    Math.floor(bitrate / 10_000)
+  );
 }
 
 function audioScore(format = {}) {
-  const bitrate = Number(format.bitrate || format.average_bitrate || 0);
-  const channels = Number(format.audio_channels || format.audioChannels || 0);
-  const sampleRate = Number(format.audio_sample_rate || format.audioSampleRate || 0);
-  return [codecRank(format, 'audio'), bitrate, channels, sampleRate];
+  const bitrate = Math.min(2_000_000, Number(format.bitrate || format.average_bitrate || 0));
+  const channels = Math.min(8, Number(format.audio_channels || 0));
+  const codec = audioCodecRank(format);
+  const defaultTrack = format.audio_track?.audio_is_default ? 1 : 0;
+  const original = format.is_original ? 1 : 0;
+  const nonDubbed = format.is_dubbed || format.is_auto_dubbed ? 0 : 1;
+  const nonDrc = format.is_drc ? 0 : 1;
+
+  return (
+    defaultTrack * 1_000_000_000 +
+    original * 100_000_000 +
+    nonDubbed * 10_000_000 +
+    nonDrc * 1_000_000 +
+    codec * 100_000 +
+    channels * 10_000 +
+    Math.floor(bitrate / 100)
+  );
 }
 
-function compareScoreDesc(a, b, scorer) {
-  const left = scorer(a);
-  const right = scorer(b);
-  for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
-    const diff = Number(right[i] || 0) - Number(left[i] || 0);
-    if (diff) return diff;
-  }
-  return 0;
-}
+function selectAdaptiveFormats(formats = []) {
+  const list = Array.isArray(formats) ? formats : [];
+  const video = list
+    .filter(isAdaptiveVideo)
+    .sort((a, b) => videoScore(b) - videoScore(a))
+    .slice(0, MAX_VIDEO_CANDIDATES);
 
-function selectAdaptiveFormats(formats = [], maxHeight = MAX_DIRECT_HEIGHT) {
-  const usable = Array.isArray(formats) ? formats.filter((format) => !isDrmFormat(format)) : [];
+  const audio = list
+    .filter(isAdaptiveAudio)
+    .sort((a, b) => audioScore(b) - audioScore(a))
+    .slice(0, MAX_AUDIO_CANDIDATES);
 
-  let videos = usable.filter((format) => {
-    const height = Number(format.height || 0);
-    return isVideoOnly(format) && height > 0 && height <= maxHeight;
-  });
-
-  // If metadata omitted height but still exposes a video track, keep it as a
-  // last resort rather than throwing away an otherwise valid adaptive stream.
-  if (!videos.length) videos = usable.filter((format) => isVideoOnly(format));
-
-  const audios = usable.filter((format) => isAudioOnly(format));
-
-  videos.sort((a, b) => compareScoreDesc(a, b, videoScore));
-  audios.sort((a, b) => compareScoreDesc(a, b, audioScore));
-
-  return {
-    video: videos[0] || null,
-    audio: audios[0] || null,
-    availableHeights: [...new Set(videos.map((f) => Number(f.height || 0)).filter(Boolean))].sort((a, b) => b - a)
-  };
+  return { video, audio };
 }
 
 function streamMetadata(format = {}, videoId = '') {
-  const mime = mimeOf(format);
+  const mime = String(format.mime_type || format.mimeType || '');
   const quality = String(format.quality_label || format.qualityLabel || format.quality || '');
   return {
     videoId,
     url: String(format.url || ''),
     mime,
-    codec: codecFromMime(mime),
+    mimeBase: mimeBase(format),
+    codecs: codecName(format),
     quality,
     width: Number(format.width || 0),
     height: Number(format.height || 0),
     fps: Number(format.fps || 0),
     bitrate: Number(format.bitrate || format.average_bitrate || 0),
-    audioChannels: Number(format.audio_channels || format.audioChannels || 0),
-    audioSampleRate: Number(format.audio_sample_rate || format.audioSampleRate || 0)
+    audioChannels: Number(format.audio_channels || 0),
+    audioSampleRate: Number(format.audio_sample_rate || 0)
   };
-}
-
-function streamIsUsable(stream = {}) {
-  if (stream.mode === 'adaptive') {
-    return isAllowedDirectStreamUrl(stream.video?.url) && isAllowedDirectStreamUrl(stream.audio?.url);
-  }
-  return isAllowedDirectStreamUrl(stream.url);
 }
 
 async function decipherFormat(format, player, videoId) {
   if (!format || isDrmFormat(format)) return null;
-  const deciphered = await format.decipher(player);
-  const copy = { ...streamMetadata(format, videoId), url: String(deciphered || format.url || '') };
-  return isAllowedDirectStreamUrl(copy.url) ? copy : null;
+  const url = String(await format.decipher(player) || format.url || '');
+  if (!isAllowedDirectStreamUrl(url)) return null;
+  format.url = url;
+  return streamMetadata(format, videoId);
+}
+
+function validCachedStream(stream) {
+  if (!stream || Date.now() - Number(stream.resolvedAt || 0) >= DIRECT_CACHE_MS) return false;
+  if (stream.mode === 'adaptive') {
+    return Array.isArray(stream.videoCandidates) &&
+      stream.videoCandidates.some((item) => isAllowedDirectStreamUrl(item.url)) &&
+      Array.isArray(stream.audioCandidates) &&
+      stream.audioCandidates.some((item) => isAllowedDirectStreamUrl(item.url));
+  }
+  return isAllowedDirectStreamUrl(stream.url);
 }
 
 class YouTubeDirectResolver {
@@ -216,9 +236,7 @@ class YouTubeDirectResolver {
     if (!videoId) throw new Error('Identifiant YouTube invalide');
 
     const cached = this.cache.get(videoId);
-    if (cached && Date.now() - cached.resolvedAt < DIRECT_CACHE_MS && streamIsUsable(cached)) {
-      return cached;
-    }
+    if (validCachedStream(cached)) return cached;
 
     const youtube = await this.client();
     const info = await youtube.getBasicInfo(videoId);
@@ -228,38 +246,28 @@ class YouTubeDirectResolver {
     }
 
     const player = youtube.session?.player;
-    const adaptiveFormats = info?.streaming_data?.adaptive_formats || [];
-    const selected = selectAdaptiveFormats(adaptiveFormats, MAX_DIRECT_HEIGHT);
+    const adaptive = selectAdaptiveFormats(info?.streaming_data?.adaptive_formats || []);
 
-    let fallback = null;
-    try {
-      const progressive = info?.chooseFormat?.({
-        type: 'video+audio',
-        quality: 'best',
-        format: 'mp4'
-      });
-      if (progressive && !isDrmFormat(progressive)) {
-        fallback = await decipherFormat(progressive, player, videoId);
-      }
-    } catch {}
+    if (adaptive.video.length && adaptive.audio.length) {
+      const videoCandidates = (await Promise.all(
+        adaptive.video.map((format) => decipherFormat(format, player, videoId).catch(() => null))
+      )).filter(Boolean);
 
-    if (selected.video && selected.audio) {
-      const [video, audio] = await Promise.all([
-        decipherFormat(selected.video, player, videoId),
-        decipherFormat(selected.audio, player, videoId)
-      ]);
+      const audioCandidates = (await Promise.all(
+        adaptive.audio.map((format) => decipherFormat(format, player, videoId).catch(() => null))
+      )).filter(Boolean);
 
-      if (video && audio) {
-        const quality = video.quality || (video.height ? `${video.height}p${video.fps >= 50 ? video.fps : ''}` : 'HQ');
+      if (videoCandidates.length && audioCandidates.length) {
+        const top = videoCandidates[0];
         const result = {
           mode: 'adaptive',
           videoId,
-          video,
-          audio,
-          fallback,
-          quality,
-          mime: video.mime,
-          availableHeights: selected.availableHeights,
+          quality: top.quality || (top.height ? `${top.height}p` : ''),
+          width: top.width,
+          height: top.height,
+          fps: top.fps,
+          videoCandidates,
+          audioCandidates,
           resolvedAt: Date.now()
         };
         this.cache.set(videoId, result);
@@ -267,12 +275,21 @@ class YouTubeDirectResolver {
       }
     }
 
-    if (!fallback) throw new Error('Aucun flux direct vidéo+audio utilisable');
+    const progressive = info?.chooseFormat?.({
+      type: 'video+audio',
+      quality: 'best',
+      format: 'mp4'
+    });
+
+    if (!progressive) throw new Error('Aucun flux direct compatible');
+    if (isDrmFormat(progressive)) throw new Error('Contenu DRM: mode direct désactivé');
+
+    const fallback = await decipherFormat(progressive, player, videoId);
+    if (!fallback) throw new Error('Origine du flux direct refusée');
 
     const result = {
       mode: 'progressive',
       ...fallback,
-      fallback: null,
       resolvedAt: Date.now()
     };
     this.cache.set(videoId, result);
@@ -290,55 +307,47 @@ function directPlayerSource(stream) {
     mode: stream?.mode === 'adaptive' ? 'adaptive' : 'progressive',
     videoId: String(stream?.videoId || ''),
     quality: String(stream?.quality || ''),
-    availableHeights: Array.isArray(stream?.availableHeights) ? stream.availableHeights : [],
-    video: stream?.mode === 'adaptive' ? {
-      url: String(stream?.video?.url || ''),
-      mime: String(stream?.video?.mime || ''),
-      codec: String(stream?.video?.codec || ''),
-      quality: String(stream?.video?.quality || stream?.quality || ''),
-      height: Number(stream?.video?.height || 0),
-      fps: Number(stream?.video?.fps || 0)
-    } : {
-      url: String(stream?.url || ''),
-      mime: String(stream?.mime || ''),
-      codec: String(stream?.codec || ''),
-      quality: String(stream?.quality || ''),
-      height: Number(stream?.height || 0),
-      fps: Number(stream?.fps || 0)
-    },
-    audio: stream?.mode === 'adaptive' ? {
-      url: String(stream?.audio?.url || ''),
-      mime: String(stream?.audio?.mime || ''),
-      codec: String(stream?.audio?.codec || ''),
-      bitrate: Number(stream?.audio?.bitrate || 0)
-    } : null,
-    fallback: stream?.fallback ? {
-      url: String(stream.fallback.url || ''),
-      mime: String(stream.fallback.mime || ''),
-      quality: String(stream.fallback.quality || ''),
-      height: Number(stream.fallback.height || 0)
-    } : null
+    width: Number(stream?.width || 0),
+    height: Number(stream?.height || 0),
+    fps: Number(stream?.fps || 0),
+    url: String(stream?.url || ''),
+    mime: String(stream?.mime || ''),
+    videoCandidates: Array.isArray(stream?.videoCandidates) ? stream.videoCandidates : [],
+    audioCandidates: Array.isArray(stream?.audioCandidates) ? stream.audioCandidates : []
   }).replace(/</g, '\\u003c');
 
   return String.raw`(() => {
     const payload = ${payload};
     const KEY = '__gekkoDirectPlayerV2';
-    const LEGACY_KEY = '__gekkoDirectPlayerV1';
-    const HARD_DRIFT = ${SYNC_HARD_DRIFT_SEC};
-    const SOFT_DRIFT = ${SYNC_SOFT_DRIFT_SEC};
 
+    try { window.__gekkoDirectPlayerV1?.destroy?.(false); } catch {}
     try { window[KEY]?.destroy?.(false); } catch {}
-    try { window[LEGACY_KEY]?.destroy?.(false); } catch {}
 
     const moviePlayer = document.querySelector('#movie_player');
-    if (!moviePlayer || !payload.video?.url) return { ok: false, error: 'player-unavailable' };
-    if (payload.mode === 'adaptive' && !payload.audio?.url) return { ok: false, error: 'audio-unavailable' };
+    if (!moviePlayer) return { ok: false, error: 'player-unavailable' };
 
     const nativeVideo = moviePlayer.querySelector('video');
     const startTime = Number(nativeVideo?.currentTime || 0);
-    const volume = Number.isFinite(nativeVideo?.volume) ? nativeVideo.volume : 1;
-    const muted = Boolean(nativeVideo?.muted);
-    const rate = Number(nativeVideo?.playbackRate || 1);
+    const initialVolume = Number.isFinite(nativeVideo?.volume) ? nativeVideo.volume : 1;
+    const initialMuted = Boolean(nativeVideo?.muted);
+    const initialRate = Number(nativeVideo?.playbackRate || 1);
+
+    const canPlay = (candidate, kind) => {
+      if (!candidate?.url) return false;
+      const probe = document.createElement(kind === 'audio' ? 'audio' : 'video');
+      const mime = String(candidate.mime || '');
+      if (!mime || typeof probe.canPlayType !== 'function') return true;
+      return probe.canPlayType(mime) !== '';
+    };
+
+    const videoCandidates = (payload.videoCandidates || []).filter((item) => canPlay(item, 'video'));
+    const audioCandidates = (payload.audioCandidates || []).filter((item) => canPlay(item, 'audio'));
+    const selectedVideo = videoCandidates[0] || payload.videoCandidates?.[0] || null;
+    const selectedAudio = audioCandidates[0] || payload.audioCandidates?.[0] || null;
+    const adaptive = payload.mode === 'adaptive' && selectedVideo?.url && selectedAudio?.url;
+
+    const primaryUrl = adaptive ? selectedVideo.url : payload.url;
+    if (!primaryUrl) return { ok: false, error: 'stream-unavailable' };
 
     try { nativeVideo?.pause?.(); } catch {}
 
@@ -356,34 +365,33 @@ function directPlayerSource(stream) {
     ].join(';');
 
     const video = document.createElement('video');
-    video.src = payload.video.url;
+    video.src = primaryUrl;
     video.controls = true;
     video.autoplay = true;
     video.playsInline = true;
     video.preload = 'auto';
     video.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000';
-    video.volume = volume;
-    video.muted = muted;
-    video.playbackRate = rate;
+    video.volume = initialVolume;
+    video.muted = initialMuted;
+    video.playbackRate = initialRate;
 
-    const audio = payload.mode === 'adaptive' ? document.createElement('audio') : null;
+    const audio = adaptive ? document.createElement('audio') : null;
     if (audio) {
-      audio.src = payload.audio.url;
+      audio.src = selectedAudio.url;
       audio.preload = 'auto';
-      audio.volume = volume;
-      audio.muted = muted;
-      audio.playbackRate = rate;
+      audio.volume = initialVolume;
+      audio.muted = initialMuted;
+      audio.playbackRate = initialRate;
       audio.style.display = 'none';
     }
 
-    let adaptiveActive = Boolean(audio);
-    let syncTimer = null;
-    let destroyed = false;
-    let fallbackUsed = false;
+    const quality = adaptive
+      ? String(selectedVideo.quality || (selectedVideo.height ? selectedVideo.height + 'p' : payload.quality || 'HQ'))
+      : String(payload.quality || 'Direct');
+    const fps = adaptive ? Number(selectedVideo.fps || 0) : Number(payload.fps || 0);
 
     const badge = document.createElement('div');
-    const qualityLabel = payload.video.quality || payload.quality || (payload.video.height ? payload.video.height + 'p' : 'HQ');
-    badge.textContent = 'GEKKO DIRECT · ' + qualityLabel + (adaptiveActive ? ' · A/V SYNC' : '');
+    badge.textContent = 'GEKKO DIRECT · ' + quality + (fps > 30 ? ' · ' + fps + ' FPS' : '');
     badge.style.cssText = [
       'position:absolute',
       'top:12px',
@@ -418,181 +426,135 @@ function directPlayerSource(stream) {
       'backdrop-filter:blur(12px)'
     ].join(';');
 
+    let syncTimer = null;
+    let destroyed = false;
+    let audioFailed = false;
+
+    const safeTime = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+
     function syncAudio(force = false) {
-      if (!adaptiveActive || !audio || !Number.isFinite(video.currentTime)) return;
-      const drift = Number(audio.currentTime || 0) - Number(video.currentTime || 0);
-
-      try {
-        audio.volume = video.volume;
-        audio.muted = video.muted;
-      } catch {}
-
-      if (force || !Number.isFinite(drift) || Math.abs(drift) >= HARD_DRIFT) {
-        try { audio.currentTime = video.currentTime; } catch {}
+      if (!audio || audioFailed || destroyed) return;
+      const target = safeTime(video.currentTime);
+      const actual = safeTime(audio.currentTime);
+      const drift = Math.abs(target - actual);
+      if (force || drift > 0.22) {
+        try { audio.currentTime = target; } catch {}
+      }
+      if (audio.playbackRate !== video.playbackRate) {
         try { audio.playbackRate = video.playbackRate; } catch {}
-        return;
       }
-
-      const targetRate = Number(video.playbackRate || 1);
-      if (Math.abs(drift) >= SOFT_DRIFT) {
-        const correction = drift > 0 ? -0.025 : 0.025;
-        try { audio.playbackRate = Math.max(0.25, Math.min(4, targetRate + correction)); } catch {}
-      } else if (Math.abs(Number(audio.playbackRate || 1) - targetRate) > 0.001) {
-        try { audio.playbackRate = targetRate; } catch {}
-      }
+      if (audio.volume !== video.volume) audio.volume = video.volume;
+      if (audio.muted !== video.muted) audio.muted = video.muted;
     }
 
-    function playAudio() {
-      if (!adaptiveActive || !audio) return;
+    function startAudio() {
+      if (!audio || audioFailed || video.paused || destroyed) return;
       syncAudio(true);
-      try { audio.play?.().catch?.(() => {}); } catch {}
+      try {
+        const promise = audio.play();
+        promise?.catch?.(() => {
+          audioFailed = true;
+          destroy(true, 10000);
+        });
+      } catch {
+        audioFailed = true;
+        destroy(true, 10000);
+      }
     }
 
-    function pauseAudio() {
+    function stopAudio() {
       if (!audio) return;
       try { audio.pause(); } catch {}
-    }
-
-    function beginSyncLoop() {
-      clearInterval(syncTimer);
-      if (!adaptiveActive) return;
-      syncTimer = setInterval(() => {
-        if (destroyed || video.paused || video.ended) return;
-        syncAudio(false);
-      }, 250);
-    }
-
-    function useProgressiveFallback(reason = '') {
-      if (fallbackUsed || !payload.fallback?.url) return false;
-      fallbackUsed = true;
-      adaptiveActive = false;
-      clearInterval(syncTimer);
-      pauseAudio();
-
-      const at = Number(video.currentTime || startTime || 0);
-      try {
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-        video.src = payload.fallback.url;
-        video.volume = volume;
-        video.muted = muted;
-        video.playbackRate = rate;
-      } catch {
-        return false;
-      }
-
-      badge.textContent = 'GEKKO DIRECT · ' + (payload.fallback.quality || 'fallback') + ' · FALLBACK';
-
-      video.addEventListener('loadedmetadata', () => {
-        try {
-          if (at > 0 && Number.isFinite(video.duration) && at < video.duration - 1) video.currentTime = at;
-          video.play?.().catch?.(() => {});
-        } catch {}
-      }, { once: true });
-      return true;
     }
 
     function destroy(resume = true, cooldownMs = 0) {
       if (destroyed) return;
       destroyed = true;
-      clearInterval(syncTimer);
+      if (syncTimer) clearInterval(syncTimer);
       try { video.pause(); } catch {}
-      try { audio?.pause(); } catch {}
+      try { audio?.pause?.(); } catch {}
       try { overlay.remove(); } catch {}
       try { window.__gekkoYoutubeAdGuardV1?.resetDirect?.(cooldownMs); } catch {}
-
       if (resume && nativeVideo?.isConnected) {
         try {
-          nativeVideo.currentTime = Number(video.currentTime || startTime || 0);
+          nativeVideo.currentTime = safeTime(video.currentTime || startTime);
           nativeVideo.volume = video.volume;
           nativeVideo.muted = video.muted;
           nativeVideo.playbackRate = video.playbackRate;
           nativeVideo.play?.().catch?.(() => {});
         } catch {}
       }
-
       try { delete window[KEY]; } catch {}
-      try { delete window[LEGACY_KEY]; } catch {}
     }
 
     back.addEventListener('click', () => destroy(true, 30000));
-
-    video.addEventListener('play', playAudio);
-    video.addEventListener('pause', pauseAudio);
-    video.addEventListener('seeking', () => syncAudio(true));
-    video.addEventListener('seeked', () => syncAudio(true));
-    video.addEventListener('ratechange', () => {
-      if (audio && adaptiveActive) {
-        try { audio.playbackRate = video.playbackRate; } catch {}
-      }
-    });
-    video.addEventListener('volumechange', () => {
-      if (audio && adaptiveActive) {
-        try {
-          audio.volume = video.volume;
-          audio.muted = video.muted;
-        } catch {}
-      }
-    });
-    video.addEventListener('ended', pauseAudio);
 
     video.addEventListener('loadedmetadata', () => {
       if (startTime > 0 && Number.isFinite(video.duration) && startTime < video.duration - 1) {
         try { video.currentTime = startTime; } catch {}
       }
-      if (adaptiveActive) syncAudio(true);
+      if (audio) {
+        try { audio.currentTime = startTime; } catch {}
+      }
       try { video.play?.().catch?.(() => {}); } catch {}
     }, { once: true });
 
-    video.addEventListener('error', () => {
-      if (!useProgressiveFallback('video-error')) destroy(true, 10000);
+    video.addEventListener('play', startAudio);
+    video.addEventListener('playing', () => {
+      syncAudio(true);
+      startAudio();
     });
+    video.addEventListener('pause', stopAudio);
+    video.addEventListener('waiting', stopAudio);
+    video.addEventListener('stalled', stopAudio);
+    video.addEventListener('seeking', () => syncAudio(true));
+    video.addEventListener('seeked', () => {
+      syncAudio(true);
+      startAudio();
+    });
+    video.addEventListener('ratechange', () => syncAudio(false));
+    video.addEventListener('volumechange', () => syncAudio(false));
+    video.addEventListener('ended', stopAudio);
+    video.addEventListener('error', () => destroy(true, 10000), { once: true });
 
     if (audio) {
-      audio.addEventListener('loadedmetadata', () => syncAudio(true), { once: true });
       audio.addEventListener('error', () => {
-        if (!useProgressiveFallback('audio-error')) destroy(true, 10000);
-      });
-      audio.addEventListener('stalled', () => syncAudio(true));
+        audioFailed = true;
+        destroy(true, 10000);
+      }, { once: true });
     }
 
-    overlay.addEventListener('pointerdown', () => {
-      if (!video.paused && adaptiveActive) playAudio();
-    }, { passive: true });
+    syncTimer = setInterval(() => {
+      if (!video.paused && !video.seeking) syncAudio(false);
+    }, 250);
 
-    overlay.append(video);
-    if (audio) overlay.append(audio);
-    overlay.append(badge, back);
+    overlay.append(video, badge, back);
+    if (audio) overlay.appendChild(audio);
     moviePlayer.appendChild(overlay);
 
-    beginSyncLoop();
-
-    const api = {
+    window[KEY] = {
       destroy,
       videoId: payload.videoId,
       snapshot: () => ({
-        active: true,
-        mode: adaptiveActive ? 'adaptive' : 'progressive',
+        active: !destroyed,
+        mode: adaptive ? 'adaptive' : 'progressive',
         videoId: payload.videoId,
-        quality: badge.textContent,
-        currentTime: Number(video.currentTime || 0),
-        audioTime: adaptiveActive ? Number(audio?.currentTime || 0) : null,
-        drift: adaptiveActive ? Number((Number(audio?.currentTime || 0) - Number(video.currentTime || 0)).toFixed(3)) : 0,
-        paused: Boolean(video.paused)
+        quality,
+        fps,
+        currentTime: safeTime(video.currentTime),
+        paused: Boolean(video.paused),
+        drift: audio ? Math.abs(safeTime(video.currentTime) - safeTime(audio.currentTime)) : 0
       })
     };
 
-    window[KEY] = api;
-    window[LEGACY_KEY] = api;
-
     return {
       ok: true,
-      mode: adaptiveActive ? 'adaptive' : 'progressive',
+      mode: adaptive ? 'adaptive' : 'progressive',
       videoId: payload.videoId,
-      quality: qualityLabel,
-      height: Number(payload.video.height || 0),
-      fps: Number(payload.video.fps || 0)
+      quality,
+      fps,
+      videoMime: adaptive ? selectedVideo.mime : payload.mime,
+      audioMime: adaptive ? selectedAudio.mime : ''
     };
   })()`;
 }
@@ -600,8 +562,8 @@ function directPlayerSource(stream) {
 function destroyDirectPlayerSource() {
   return String.raw`(() => {
     try {
-      const player = window.__gekkoDirectPlayerV2 || window.__gekkoDirectPlayerV1;
-      player?.destroy?.(false);
+      window.__gekkoDirectPlayerV2?.destroy?.(false);
+      window.__gekkoDirectPlayerV1?.destroy?.(false);
       return true;
     } catch {
       return false;
@@ -609,9 +571,22 @@ function destroyDirectPlayerSource() {
   })()`;
 }
 
+function streamPayloadIsAllowed(stream) {
+  if (!stream) return false;
+  if (stream.mode === 'adaptive') {
+    const video = Array.isArray(stream.videoCandidates) ? stream.videoCandidates : [];
+    const audio = Array.isArray(stream.audioCandidates) ? stream.audioCandidates : [];
+    return video.length > 0 &&
+      audio.length > 0 &&
+      video.every((item) => isAllowedDirectStreamUrl(item.url)) &&
+      audio.every((item) => isAllowedDirectStreamUrl(item.url));
+  }
+  return isAllowedDirectStreamUrl(stream.url);
+}
+
 async function installYouTubeDirectPlayer(webContents, stream) {
   if (!webContents || webContents.isDestroyed?.()) return { ok: false, error: 'webcontents-unavailable' };
-  if (!streamIsUsable(stream)) return { ok: false, error: 'stream-origin-rejected' };
+  if (!streamPayloadIsAllowed(stream)) return { ok: false, error: 'stream-origin-rejected' };
   try {
     const result = await webContents.executeJavaScript(directPlayerSource(stream), true);
     return result || { ok: false, error: 'inject-failed' };
@@ -633,20 +608,19 @@ module.exports = {
   DIRECT_SCHEME_PREFIX,
   GOOGLEVIDEO_SUFFIX,
   MAX_DIRECT_HEIGHT,
-  SYNC_HARD_DRIFT_SEC,
-  SYNC_SOFT_DRIFT_SEC,
   extractYouTubeVideoId,
   directRequestUrl,
   parseDirectRequest,
   isAllowedDirectStreamUrl,
   isDrmFormat,
-  codecFromMime,
-  isVideoOnly,
-  isAudioOnly,
+  isAdaptiveVideo,
+  isAdaptiveAudio,
+  videoScore,
+  audioScore,
   selectAdaptiveFormats,
-  streamIsUsable,
   YouTubeDirectResolver,
   directPlayerSource,
+  streamPayloadIsAllowed,
   installYouTubeDirectPlayer,
   removeYouTubeDirectPlayer
 };
