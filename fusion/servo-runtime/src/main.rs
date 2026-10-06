@@ -29,12 +29,14 @@ const SEARCH_PREFIX: &str = "https://duckduckgo.com/?q=";
 const MAIL_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com/mail/";
 const PULSE_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com/pulse/";
 
-const BG: egui::Color32 = egui::Color32::from_rgb(13, 12, 11);
-const PANEL: egui::Color32 = egui::Color32::from_rgb(28, 26, 23);
-const TEXT: egui::Color32 = egui::Color32::from_rgb(242, 238, 228);
-const MUTED: egui::Color32 = egui::Color32::from_rgb(151, 146, 137);
-const ACCENT: egui::Color32 = egui::Color32::from_rgb(242, 177, 52);
-const BORDER: egui::Color32 = egui::Color32::from_rgb(58, 53, 47);
+const BG: egui::Color32 = egui::Color32::from_rgb(10, 10, 11);
+const PANEL: egui::Color32 = egui::Color32::from_rgba_premultiplied(29, 27, 25, 246);
+const PANEL_SOFT: egui::Color32 = egui::Color32::from_rgba_premultiplied(43, 39, 34, 236);
+const TEXT: egui::Color32 = egui::Color32::from_rgb(247, 244, 238);
+const MUTED: egui::Color32 = egui::Color32::from_rgb(158, 153, 145);
+const ACCENT: egui::Color32 = egui::Color32::from_rgb(246, 181, 64);
+const ACCENT_SOFT: egui::Color32 = egui::Color32::from_rgb(105, 72, 25);
+const BORDER: egui::Color32 = egui::Color32::from_rgb(76, 67, 55);
 
 
 const TRACKER_HOSTS: &[&str] = &[
@@ -290,110 +292,173 @@ impl FusionState {
             ctx.set_visuals(visuals);
 
             egui::TopBottomPanel::top("fusion_header")
-                .exact_height(34.0)
-                .frame(egui::Frame::new().fill(BG))
+                .exact_height(54.0)
+                .frame(
+                    egui::Frame::new()
+                        .fill(BG)
+                        .inner_margin(egui::Margin::symmetric(14, 8))
+                )
                 .show(ctx, |ui| {
                     ui.horizontal_centered(|ui| {
-                        ui.add_space(10.0);
-                        let (rect, _) = ui.allocate_exact_size(egui::vec2(20.0, 20.0), egui::Sense::hover());
-                        ui.painter().circle_filled(rect.center(), 8.0, ACCENT);
-                        ui.painter().circle_filled(rect.center(), 3.0, BG);
-                        ui.label(egui::RichText::new("GLIDE").strong().size(13.0));
-                        ui.add_space(6.0);
-                        ui.label(egui::RichText::new("FUSION").strong().size(9.0).color(ACCENT));
+                        let (rect, _) = ui.allocate_exact_size(egui::vec2(30.0, 30.0), egui::Sense::hover());
+                        ui.painter().circle_filled(rect.center(), 13.0, ACCENT);
+                        ui.painter().circle_filled(rect.center(), 8.5, egui::Color32::from_rgb(34, 27, 18));
+                        ui.painter().circle_filled(rect.center() + egui::vec2(3.0, -3.0), 3.0, egui::Color32::from_rgb(255, 221, 145));
+
+                        ui.add_space(4.0);
+                        ui.label(egui::RichText::new("GLIDE").strong().size(15.0).color(TEXT));
+                        ui.label(egui::RichText::new("FUSION").strong().size(10.0).color(ACCENT));
+
+                        ui.add_space(18.0);
+                        egui::Frame::new()
+                            .fill(PANEL)
+                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .corner_radius(16.0)
+                            .inner_margin(egui::Margin::symmetric(14, 6))
+                            .show(ui, |ui| {
+                                let title = self.current_url.borrow();
+                                let display = Url::parse(&title)
+                                    .ok()
+                                    .and_then(|url| url.host_str().map(str::to_string))
+                                    .unwrap_or_else(|| "Navigation privée".into());
+                                ui.label(egui::RichText::new(display).size(10.5).color(MUTED));
+                            });
+
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.add_space(10.0);
-                            ui.label(egui::RichText::new("SERVO · MOZILLA · LADYBIRD · QUANTIC").size(8.5).color(MUTED));
+                            if ui.add(
+                                egui::Button::new(egui::RichText::new("A").strong().color(TEXT))
+                                    .fill(ACCENT_SOFT)
+                                    .corner_radius(16.0)
+                                    .min_size(egui::vec2(32.0, 32.0))
+                            ).on_hover_text("AURA").clicked() {
+                                *self.dock_input.borrow_mut() = "@aura ".to_string();
+                                self.dock_expanded.set(true);
+                                self.dock_focus_requested.set(true);
+                            }
+                            ui.add_space(4.0);
+                            ui.label(egui::RichText::new("● privé").size(9.0).color(MUTED));
                         });
                     });
                 });
 
-            let dock_height = if self.dock_expanded.get() { 108.0 } else { 66.0 };
+            let dock_height = if self.dock_expanded.get() { 126.0 } else { 86.0 };
             egui::TopBottomPanel::bottom("glide_dock")
                 .exact_height(dock_height)
                 .frame(egui::Frame::new().fill(BG))
                 .show(ctx, |ui| {
-                    ui.add_space(if self.dock_expanded.get() { 6.0 } else { 9.0 });
+                    ui.add_space(if self.dock_expanded.get() { 8.0 } else { 12.0 });
                     ui.vertical_centered(|ui| {
                         if self.dock_expanded.get() {
-                            ui.label(
-                                egui::RichText::new("@aura   @mail   @pulse   @quantic   > accueil   > retour   > recharger")
-                                    .size(9.5)
-                                    .color(MUTED),
-                            );
-                            ui.add_space(4.0);
+                            ui.horizontal_centered(|ui| {
+                                for (label, command) in [
+                                    ("AURA", "@aura "),
+                                    ("Mail", "@mail"),
+                                    ("ZOON", "@pulse"),
+                                    ("Accueil", "> accueil"),
+                                ] {
+                                    if ui.add(
+                                        egui::Button::new(egui::RichText::new(label).size(10.0).color(TEXT))
+                                            .fill(PANEL_SOFT)
+                                            .corner_radius(14.0)
+                                            .min_size(egui::vec2(72.0, 28.0))
+                                    ).clicked() {
+                                        *self.dock_input.borrow_mut() = command.to_string();
+                                        execute = true;
+                                    }
+                                }
+                            });
+                            ui.add_space(7.0);
                         }
 
-                        let dock_width = ui.available_width().min(920.0);
+                        let dock_width = ui.available_width().min(980.0);
                         egui::Frame::new()
-                            .fill(egui::Color32::from_rgb(28, 26, 23))
-                            .stroke(egui::Stroke::new(1.0_f32, BORDER))
-                            .corner_radius(22.0)
-                            .inner_margin(egui::Margin::symmetric(10, 7))
+                            .fill(PANEL)
+                            .stroke(egui::Stroke::new(1.0, BORDER))
+                            .corner_radius(28.0)
+                            .inner_margin(egui::Margin::symmetric(12, 9))
                             .show(ui, |ui| {
                                 ui.set_width(dock_width);
                                 ui.horizontal(|ui| {
-                                    if ui.add_enabled(self.webview.can_go_back(), egui::Button::new("←").frame(false)).clicked() {
+                                    let nav = |ui: &mut egui::Ui, enabled: bool, text: &str| {
+                                        ui.add_enabled(
+                                            enabled,
+                                            egui::Button::new(egui::RichText::new(text).size(17.0).color(TEXT))
+                                                .frame(false)
+                                                .corner_radius(18.0)
+                                                .min_size(egui::vec2(38.0, 38.0))
+                                        )
+                                    };
+
+                                    if nav(ui, self.webview.can_go_back(), "‹").clicked() {
                                         self.webview.go_back(1);
                                     }
-                                    if ui.add_enabled(self.webview.can_go_forward(), egui::Button::new("→").frame(false)).clicked() {
+                                    if nav(ui, self.webview.can_go_forward(), "›").clicked() {
                                         self.webview.go_forward(1);
                                     }
+                                    if nav(ui, true, "↻").on_hover_text("Recharger").clicked() {
+                                        self.webview.reload();
+                                    }
 
-                                    let edit_width = (dock_width - 175.0).max(260.0);
-                                    let mut input = self.dock_input.borrow_mut();
-                                    let response = ui.add_sized(
-                                        [edit_width, 36.0],
-                                        egui::TextEdit::singleline(&mut *input)
-                                            .hint_text("Rechercher, saisir une adresse ou une commande…")
-                                            .frame(egui::Frame::NONE),
-                                    );
-
-                                    if self.dock_focus_requested.replace(false) {
-                                        response.request_focus();
-                                    }
-                                    if response.gained_focus() {
-                                        self.dock_expanded.set(true);
-                                    }
-                                    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                                        execute = true;
-                                    }
+                                    let edit_width = (dock_width - 250.0).max(260.0);
+                                    egui::Frame::new()
+                                        .fill(egui::Color32::from_rgb(20, 19, 18))
+                                        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(63, 57, 49)))
+                                        .corner_radius(21.0)
+                                        .inner_margin(egui::Margin::symmetric(14, 2))
+                                        .show(ui, |ui| {
+                                            let mut input = self.dock_input.borrow_mut();
+                                            let response = ui.add_sized(
+                                                [edit_width, 38.0],
+                                                egui::TextEdit::singleline(&mut *input)
+                                                    .hint_text("Rechercher ou saisir une adresse…")
+                                                    .frame(egui::Frame::NONE),
+                                            );
+                                            if self.dock_focus_requested.replace(false) {
+                                                response.request_focus();
+                                            }
+                                            if response.gained_focus() {
+                                                self.dock_expanded.set(true);
+                                            }
+                                            if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                                                execute = true;
+                                            }
+                                        });
 
                                     if ui.add(
-                                        egui::Button::new(egui::RichText::new("↵").strong().color(BG))
+                                        egui::Button::new(egui::RichText::new("→").strong().size(17.0).color(BG))
                                             .fill(ACCENT)
-                                            .min_size(egui::vec2(38.0, 34.0))
-                                    ).clicked() {
+                                            .corner_radius(20.0)
+                                            .min_size(egui::vec2(42.0, 40.0))
+                                    ).on_hover_text("Ouvrir").clicked() {
                                         execute = true;
                                     }
 
                                     if ui.add(
-                                        egui::Button::new("A")
-                                            .fill(egui::Color32::from_rgb(73, 54, 22))
-                                            .min_size(egui::vec2(34.0, 34.0))
+                                        egui::Button::new(egui::RichText::new("✦").size(16.0).color(ACCENT))
+                                            .fill(PANEL_SOFT)
+                                            .corner_radius(20.0)
+                                            .min_size(egui::vec2(40.0, 40.0))
                                     ).on_hover_text("AURA").clicked() {
-                                        *input = "@aura ".to_string();
+                                        *self.dock_input.borrow_mut() = "@aura ".to_string();
                                         self.dock_expanded.set(true);
                                         self.dock_focus_requested.set(true);
                                     }
                                 });
                             });
 
-                        ui.add_space(3.0);
-                        ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new(self.status.borrow().as_str()).size(9.0).color(MUTED));
-                            ui.separator();
+                        ui.add_space(5.0);
+                        ui.horizontal_centered(|ui| {
+                            ui.label(egui::RichText::new(self.status.borrow().as_str()).size(8.5).color(MUTED));
+                            ui.label(egui::RichText::new("•").size(8.0).color(BORDER));
                             ui.label(
                                 egui::RichText::new(format!(
-                                    "bloqués {} · permissions {}",
+                                    "{} bloqués · {} permissions",
                                     self.blocked_resources.get(),
                                     self.permissions_denied.get()
                                 ))
-                                .size(9.0)
+                                .size(8.5)
                                 .color(MUTED),
                             );
-                            ui.separator();
-                            ui.label(egui::RichText::new("Chromium 0").size(9.0).strong().color(egui::Color32::from_rgb(129, 191, 142)));
                         });
                     });
                 });
@@ -444,12 +509,12 @@ impl FusionState {
     }
 
     fn point_in_webview(&self, x: f32, y: f32) -> bool {
-        y >= 34.0 && y < 34.0 + self.content_height_points.get() && x >= 0.0
+        y >= 54.0 && y < 54.0 + self.content_height_points.get() && x >= 0.0
     }
 
     fn webview_point(&self, x: f32, y: f32) -> servo::DevicePoint {
         let scale = self.window.scale_factor() as f32;
-        servo::DevicePoint::new(x * scale, (y - 34.0) * scale)
+        servo::DevicePoint::new(x * scale, (y - 54.0) * scale)
     }
 
     fn handle_mouse_move(&self, position: winit::dpi::PhysicalPosition<f64>) {
@@ -635,7 +700,7 @@ impl ApplicationHandler<WakeEvent> for App {
 
         let initial_web_size = winit::dpi::PhysicalSize::new(
             window.inner_size().width.max(1),
-            window.inner_size().height.saturating_sub(100).max(1),
+            window.inner_size().height.saturating_sub(140).max(1),
         );
         let web_context = Rc::new(window_context.offscreen_context(initial_web_size));
 
