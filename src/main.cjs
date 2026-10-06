@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const { QuanticStore } = require('./services/store.cjs');
 const { QuanticVeil } = require('./services/veil.cjs');
 const { installPrivacyLayer } = require('./services/privacy.cjs');
+const { installYouTubeGuard, isYouTubeUrl } = require('./services/youtube-guard.cjs');
 const { buildInternalState, internalTitle } = require('./core/internal-state.cjs');
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
@@ -561,6 +562,7 @@ function createView(tab) {
     // Reveal only after Chromium has a real document. This eliminates the
     // default white WebContentsView frame between navigation and first content.
     if (tab.awaitingPage) revealTabView(tab);
+    if (isYouTubeUrl(wc.getURL())) installYouTubeGuard(wc).catch(() => {});
   });
 
   wc.on('did-stop-loading', () => {
@@ -581,12 +583,14 @@ function createView(tab) {
   wc.on('did-navigate', (_event, url) => {
     if (url && url !== tab.url) tab.url = url;
     syncFromView(tab, true);
+    if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
     emitState();
   });
 
   wc.on('did-navigate-in-page', (_event, url) => {
     if (url && url !== tab.url) tab.url = url;
     syncFromView(tab, true);
+    if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
     emitState();
   });
 
