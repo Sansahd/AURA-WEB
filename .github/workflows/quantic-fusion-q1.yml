@@ -34,6 +34,30 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Verify Gekko 8.5 product contract
+        shell: pwsh
+        run: |
+          $runtime = Get-Content src/main.rs -Raw
+          $cargo = Get-Content Cargo.toml -Raw
+          foreach ($needle in @(
+            'paint_gekko_mark',
+            'cinematic_ease',
+            'notify_ladybird_document_audit',
+            'Ladybird actif',
+            'GEKKO_VERSION'
+          )) {
+            if ($runtime -notmatch [regex]::Escape($needle)) {
+              throw "Gekko product contract missing: $needle"
+            }
+          }
+          if ($runtime -match '(?i)\bglide\b') {
+            throw "Legacy Glide branding remains in Gekko runtime"
+          }
+          if ($cargo -notmatch 'name = "quantic-gekko-servo-runtime"') {
+            throw "Gekko runtime package identity missing"
+          }
+          Write-Host "GEKKO PRODUCT CONTRACT PASSED"
+
       - name: Resolve Fusion dependency tree
         shell: pwsh
         run: |
