@@ -26,6 +26,31 @@ jobs:
         run: npm run check
       - name: Build
         run: npm run dist
+      - name: Smoke install
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path "dist/GEKKO-Setup.exe").Path
+          $process = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "GEKKO installer exited with code $($process.ExitCode)"
+          }
+
+          $programs = Join-Path $env:LOCALAPPDATA "Programs"
+          $exe = Get-ChildItem -Path $programs -Filter "GEKKO Browser.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) {
+            throw "GEKKO Browser.exe was not installed under $programs"
+          }
+
+          $uninstall = Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -ErrorAction SilentlyContinue |
+            Get-ItemProperty |
+            Where-Object { $_.DisplayName -eq "GEKKO Browser" } |
+            Select-Object -First 1
+          if (-not $uninstall) {
+            throw "GEKKO Browser uninstall registration was not created"
+          }
+
+          Write-Host "Installed:" $exe.FullName
+          Write-Host "Uninstall key:" $uninstall.PSPath
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
