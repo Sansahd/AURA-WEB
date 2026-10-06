@@ -204,6 +204,7 @@ fn compute_node(
         style.font_weight = parent.font_weight;
         style.font_italic = parent.font_italic;
         style.custom_properties = parent.custom_properties.clone();
+        apply_user_agent_defaults(document, id, &mut style);
     }
 
     let mut winners: CascadeMap = HashMap::new();
@@ -301,11 +302,16 @@ fn apply_candidate(
 
 fn initial_style(document: &Document, id: usize) -> ComputedStyle {
     let mut style = ComputedStyle::default();
+    apply_user_agent_defaults(document, id, &mut style);
+    style
+}
+
+fn apply_user_agent_defaults(document: &Document, id: usize, style: &mut ComputedStyle) {
     let Some(tag) = document.element_tag(id) else {
         if matches!(document.nodes[id].kind, NodeKind::Document) {
             style.display = Display::Block;
         }
-        return style;
+        return;
     };
 
     style.display = match tag {
@@ -347,7 +353,6 @@ fn initial_style(document: &Document, id: usize) -> ComputedStyle {
         }
         _ => {}
     }
-    style
 }
 
 fn apply_declarations(style: &mut ComputedStyle, declarations: &[Declaration]) {
