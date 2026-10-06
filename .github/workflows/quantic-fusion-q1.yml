@@ -26,6 +26,11 @@ jobs:
         working-directory: fusion/servo-runtime
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Apply Quantic Servo native-download patch
+        run: python patch-servo.py
 
       - uses: dtolnay/rust-toolchain@stable
 
