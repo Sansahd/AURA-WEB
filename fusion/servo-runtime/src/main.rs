@@ -986,7 +986,7 @@ impl FusionState {
             }
 
             let dock_height = if self.dock_expanded.get() { 126.0 } else { 86.0 };
-            egui::TopBottomPanel::bottom("glide_dock")
+            egui::TopBottomPanel::bottom("gekko_dock")
                 .exact_height(dock_height)
                 .frame(egui::Frame::new().fill(BG))
                 .show(ctx, |ui| {
