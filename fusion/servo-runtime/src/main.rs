@@ -23,7 +23,8 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WinitKey, ModifiersState, NamedKey as WinitNamedKey};
 use winit::window::Window;
 
-const START_URL: &str = "https://servo.org/";
+const START_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com";
+const QUANTIC_PORTAL: &str = START_URL;
 const SEARCH_PREFIX: &str = "https://duckduckgo.com/?q=";
 const MAIL_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com/mail/";
 const PULSE_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com/pulse/";
@@ -243,6 +244,10 @@ impl FusionState {
             if let Ok(url) = Url::parse(PULSE_URL) {
                 self.webview.load(url);
             }
+        } else if lower == "@quantic" || lower.starts_with("@quantic ") {
+            if let Ok(url) = Url::parse(QUANTIC_PORTAL) {
+                self.webview.load(url);
+            }
         } else if lower == "@aura" || lower.starts_with("@aura ") {
             let prompt = raw.strip_prefix("@aura").unwrap_or("").trim();
             *self.status.borrow_mut() = if prompt.is_empty() {
@@ -250,6 +255,10 @@ impl FusionState {
             } else {
                 format!("AURA · {prompt}")
             };
+        } else if matches!(lower.as_str(), "> accueil" | "> home") {
+            if let Ok(url) = Url::parse(QUANTIC_PORTAL) {
+                self.webview.load(url);
+            }
         } else if matches!(lower.as_str(), "> retour" | "> back") {
             self.webview.go_back(1);
         } else if matches!(lower.as_str(), "> avance" | "> forward") {
@@ -308,7 +317,7 @@ impl FusionState {
                     ui.vertical_centered(|ui| {
                         if self.dock_expanded.get() {
                             ui.label(
-                                egui::RichText::new("@aura   @mail   @pulse   > retour   > recharger")
+                                egui::RichText::new("@aura   @mail   @pulse   @quantic   > accueil   > retour   > recharger")
                                     .size(9.5)
                                     .color(MUTED),
                             );
@@ -720,9 +729,29 @@ impl ApplicationHandler<WakeEvent> for App {
             }
             WindowEvent::KeyboardInput { event, .. } if !egui_response.consumed => {
                 let modifiers = state.modifiers_state.get();
-                let is_location_shortcut = (modifiers.control_key() || modifiers.super_key())
+                let command = modifiers.control_key() || modifiers.super_key();
+                let alt = modifiers.alt_key();
+                let is_location_shortcut = command
                     && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("l"));
-                if !is_location_shortcut {
+                let is_reload_shortcut = command
+                    && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("r"));
+                let is_back_shortcut = alt && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::ArrowLeft));
+                let is_forward_shortcut = alt && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::ArrowRight));
+
+                if event.state == ElementState::Pressed {
+                    if is_reload_shortcut {
+                        state.webview.reload();
+                        state.window.request_redraw();
+                    } else if is_back_shortcut {
+                        state.webview.go_back(1);
+                        state.window.request_redraw();
+                    } else if is_forward_shortcut {
+                        state.webview.go_forward(1);
+                        state.window.request_redraw();
+                    } else if !is_location_shortcut {
+                        state.handle_keyboard_input(event);
+                    }
+                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut {
                     state.handle_keyboard_input(event);
                 }
             }
