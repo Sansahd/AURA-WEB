@@ -57,6 +57,10 @@ const DOWNLOAD_BRIDGE_SCRIPT: &str = r#"
     }
 
     if (target.protocol !== "http:" && target.protocol !== "https:") return;
+    // Match browser security semantics: the download attribute only forces a
+    // download for same-origin HTTP(S). Cross-origin responses can still become
+    // downloads through real Content-Disposition headers.
+    if (target.origin !== window.location.origin) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
