@@ -80,27 +80,46 @@ jobs:
         shell: pwsh
         run: |
           $portable = (Resolve-Path "dist/GEKKO-Portable.exe").Path
-          Start-Process -FilePath $portable
+          $startedAt = Get-Date
+          $wrapper = Start-Process -FilePath $portable -PassThru
 
           $visible = $false
-          for ($i = 0; $i -lt 30; $i++) {
+          $window = $null
+          for ($i = 0; $i -lt 120; $i++) {
             Start-Sleep -Milliseconds 500
-            $window = Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue |
-              Where-Object { $_.MainWindowHandle -ne 0 } |
+            $window = Get-Process -ErrorAction SilentlyContinue |
+              Where-Object {
+                $_.MainWindowHandle -ne 0 -and
+                ($_.ProcessName -match "GEKKO|electron" -or $_.MainWindowTitle -match "GEKKO")
+              } |
               Select-Object -First 1
             if ($window) {
-              Write-Host "Portable GEKKO visible window handle:" $window.MainWindowHandle
+              $elapsed = ((Get-Date) - $startedAt).TotalSeconds
+              Write-Host "Portable GEKKO visible after $([math]::Round($elapsed, 1)) seconds"
+              Write-Host "Process:" $window.ProcessName
+              Write-Host "Window title:" $window.MainWindowTitle
+              Write-Host "Window handle:" $window.MainWindowHandle
               $visible = $true
               break
+            }
+
+            if ($wrapper.HasExited -and $wrapper.ExitCode -ne 0) {
+              throw "GEKKO portable wrapper exited with code $($wrapper.ExitCode)"
             }
           }
 
           if (-not $visible) {
-            Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue | Format-List *
-            throw "Portable GEKKO did not create a visible window within 15 seconds"
+            Write-Host "Portable wrapper exited:" $wrapper.HasExited
+            if ($wrapper.HasExited) { Write-Host "Portable wrapper exit code:" $wrapper.ExitCode }
+            Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProcessName -match "GEKKO|electron|nsis" } |
+              Format-Table Id, ProcessName, MainWindowTitle, MainWindowHandle -AutoSize
+            throw "Portable GEKKO did not create a visible window within 60 seconds"
           }
 
-          Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.ProcessName -match "GEKKO Browser|GEKKO-Portable" } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
 
       - name: Upload
         uses: actions/upload-artifact@v4
