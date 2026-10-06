@@ -1,6 +1,7 @@
 mod aura;
 mod downloads;
 mod privacy;
+mod paths;
 
 use std::cell::{Cell, RefCell};
 use std::error::Error;
@@ -142,11 +143,11 @@ struct BrowserData {
 }
 
 fn browser_data_path() -> Option<PathBuf> {
-    dirs::data_local_dir().map(|root| root.join("Quantic").join("Gekko").join("browser-data.json"))
+    paths::browser_data_file()
 }
 
 fn legacy_browser_data_path() -> Option<PathBuf> {
-    dirs::data_local_dir().map(|root| root.join("Quantic").join("Glide").join("browser-data.json"))
+    paths::legacy_browser_data_file()
 }
 
 fn load_browser_data() -> BrowserData {
@@ -1934,7 +1935,11 @@ impl ApplicationHandler<WakeEvent> for App {
             egui: RefCell::new(egui),
             dock_input: RefCell::new(START_URL.to_string()),
             current_url: RefCell::new(START_URL.to_string()),
-            status: RefCell::new("Gekko prêt".into()),
+            status: RefCell::new(if paths::portable_mode() {
+                "Gekko portable · données sur ce support".into()
+            } else {
+                "Gekko prêt".into()
+            }),
             dock_expanded: Cell::new(false),
             dock_focus_requested: Cell::new(false),
             content_height_points: Cell::new(700.0),
