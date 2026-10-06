@@ -377,3 +377,70 @@ body{
   border-color:rgba(111,247,255,.18)!important;
   box-shadow:inset 0 -2px 0 #58efdf;
 }
+
+
+/* GEKKO living scene — restrained motion, disabled by reduced-motion. */
+.gekko-home-sky::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.42;
+  background:
+    radial-gradient(circle at 15% 32%,rgba(255,255,255,.85) 0 1px,transparent 1.8px),
+    radial-gradient(circle at 31% 18%,rgba(117,235,255,.82) 0 1px,transparent 1.8px),
+    radial-gradient(circle at 55% 27%,rgba(255,255,255,.72) 0 1px,transparent 1.8px),
+    radial-gradient(circle at 68% 12%,rgba(126,255,227,.84) 0 1px,transparent 1.8px),
+    radial-gradient(circle at 91% 34%,rgba(255,255,255,.80) 0 1px,transparent 1.8px);
+  animation:gekko-stars-breathe 8s ease-in-out infinite alternate;
+}
+.gekko-home-aurora{
+  transform-origin:50% 50%;
+  animation:gekko-aurora-drift 18s ease-in-out infinite alternate;
+}
+.gekko-home-reflection{
+  animation:gekko-reflection-breathe 7s ease-in-out infinite alternate;
+}
+.gekko-home-brand img{
+  animation:gekko-mark-float 6s ease-in-out infinite alternate;
+}
+.gekko-home-card{
+  position:relative;overflow:hidden;isolation:isolate;
+}
+.gekko-home-card::after{
+  content:"";position:absolute;inset:-35% -75%;z-index:-1;pointer-events:none;
+  background:linear-gradient(110deg,transparent 42%,rgba(211,255,251,.16) 49%,rgba(111,247,255,.06) 54%,transparent 62%);
+  transform:translateX(-58%) rotate(2deg);opacity:0;
+  transition:transform .42s cubic-bezier(.2,.75,.2,1),opacity .2s ease;
+}
+.gekko-home-card:hover::after{transform:translateX(58%) rotate(2deg);opacity:1}
+.gekko-home-card:focus-visible,
+.gekko-home-tools button:focus-visible,
+.dock-nav button:focus-visible,
+.dock-actions button:focus-visible,
+.dock-history button:focus-visible,
+.dock-brand:focus-visible,
+#address-go:focus-visible,
+.app-tile:focus-visible{
+  outline:2px solid rgba(111,247,255,.78);
+  outline-offset:2px;
+}
+@keyframes gekko-stars-breathe{
+  from{opacity:.22;filter:brightness(.9)}
+  to{opacity:.55;filter:brightness(1.15)}
+}
+@keyframes gekko-aurora-drift{
+  0%{transform:translate3d(-1.2%,0,0) skewY(-6deg) scale(1)}
+  100%{transform:translate3d(1.4%,-1.1%,0) skewY(-4deg) scale(1.025)}
+}
+@keyframes gekko-reflection-breathe{
+  from{opacity:.55;filter:blur(12px) brightness(.94)}
+  to{opacity:.80;filter:blur(10px) brightness(1.12)}
+}
+@keyframes gekko-mark-float{
+  from{transform:translateY(0) scale(.995)}
+  to{transform:translateY(-4px) scale(1.012)}
+}
+@media(prefers-reduced-motion:reduce){
+  .gekko-home-sky::after,
+  .gekko-home-aurora,
+  .gekko-home-reflection,
+  .gekko-home-brand img{animation:none!important}
+  .gekko-home-card::after{transition:none!important}
+}
