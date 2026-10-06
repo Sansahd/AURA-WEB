@@ -54,3 +54,42 @@ test('navigation transition is lifecycle driven and reduced-motion safe', () => 
   assert.match(html, /id="navigation-transition"/);
   assert.match(css, /prefers-reduced-motion:reduce/);
 });
+
+
+test('new tab matches the approved cinematic GEKKO browser composition', () => {
+  const html = read('src/renderer/index.html');
+  const css = read('src/renderer/quantic-glide-brand.css');
+
+  for (const marker of [
+    'gekko-home-scene',
+    'gekko-home-brand',
+    'gekko-home-cards',
+    'gekko-home-card',
+    'gekko-home-mountains',
+    'gekko-home-aurora'
+  ]) assert.match(html, new RegExp(marker));
+
+  const cards = (html.match(/class="gekko-home-card/g) || []).length;
+  assert.equal(cards, 4);
+  assert.match(html, /Private Search/);
+  assert.match(html, /Secure Tabs/);
+  assert.match(html, /Fast & Light/);
+  assert.match(html, /Explore More/);
+
+  assert.match(css, /clip-path/);
+  assert.match(css, /drop-shadow/);
+  assert.match(css, /backdrop-filter/);
+  assert.match(css, /radial-gradient/);
+});
+
+test('new tab visual controls stay functional', () => {
+  const html = read('src/renderer/index.html');
+  const renderer = read('src/renderer/renderer.js');
+  assert.match(html, /data-home-action="private-search"/);
+  assert.match(html, /data-home-action="secure-tabs"/);
+  assert.match(html, /data-home-action="fast-light"/);
+  assert.match(html, /data-home-action="explore-more"/);
+  assert.match(renderer, /data-home-action/);
+  assert.match(renderer, /private-search/);
+  assert.match(renderer, /secure-tabs/);
+});
