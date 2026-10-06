@@ -233,16 +233,6 @@ replace_once(
 )
 replace_once(
     http_loader,
-    """        let suggested_filename = suggested_download_filename(&response.headers);
-        let (path_sender, path_receiver) = tokio::sync::oneshot::channel();
-""",
-    """        let suggested_filename = forced_download_filename(request)
-            .or_else(|| suggested_download_filename(&response.headers));
-        let (path_sender, path_receiver) = tokio::sync::oneshot::channel();
-"""
-)
-replace_once(
-    http_loader,
     """    response.headers = response_stream.headers().clone();
     response.referrer = request.referrer.to_url().cloned();
     response.referrer_policy = request.referrer_policy;
