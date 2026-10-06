@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Gekko E2E Smoke</title>
+  <style>
+    body { font-family: sans-serif; background: #111; color: #eee; }
+    #gekko-smoke { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  </style>
+</head>
+<body>
+  <main id="gekko-smoke">
+    <button id="event-button">Event</button>
+    <output id="result">boot</output>
+  </main>
+  <script type="module">
+    const params = new URLSearchParams("a=1");
+    params.set("a", "7");
+    localStorage.setItem("gekko-smoke", "ok");
+    const button = document.querySelector("#event-button");
+    let events = 0;
+    button.addEventListener("click", () => events++);
+    button.click();
+    const encoded = new TextEncoder().encode("hé");
+    window.__gekkoSmoke = {
+      marker: "ok",
+      params: params.get("a"),
+      events,
+      encodedLength: encoded.length,
+      storage: localStorage.getItem("gekko-smoke")
+    };
+    document.querySelector("#result").textContent = "ready";
+  </script>
+</body>
+</html>
