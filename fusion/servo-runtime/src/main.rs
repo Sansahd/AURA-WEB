@@ -46,6 +46,10 @@ const BORDER: egui::Color32 = egui::Color32::from_rgb(76, 67, 55);
 struct BrowserData {
     favorites: Vec<String>,
     history: Vec<String>,
+    #[serde(default)]
+    session_tabs: Vec<String>,
+    #[serde(default)]
+    active_tab: usize,
 }
 
 fn browser_data_path() -> Option<PathBuf> {
@@ -197,6 +201,8 @@ impl servo::WebViewDelegate for FusionDelegate {
                 data.history.insert(0, value);
                 data.history.truncate(100);
                 save_browser_data(&data);
+                drop(data);
+                state.persist_session();
             }
             if !state.egui.borrow().egui_ctx.memory(|memory| memory.focused().is_some()) {
                 *state.dock_input.borrow_mut() = url.to_string();
@@ -286,6 +292,18 @@ impl FusionState {
         self.tabs.borrow()[self.active_tab.get()].webview.clone()
     }
 
+    fn persist_session(&self) {
+        let tabs = self.tabs.borrow();
+        let mut data = self.browser_data.borrow_mut();
+        data.session_tabs = tabs.iter()
+            .map(|tab| tab.url.borrow().clone())
+            .filter(|url| url.starts_with("http://") || url.starts_with("https://"))
+            .take(12)
+            .collect();
+        data.active_tab = self.active_tab.get().min(data.session_tabs.len().saturating_sub(1));
+        save_browser_data(&data);
+    }
+
     fn new_tab(&self, url: Url) {
         let scale = self.window.scale_factor() as f32;
         let size = self.window.inner_size();
@@ -310,6 +328,7 @@ impl FusionState {
         *self.dock_input.borrow_mut() = url.to_string();
         self.home_open.set(false);
         self.servo.spin_event_loop();
+        self.persist_session();
         self.window.request_redraw();
     }
 
@@ -322,6 +341,7 @@ impl FusionState {
         *self.current_url.borrow_mut() = url.clone();
         *self.dock_input.borrow_mut() = url;
         self.home_open.set(false);
+        self.persist_session();
         self.window.request_redraw();
     }
 
@@ -353,6 +373,8 @@ impl FusionState {
         drop(tabs);
         *self.current_url.borrow_mut() = url.clone();
         *self.dock_input.borrow_mut() = url;
+        drop(tabs);
+        self.persist_session();
         self.window.request_redraw();
     }
 
@@ -1203,7 +1225,10 @@ impl ApplicationHandler<WakeEvent> for App {
         }
 
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => {
+                state.persist_session();
+                event_loop.exit();
+            },
             WindowEvent::Resized(size) => {
                 state.window_context.resize(size);
                 state.window.request_redraw();
