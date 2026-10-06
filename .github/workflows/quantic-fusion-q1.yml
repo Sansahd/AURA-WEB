@@ -45,7 +45,10 @@ jobs:
             'cinematic_ease',
             'notify_ladybird_document_audit',
             'Ladybird actif',
-            'GEKKO_VERSION'
+            'GEKKO_VERSION',
+            'neqo_fetch_https',
+            'WakeEvent::H3Used',
+            'h3_request_is_safe'
           )) {
             if ($runtime -notmatch [regex]::Escape($needle)) {
               throw "Gekko product contract missing: $needle"
@@ -64,6 +67,9 @@ jobs:
           }
           if ($cargo -notmatch 'name = "quantic-gekko-servo-runtime"') {
             throw "Gekko runtime package identity missing"
+          }
+          if ($cargo -notmatch 'quantic-fusion-mozilla-network') {
+            throw "Live Neqo runtime dependency missing"
           }
           Write-Host "GEKKO PRODUCT CONTRACT PASSED"
 
