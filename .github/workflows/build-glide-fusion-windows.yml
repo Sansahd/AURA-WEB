@@ -1,4 +1,4 @@
-name: Build Quantic Glide Fusion Windows
+name: Build Quantic Gekko Windows
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: glide-fusion-windows-${{ github.sha }}
+  group: gekko-windows-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -49,9 +49,13 @@ jobs:
           }
           Write-Host "QUANTIC FUSION CONTRACT PASSED"
 
-      - name: Check Fusion shell
+      - name: Check Gekko runtime
         working-directory: fusion/servo-runtime
         run: cargo check
+
+      - name: Run Gekko runtime tests
+        working-directory: fusion/servo-runtime
+        run: cargo test
 
       - name: Build Fusion executable
         working-directory: fusion/servo-runtime
@@ -65,14 +69,14 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item "fusion\servo-runtime\target\release\quantic-fusion-servo-runtime.exe" "dist\QuanticGlideFusion.exe"
+          Copy-Item "fusion\servo-runtime\target\release\quantic-gekko-servo-runtime.exe" "dist\QuanticGekko.exe"
 
           @'
           Unicode True
           !include "MUI2.nsh"
-          Name "Quantic Glide Fusion"
-          OutFile "Quantic-Glide-Fusion-Setup.exe"
-          InstallDir "$LOCALAPPDATA\Programs\Quantic Glide Fusion"
+          Name "Quantic Gekko"
+          OutFile "Quantic-Gekko-Setup.exe"
+          InstallDir "$LOCALAPPDATA\Programs\Quantic Gekko"
           RequestExecutionLevel user
 
           !define MUI_ABORTWARNING
@@ -82,27 +86,27 @@ jobs:
           !insertmacro MUI_PAGE_FINISH
           !insertmacro MUI_LANGUAGE "French"
 
-          Section "Quantic Glide Fusion"
+          Section "Quantic Gekko"
             SetOutPath "$INSTDIR"
-            File "dist\QuanticGlideFusion.exe"
-            CreateDirectory "$SMPROGRAMS\Quantic Glide Fusion"
-            CreateShortcut "$DESKTOP\Quantic Glide Fusion.lnk" "$INSTDIR\QuanticGlideFusion.exe"
-            CreateShortcut "$SMPROGRAMS\Quantic Glide Fusion\Quantic Glide Fusion.lnk" "$INSTDIR\QuanticGlideFusion.exe"
+            File "dist\QuanticGekko.exe"
+            CreateDirectory "$SMPROGRAMS\Quantic Gekko"
+            CreateShortcut "$DESKTOP\Quantic Gekko.lnk" "$INSTDIR\QuanticGekko.exe"
+            CreateShortcut "$SMPROGRAMS\Quantic Gekko\Quantic Gekko.lnk" "$INSTDIR\QuanticGekko.exe"
             WriteUninstaller "$INSTDIR\Uninstall.exe"
-            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideFusion" "DisplayName" "Quantic Glide Fusion"
-            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideFusion" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
-            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideFusion" "DisplayVersion" "0.7.0-fusion.1"
-            Exec "$INSTDIR\QuanticGlideFusion.exe"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGekko" "DisplayName" "Quantic Gekko"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGekko" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGekko" "DisplayVersion" "0.8.5"
+            Exec "$INSTDIR\QuanticGekko.exe"
           SectionEnd
 
           Section "Uninstall"
-            Delete "$DESKTOP\Quantic Glide Fusion.lnk"
-            Delete "$SMPROGRAMS\Quantic Glide Fusion\Quantic Glide Fusion.lnk"
-            RMDir "$SMPROGRAMS\Quantic Glide Fusion"
-            Delete "$INSTDIR\QuanticGlideFusion.exe"
+            Delete "$DESKTOP\Quantic Gekko.lnk"
+            Delete "$SMPROGRAMS\Quantic Gekko\Quantic Gekko.lnk"
+            RMDir "$SMPROGRAMS\Quantic Gekko"
+            Delete "$INSTDIR\QuanticGekko.exe"
             Delete "$INSTDIR\Uninstall.exe"
             RMDir "$INSTDIR"
-            DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGlideFusion"
+            DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGekko"
           SectionEnd
           '@ | Set-Content -Encoding UTF8 installer-fusion.nsi
 
@@ -112,12 +116,12 @@ jobs:
       - name: Verify executable and installer hashes
         shell: pwsh
         run: |
-          Get-FileHash dist\QuanticGlideFusion.exe -Algorithm SHA256 | Format-List
-          Get-FileHash Quantic-Glide-Fusion-Setup.exe -Algorithm SHA256 | Format-List
+          Get-FileHash dist\QuanticGekko.exe -Algorithm SHA256 | Format-List
+          Get-FileHash Quantic-Gekko-Setup.exe -Algorithm SHA256 | Format-List
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Quantic-Glide-Fusion-Windows
-          path: Quantic-Glide-Fusion-Setup.exe
+          name: Quantic-Gekko-Windows
+          path: Quantic-Gekko-Setup.exe
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
