@@ -507,7 +507,16 @@ impl servo::WebViewDelegate for FusionDelegate {
             let weak = self.state.borrow().clone();
             let webview_for_probe = webview.clone();
             if let Some(state) = weak.upgrade() {
+                let smoke_target_matches = std::env::var("GEKKO_START_URL")
+                    .ok()
+                    .map(|target| {
+                        webview_for_probe
+                            .url()
+                            .is_some_and(|current| current.as_str() == target)
+                    })
+                    .unwrap_or(true);
                 if std::env::var_os("GEKKO_SMOKE_OUTPUT").is_some()
+                    && smoke_target_matches
                     && !state.smoke_probe_started.replace(true)
                     && state.active_webview() == webview_for_probe
                 {
@@ -2206,8 +2215,11 @@ impl ApplicationHandler<WakeEvent> for App {
             .unwrap_or_else(|| Url::parse(START_URL).unwrap());
         let configured_start_text = configured_start.to_string();
 
+        // Build the first WebView inert, bind the delegate to FusionState, then
+        // navigate. This prevents very fast local pages from completing before
+        // the delegate can observe LoadStatus::Complete.
         let webview = WebViewBuilder::new(&servo, web_context.clone())
-            .url(configured_start)
+            .url(Url::parse("about:blank").expect("about:blank"))
             .hidpi_scale_factor(Scale::new(window.scale_factor() as f32))
             .delegate(delegate.clone())
             .user_content_manager(user_content_manager.clone())
@@ -2276,6 +2288,8 @@ impl ApplicationHandler<WakeEvent> for App {
             smoke_probe_started: Cell::new(false),
         });
         delegate.bind(&state);
+        state.active_webview().load(configured_start.clone());
+        state.servo.spin_event_loop();
 
         let (restore_urls, restore_active) = {
             let data = state.browser_data.borrow();
