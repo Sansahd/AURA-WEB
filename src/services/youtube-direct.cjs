@@ -233,9 +233,10 @@ function directPlayerSource(stream) {
       'backdrop-filter:blur(12px)'
     ].join(';');
 
-    function destroy(resume = true) {
+    function destroy(resume = true, cooldownMs = 0) {
       try { video.pause(); } catch {}
       try { overlay.remove(); } catch {}
+      try { window.__gekkoYoutubeAdGuardV1?.resetDirect?.(cooldownMs); } catch {}
       if (resume && nativeVideo?.isConnected) {
         try {
           nativeVideo.currentTime = Number(video.currentTime || startTime || 0);
@@ -247,7 +248,7 @@ function directPlayerSource(stream) {
       try { delete window[KEY]; } catch {}
     }
 
-    back.addEventListener('click', () => destroy(true));
+    back.addEventListener('click', () => destroy(true, 30000));
 
     video.addEventListener('loadedmetadata', () => {
       if (startTime > 0 && Number.isFinite(video.duration) && startTime < video.duration - 1) {
@@ -256,7 +257,7 @@ function directPlayerSource(stream) {
       try { video.play?.().catch?.(() => {}); } catch {}
     }, { once: true });
 
-    video.addEventListener('error', () => destroy(true), { once: true });
+    video.addEventListener('error', () => destroy(true, 10000), { once: true });
 
     overlay.append(video, badge, back);
     moviePlayer.appendChild(overlay);
