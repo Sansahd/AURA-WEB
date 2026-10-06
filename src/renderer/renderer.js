@@ -10,7 +10,6 @@ const $ = (selector) => document.querySelector(selector);
 const tabsEl = $('#tabs');
 const address = $('#address');
 const home = $('#home');
-const homeSearch = $('#home-search');
 const internalPage = $('#internal-page');
 const internalContent = $('#internal-content');
 const aiPanel = $('#ai-panel');
@@ -21,6 +20,7 @@ const back = $('#back');
 const forward = $('#forward');
 const fav = $('#fav');
 const reload = $('#reload');
+const navigationTransition = $('#navigation-transition');
 const sideStageRail = $('#sidestage-rail');
 let lastWallpaperVersion = -1;
 let lastSideStageKey = '';
@@ -436,11 +436,13 @@ function render() {
 
   back.disabled = !tab?.canGoBack;
   forward.disabled = !tab?.canGoForward;
-  fav.textContent = '😍';
+  fav.textContent = tab?.favorite ? '★' : '☆';
   fav.classList.toggle('active', Boolean(tab?.favorite));
   fav.title = tab?.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris';
   reload.textContent = tab?.loading ? '×' : '↻';
   reload.title = tab?.loading ? 'Arrêter' : 'Actualiser';
+  navigationTransition?.classList.toggle('active', Boolean(tab?.transitioning));
+  navigationTransition?.setAttribute('aria-hidden', tab?.transitioning ? 'false' : 'true');
 
   setInternalVisibility();
   renderInternal();
@@ -472,6 +474,7 @@ window.quantic.onState(acceptState);
 fire(window.quantic.state().then(acceptState));
 
 $('#logo').onclick = () => fire(window.quantic.home());
+$('#home-button').onclick = () => fire(window.quantic.home());
 $('#plus').onclick = () => fire(window.quantic.newTab());
 $('#plus').oncontextmenu = (event) => { event.preventDefault(); fire(window.quantic.plusMenu()); };
 $('#menu').onclick = () => fire(window.quantic.mainMenu());
@@ -498,18 +501,16 @@ address.onkeydown = (event) => {
 address.onfocus = () => fire(window.quantic.chromeLock(true));
 address.onblur = () => fire(window.quantic.chromeLock(false));
 
-function goHomeSearch() {
-  const query = homeSearch.value.trim();
-  if (query) fire(window.quantic.navigate(query));
-}
-$('#home-go').onclick = goHomeSearch;
-homeSearch.onkeydown = (event) => { if (event.key === 'Enter') goHomeSearch(); };
 document.querySelectorAll('[data-q]').forEach((button) => {
-  button.onclick = () => { homeSearch.value = button.dataset.q; homeSearch.focus(); };
+  button.onclick = () => {
+    address.value = button.dataset.q;
+    address.focus();
+    address.select();
+  };
 });
 
 window.quantic.onFocusAddress(() => { address.focus(); address.select(); });
-window.quantic.onFocusHomeSearch(() => homeSearch.focus());
+window.quantic.onFocusHomeSearch(() => { address.focus(); address.select(); });
 
 async function runAi(action, prompt = '') {
   if (aiBusy) return;
