@@ -525,4 +525,221 @@ replace_once(
 """
 )
 
+
+# --- Gekko Download Manager: progress + real cancellation. ---
+replace_once(
+    embedder,
+    """    DownloadFinished(
+        WebViewId,
+        PathBuf,
+        u64,
+        Option<String>,
+    ),
+    /// Ladybird shadow-parser telemetry for a real main HTML document.
+""",
+    """    DownloadFinished(
+        WebViewId,
+        PathBuf,
+        u64,
+        Option<String>,
+    ),
+    /// Progress for a native download. Total is Content-Length when known.
+    DownloadProgress(
+        WebViewId,
+        PathBuf,
+        u64,
+        Option<u64>,
+    ),
+    /// Ladybird shadow-parser telemetry for a real main HTML document.
+"""
+)
+
+replace_once(
+    delegate,
+    """    fn notify_download_finished(
+        &self,
+        _webview: WebView,
+        _path: PathBuf,
+        _bytes: u64,
+        _error: Option<String>,
+    ) {
+    }
+
+    /// Report that Ladybird tokenized the real HTML response in parallel with Servo.
+""",
+    """    fn notify_download_finished(
+        &self,
+        _webview: WebView,
+        _path: PathBuf,
+        _bytes: u64,
+        _error: Option<String>,
+    ) {
+    }
+
+    /// Report incremental native download progress.
+    fn notify_download_progress(
+        &self,
+        _webview: WebView,
+        _path: PathBuf,
+        _bytes: u64,
+        _total: Option<u64>,
+    ) {
+    }
+
+    /// Report that Ladybird tokenized the real HTML response in parallel with Servo.
+"""
+)
+
+replace_once(
+    servo_rs,
+    """            NetToEmbedderMsg::LadybirdDocumentAudit(webview_id, token_count, invalid_count) => {
+""",
+    """            NetToEmbedderMsg::DownloadProgress(webview_id, path, bytes, total) => {
+                if let Some(webview) = self.get_webview_handle(webview_id) {
+                    webview
+                        .delegate()
+                        .notify_download_progress(webview, path, bytes, total);
+                }
+            },
+            NetToEmbedderMsg::LadybirdDocumentAudit(webview_id, token_count, invalid_count) => {
+"""
+)
+
+replace_once(
+    http_loader,
+    """fn partial_download_path(path: &Path) -> PathBuf {
+    let mut part = path.as_os_str().to_os_string();
+    part.push(".part");
+    PathBuf::from(part)
+}
+
+fn set_default_accept_encoding(headers: &mut HeaderMap) {
+""",
+    """fn partial_download_path(path: &Path) -> PathBuf {
+    let mut part = path.as_os_str().to_os_string();
+    part.push(".part");
+    PathBuf::from(part)
+}
+
+fn cancel_download_path(path: &Path) -> PathBuf {
+    let mut marker = path.as_os_str().to_os_string();
+    marker.push(".part.cancel");
+    PathBuf::from(marker)
+}
+
+fn set_default_accept_encoding(headers: &mut HeaderMap) {
+"""
+)
+
+replace_once(
+    http_loader,
+    """        let chosen_path = path_receiver.await.ok().flatten();
+
+        response.status = HttpStatus::new(StatusCode::NO_CONTENT, b"No Content".to_vec());
+""",
+    """        let chosen_path = path_receiver.await.ok().flatten();
+        let expected_download_bytes = response
+            .headers
+            .get(header::CONTENT_LENGTH)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok());
+
+        response.status = HttpStatus::new(StatusCode::NO_CONTENT, b"No Content".to_vec());
+"""
+)
+
+replace_once(
+    http_loader,
+    """                    let finish_proxy = context.state.embedder_proxy.clone();
+                    let error_proxy = context.state.embedder_proxy.clone();
+                    let final_for_finish = final_path.clone();
+                    let final_for_error = final_path.clone();
+                    let temp_for_finish = temp_path.clone();
+                    let temp_for_error = temp_path.clone();
+
+                    spawn_task(
+                        response_stream
+                            .into_body()
+                            .try_fold((file, 0_u64), move |(mut file, total), chunk| {
+                                let result = file
+                                    .write_all(&chunk)
+                                    .map(|_| (file, total.saturating_add(chunk.len() as u64)));
+                                future::ready(result)
+                            })
+""",
+    """                    let finish_proxy = context.state.embedder_proxy.clone();
+                    let error_proxy = context.state.embedder_proxy.clone();
+                    let progress_proxy = context.state.embedder_proxy.clone();
+                    let final_for_finish = final_path.clone();
+                    let final_for_error = final_path.clone();
+                    let final_for_progress = final_path.clone();
+                    let temp_for_finish = temp_path.clone();
+                    let temp_for_error = temp_path.clone();
+                    let cancel_for_progress = cancel_download_path(&final_path);
+                    let cancel_for_finish = cancel_for_progress.clone();
+                    let cancel_for_error = cancel_for_progress.clone();
+                    let _ = fs::remove_file(&cancel_for_progress);
+
+                    spawn_task(
+                        response_stream
+                            .into_body()
+                            .try_fold((file, 0_u64), move |(mut file, total), chunk| {
+                                let result = (|| -> std::io::Result<_> {
+                                    if cancel_for_progress.exists() {
+                                        return Err(std::io::Error::new(
+                                            std::io::ErrorKind::Interrupted,
+                                            "download cancelled",
+                                        ));
+                                    }
+                                    file.write_all(&chunk)?;
+                                    let next = total.saturating_add(chunk.len() as u64);
+                                    progress_proxy.send(NetToEmbedderMsg::DownloadProgress(
+                                        webview_id,
+                                        final_for_progress.clone(),
+                                        next,
+                                        expected_download_bytes,
+                                    ));
+                                    Ok((file, next))
+                                })();
+                                future::ready(result)
+                            })
+"""
+)
+
+replace_once(
+    http_loader,
+    """                                let result = (|| -> std::io::Result<()> {
+                                    file.flush()?;
+                                    file.sync_all()?;
+                                    fs::rename(&temp_for_finish, &final_for_finish)?;
+                                    Ok(())
+                                })();
+
+                                if let Err(error) = result {
+""",
+    """                                let result = (|| -> std::io::Result<()> {
+                                    file.flush()?;
+                                    file.sync_all()?;
+                                    fs::rename(&temp_for_finish, &final_for_finish)?;
+                                    let _ = fs::remove_file(&cancel_for_finish);
+                                    Ok(())
+                                })();
+
+                                if let Err(error) = result {
+"""
+)
+
+replace_once(
+    http_loader,
+    """                            .map_err(move |error| {
+                                let _ = fs::remove_file(&temp_for_error);
+                                error_proxy.send(NetToEmbedderMsg::DownloadFinished(
+""",
+    """                            .map_err(move |error| {
+                                let _ = fs::remove_file(&temp_for_error);
+                                let _ = fs::remove_file(&cancel_for_error);
+                                error_proxy.send(NetToEmbedderMsg::DownloadFinished(
+"""
+)
+
 print("Quantic Servo Gekko Fusion patch applied")
