@@ -50,8 +50,16 @@ jobs:
               throw "Gekko product contract missing: $needle"
             }
           }
-          if ($runtime -match '(?i)\bglide\b') {
-            throw "Legacy Glide branding remains in Gekko runtime"
+          foreach ($legacyBrand in @(
+            'Quantic Glide',
+            'GLIDE',
+            'Glide Fusion',
+            'Accueil Glide',
+            'Le Web, sans Chromium.'
+          )) {
+            if ($runtime -match [regex]::Escape($legacyBrand)) {
+              throw "Legacy visible branding remains: $legacyBrand"
+            }
           }
           if ($cargo -notmatch 'name = "quantic-gekko-servo-runtime"') {
             throw "Gekko runtime package identity missing"
