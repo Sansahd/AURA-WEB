@@ -347,4 +347,182 @@ replace_once(
 """
 )
 
-print("Quantic Servo native-download patch applied")
+
+# --- Gekko Fusion: Ladybird shadow parser runs on every real main HTML response. ---
+net_cargo = SERVO / "components/net/Cargo.toml"
+replace_once(
+    net_cargo,
+    """malloc_size_of_derive = { workspace = true }
+mime = { workspace = true }
+""",
+    """malloc_size_of_derive = { workspace = true }
+quantic-ladybird-html = { path = "../../../../quantic-engine/vendor/ladybird_html" }
+mime = { workspace = true }
+"""
+)
+
+replace_once(
+    embedder,
+    """    DownloadFinished(
+        WebViewId,
+        PathBuf,
+        u64,
+        Option<String>,
+    ),
+    /// Response to an asynchronous request from SiteDataManager with cookies result.
+""",
+    """    DownloadFinished(
+        WebViewId,
+        PathBuf,
+        u64,
+        Option<String>,
+    ),
+    /// Ladybird shadow-parser telemetry for a real main HTML document.
+    LadybirdDocumentAudit(
+        WebViewId,
+        u64,
+        u64,
+    ),
+    /// Response to an asynchronous request from SiteDataManager with cookies result.
+"""
+)
+
+replace_once(
+    delegate,
+    """    fn notify_download_finished(
+        &self,
+        _webview: WebView,
+        _path: PathBuf,
+        _bytes: u64,
+        _error: Option<String>,
+    ) {
+    }
+
+    /// Request to display a notification.
+""",
+    """    fn notify_download_finished(
+        &self,
+        _webview: WebView,
+        _path: PathBuf,
+        _bytes: u64,
+        _error: Option<String>,
+    ) {
+    }
+
+    /// Report that Ladybird tokenized the real HTML response in parallel with Servo.
+    fn notify_ladybird_document_audit(
+        &self,
+        _webview: WebView,
+        _token_count: u64,
+        _invalid_count: u64,
+    ) {
+    }
+
+    /// Request to display a notification.
+"""
+)
+
+replace_once(
+    servo_rs,
+    """            NetToEmbedderMsg::DownloadFinished(webview_id, path, bytes, error) => {
+                if let Some(webview) = self.get_webview_handle(webview_id) {
+                    webview
+                        .delegate()
+                        .notify_download_finished(webview, path, bytes, error);
+                }
+            },
+            NetToEmbedderMsg::EmbedderCookieOperationResponseWithCookies(operation_id, cookies) => {
+""",
+    """            NetToEmbedderMsg::DownloadFinished(webview_id, path, bytes, error) => {
+                if let Some(webview) = self.get_webview_handle(webview_id) {
+                    webview
+                        .delegate()
+                        .notify_download_finished(webview, path, bytes, error);
+                }
+            },
+            NetToEmbedderMsg::LadybirdDocumentAudit(webview_id, token_count, invalid_count) => {
+                if let Some(webview) = self.get_webview_handle(webview_id) {
+                    webview
+                        .delegate()
+                        .notify_ladybird_document_audit(webview, token_count, invalid_count);
+                }
+            },
+            NetToEmbedderMsg::EmbedderCookieOperationResponseWithCookies(operation_id, cookies) => {
+"""
+)
+
+replace_once(
+    http_loader,
+    """fn set_default_accept_encoding(headers: &mut HeaderMap) {
+""",
+    """fn ladybird_document_audit(body: &[u8]) -> (u64, u64) {
+    use quantic_ladybird_html::{HtmlTokenizer, TokenType};
+
+    let source = String::from_utf8_lossy(body);
+    let mut tokenizer = HtmlTokenizer::new(source.encode_utf16().collect());
+    let mut tokens = 0_u64;
+    let mut invalid = 0_u64;
+
+    while let Some(token) = tokenizer.next_token(false, false) {
+        tokens = tokens.saturating_add(1);
+        if token.token_type == TokenType::Invalid {
+            invalid = invalid.saturating_add(1);
+        }
+        if token.token_type == TokenType::EndOfFile {
+            break;
+        }
+    }
+
+    (tokens, invalid)
+}
+
+fn set_default_accept_encoding(headers: &mut HeaderMap) {
+"""
+)
+
+replace_once(
+    http_loader,
+    """    let response_body = response.body.clone();
+
+    // We're about to spawn a future to be waited on here
+""",
+    """    let ladybird_audit_enabled = request.mode == RequestMode::Navigate &&
+        response
+            .headers
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.to_ascii_lowercase().starts_with("text/html"));
+    let ladybird_webview_id = request.target_webview_id;
+    let ladybird_proxy = context.state.embedder_proxy.clone();
+
+    let response_body = response.body.clone();
+
+    // We're about to spawn a future to be waited on here
+"""
+)
+
+replace_once(
+    http_loader,
+    """                // This allocation may be retained by the http-cache.
+                completed_body.shrink_to_fit();
+                // If devtools is disabled avoid cloning, since the result would
+""",
+    """                // This allocation may be retained by the http-cache.
+                completed_body.shrink_to_fit();
+
+                if ladybird_audit_enabled {
+                    if let Some(webview_id) = ladybird_webview_id {
+                        let (token_count, invalid_count) = ladybird_document_audit(&completed_body);
+                        ladybird_proxy.send(NetToEmbedderMsg::LadybirdDocumentAudit(
+                            webview_id,
+                            token_count,
+                            invalid_count,
+                        ));
+                    }
+                }
+
+                // If devtools is disabled avoid cloning, since the result would
+"""
+)
+
+print("Quantic Servo Gekko Fusion patch applied")
