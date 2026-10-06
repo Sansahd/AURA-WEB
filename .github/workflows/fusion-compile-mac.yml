@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: fusion-compile-mac-${{ github.sha }}
-  cancel-in-progress: false
+  group: gekko-mac-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   core:
