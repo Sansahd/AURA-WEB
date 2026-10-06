@@ -31,7 +31,7 @@ fn sanitize_filename(name: &str) -> String {
 
 fn default_download_dir() -> Option<PathBuf> {
     dirs::download_dir().or_else(|| {
-        dirs::data_local_dir().map(|root| root.join("Quantic").join("Glide").join("Downloads"))
+        dirs::data_local_dir().map(|root| root.join("Quantic").join("Gekko").join("Downloads"))
     })
 }
 
