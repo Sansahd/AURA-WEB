@@ -1194,6 +1194,30 @@ impl ApplicationHandler<WakeEvent> for App {
         });
         delegate.bind(&state);
 
+        let (restore_urls, restore_active) = {
+            let data = state.browser_data.borrow();
+            (data.session_tabs.clone(), data.active_tab)
+        };
+        if !restore_urls.is_empty() {
+            {
+                let mut tabs = state.tabs.borrow_mut();
+                if let Some(first) = restore_urls.first().and_then(|raw| Url::parse(raw).ok()) {
+                    tabs[0].webview.load(first.clone());
+                    *tabs[0].url.borrow_mut() = first.to_string();
+                }
+            }
+            for raw in restore_urls.iter().skip(1).take(11) {
+                if let Ok(url) = Url::parse(raw) {
+                    state.new_tab(url);
+                }
+            }
+            let count = state.tabs.borrow().len();
+            if count > 0 {
+                state.select_tab(restore_active.min(count - 1));
+            }
+            *state.status.borrow_mut() = format!("Session restaurée · {} onglet(s)", count);
+        }
+
         state.window.request_redraw();
         *self = Self::Running(state);
     }
