@@ -135,11 +135,12 @@ fn site_key(host: &str) -> String {
         if host == *suffix {
             return host;
         }
-        if let Some(prefix) = host.strip_suffix(suffix)
-            && let Some(prefix) = prefix.strip_suffix('.')
-            && let Some(label) = prefix.rsplit('.').next()
-        {
-            return format!("{label}.{suffix}");
+        if let Some(prefix) = host.strip_suffix(suffix) {
+            if let Some(prefix) = prefix.strip_suffix('.') {
+                if let Some(label) = prefix.rsplit('.').next() {
+                    return format!("{label}.{suffix}");
+                }
+            }
         }
     }
 
