@@ -128,7 +128,7 @@ replace_once(
 
     for part in value.split(';').map(str::trim) {
         if let Some(encoded) = part.strip_prefix("filename*=UTF-8''") {
-            if let Ok(decoded) = percent_encoding::percent_decode_str(encoded).decode_utf8() {
+            if let Ok(decoded) = content_security_policy::percent_encoding::percent_decode_str(encoded).decode_utf8() {
                 if !decoded.trim().is_empty() {
                     return Some(decoded.into_owned());
                 }
