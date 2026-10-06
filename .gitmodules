@@ -2,3 +2,7 @@
 	path = vendor/servo
 	url = https://github.com/servo/servo.git
 	branch = v0.7.0
+
+[submodule "vendor/nss-rs"]
+	path = vendor/nss-rs
+	url = https://github.com/mozilla/nss-rs.git
