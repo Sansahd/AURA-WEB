@@ -513,7 +513,6 @@ impl servo::WebViewDelegate for FusionDelegate {
             });
 
             self.with_state(|state| state.try_smoke_probe());
-            }
         }
     }
 
