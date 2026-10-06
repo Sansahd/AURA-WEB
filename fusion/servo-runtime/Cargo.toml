@@ -30,3 +30,6 @@ dirs = "6"
 
 
 ureq = { version = "2.12.1", default-features = false, features = ["tls", "json"] }
+
+[patch."https://github.com/mozilla/nss-rs"]
+nss-rs = { path = "../../vendor/nss-rs" }
