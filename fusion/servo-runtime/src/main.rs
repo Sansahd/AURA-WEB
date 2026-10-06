@@ -138,6 +138,7 @@ struct FusionState {
     permissions_denied: Cell<u64>,
     quick_panel_open: Cell<bool>,
     browser_data: RefCell<BrowserData>,
+    home_open: Cell<bool>,
 }
 
 struct FusionDelegate {
@@ -170,6 +171,7 @@ impl servo::WebViewDelegate for FusionDelegate {
     fn notify_url_changed(&self, _webview: WebView, url: Url) {
         self.with_state(|state| {
             *state.current_url.borrow_mut() = url.to_string();
+            state.home_open.set(false);
             if matches!(url.scheme(), "http" | "https") {
                 let mut data = state.browser_data.borrow_mut();
                 let value = url.to_string();
@@ -299,9 +301,9 @@ impl FusionState {
                 format!("AURA · {prompt}")
             };
         } else if matches!(lower.as_str(), "> accueil" | "> home") {
-            if let Ok(url) = Url::parse(QUANTIC_PORTAL) {
-                self.webview.load(url);
-            }
+            self.home_open.set(true);
+            *self.status.borrow_mut() = "Accueil Glide".into();
+            self.window.request_redraw();
         } else if matches!(lower.as_str(), "> retour" | "> back") {
             self.webview.go_back(1);
         } else if matches!(lower.as_str(), "> avance" | "> forward") {
@@ -621,6 +623,80 @@ impl FusionState {
                 });
 
             let available = ctx.available_rect();
+            if self.home_open.get() {
+                egui::CentralPanel::default()
+                    .frame(egui::Frame::new().fill(BG))
+                    .show(ctx, |ui| {
+                        ui.add_space((ui.available_height() * 0.18).min(130.0));
+                        ui.vertical_centered(|ui| {
+                            let (logo, _) = ui.allocate_exact_size(egui::vec2(86.0, 86.0), egui::Sense::hover());
+                            ui.painter().circle_filled(logo.center(), 40.0, ACCENT);
+                            ui.painter().circle_filled(logo.center(), 29.0, egui::Color32::from_rgb(31, 25, 18));
+                            ui.painter().circle_filled(logo.center() + egui::vec2(10.0, -10.0), 7.0, egui::Color32::from_rgb(255, 224, 154));
+                            ui.add_space(10.0);
+                            ui.label(egui::RichText::new("GLIDE").strong().size(28.0).color(TEXT));
+                            ui.label(egui::RichText::new("Le Web, sans Chromium.").size(11.0).color(MUTED));
+                            ui.add_space(24.0);
+
+                            if ui.add_sized(
+                                [460.0_f32.min(ui.available_width() - 30.0), 48.0],
+                                egui::Button::new(
+                                    egui::RichText::new("⌕   Rechercher ou saisir une adresse").size(12.0).color(MUTED)
+                                )
+                                .fill(PANEL)
+                                .stroke(egui::Stroke::new(1.0, BORDER))
+                                .corner_radius(24.0)
+                            ).clicked() {
+                                self.dock_expanded.set(true);
+                                self.dock_focus_requested.set(true);
+                            }
+
+                            ui.add_space(20.0);
+                            ui.horizontal_centered(|ui| {
+                                for (label, command) in [
+                                    ("✦  AURA", "@aura "),
+                                    ("✉  Mail", "@mail"),
+                                    ("●  ZOON", "@pulse"),
+                                    ("◈  Quantic", "@quantic"),
+                                ] {
+                                    if ui.add(
+                                        egui::Button::new(egui::RichText::new(label).size(10.0).color(TEXT))
+                                            .fill(PANEL_SOFT)
+                                            .stroke(egui::Stroke::new(1.0, BORDER))
+                                            .corner_radius(18.0)
+                                            .min_size(egui::vec2(92.0, 38.0))
+                                    ).clicked() {
+                                        *self.dock_input.borrow_mut() = command.into();
+                                        execute = true;
+                                    }
+                                }
+                            });
+
+                            let data = self.browser_data.borrow();
+                            if !data.favorites.is_empty() {
+                                ui.add_space(24.0);
+                                ui.label(egui::RichText::new("FAVORIS").strong().size(9.0).color(ACCENT));
+                                ui.add_space(5.0);
+                                ui.horizontal_centered(|ui| {
+                                    for favorite in data.favorites.iter().take(5) {
+                                        let label = Url::parse(favorite).ok()
+                                            .and_then(|u| u.host_str().map(str::to_string))
+                                            .unwrap_or_else(|| favorite.clone());
+                                        if ui.add(
+                                            egui::Button::new(egui::RichText::new(label).size(9.0).color(TEXT))
+                                                .fill(PANEL)
+                                                .corner_radius(15.0)
+                                        ).clicked() {
+                                            *self.dock_input.borrow_mut() = favorite.clone();
+                                            execute = true;
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    });
+            }
+
             self.content_height_points.set(available.height());
             let pixels_per_point = ctx.pixels_per_point();
             let width = (available.width() * pixels_per_point).max(1.0) as u32;
@@ -631,8 +707,11 @@ impl FusionState {
                 self.webview.resize(size);
             }
 
-            self.webview.paint();
+            if !self.home_open.get() {
+                self.webview.paint();
+            }
 
+            if !self.home_open.get() {
             if let Some(render_to_parent) = self.web_context.render_to_parent_callback() {
                 ctx.layer_painter(LayerId::background()).add(PaintCallback {
                     rect: available,
@@ -645,6 +724,7 @@ impl FusionState {
                         render_to_parent(painter.gl().as_ref(), rect);
                     })),
                 });
+            }
             }
 
             if ctx.input(|i| (i.modifiers.ctrl || i.modifiers.command) && i.key_pressed(egui::Key::L)) {
@@ -902,6 +982,7 @@ impl ApplicationHandler<WakeEvent> for App {
             permissions_denied: Cell::new(0),
             quick_panel_open: Cell::new(false),
             browser_data: RefCell::new(load_browser_data()),
+            home_open: Cell::new(true),
         });
         delegate.bind(&state);
 
