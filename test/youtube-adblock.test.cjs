@@ -245,3 +245,95 @@ test('YouTube guard exposes manual Direct mode and automatic persistent-ad fallb
   assert.match(source, /directResult/);
   assert.match(source, /resetDirect/);
 });
+
+
+test('GEKKO Direct adaptive selector prefers 4K high-fps video and strong default audio', () => {
+  const formats = [
+    {
+      has_video: true, has_audio: false, height: 1080, width: 1920, fps: 60,
+      bitrate: 8_000_000, mime_type: 'video/webm; codecs="vp9"', quality_label: '1080p60'
+    },
+    {
+      has_video: true, has_audio: false, height: 2160, width: 3840, fps: 30,
+      bitrate: 18_000_000, mime_type: 'video/webm; codecs="vp9"', quality_label: '2160p'
+    },
+    {
+      has_video: true, has_audio: false, height: 2160, width: 3840, fps: 60,
+      bitrate: 24_000_000, mime_type: 'video/webm; codecs="av01.0.12M.08"', quality_label: '2160p60'
+    },
+    {
+      has_video: true, has_audio: false, height: 4320, width: 7680, fps: 30,
+      bitrate: 60_000_000, mime_type: 'video/webm; codecs="vp9"', quality_label: '4320p'
+    },
+    {
+      has_video: false, has_audio: true, bitrate: 128_000, audio_channels: 2,
+      mime_type: 'audio/webm; codecs="opus"', is_original: true
+    },
+    {
+      has_video: false, has_audio: true, bitrate: 160_000, audio_channels: 2,
+      mime_type: 'audio/webm; codecs="opus"', is_original: true,
+      audio_track: { audio_is_default: true }
+    }
+  ];
+
+  const selected = selectAdaptiveFormats(formats);
+  assert.equal(MAX_DIRECT_HEIGHT, 2160);
+  assert.equal(selected.video[0].height, 2160);
+  assert.equal(selected.video[0].fps, 60);
+  assert.match(selected.video[0].mime_type, /av01/);
+  assert.equal(selected.audio[0].bitrate, 160_000);
+  assert.equal(selected.audio[0].audio_track.audio_is_default, true);
+  assert.equal(selected.video.some((format) => format.height > 2160), false);
+});
+
+test('GEKKO Direct adaptive payload requires all media URLs to remain on googlevideo HTTPS', () => {
+  const good = {
+    mode: 'adaptive',
+    videoCandidates: [
+      { url: 'https://rr1---sn-a.googlevideo.com/videoplayback?v=1' },
+      { url: 'https://rr2---sn-b.googlevideo.com/videoplayback?v=2' }
+    ],
+    audioCandidates: [
+      { url: 'https://rr1---sn-a.googlevideo.com/videoplayback?a=1' }
+    ]
+  };
+  assert.equal(streamPayloadIsAllowed(good), true);
+  assert.equal(streamPayloadIsAllowed({
+    ...good,
+    audioCandidates: [{ url: 'https://evil.example/audio.webm' }]
+  }), false);
+});
+
+test('GEKKO Direct V2 synchronizes split audio with video controls and drift correction', () => {
+  const source = directPlayerSource({
+    mode: 'adaptive',
+    videoId: 'dQw4w9WgXcQ',
+    quality: '2160p60',
+    height: 2160,
+    fps: 60,
+    videoCandidates: [{
+      url: 'https://rr1---sn-a.googlevideo.com/videoplayback?v=1',
+      mime: 'video/webm; codecs="vp9"',
+      quality: '2160p60',
+      height: 2160,
+      fps: 60
+    }],
+    audioCandidates: [{
+      url: 'https://rr1---sn-a.googlevideo.com/videoplayback?a=1',
+      mime: 'audio/webm; codecs="opus"'
+    }]
+  });
+
+  assert.match(source, /__gekkoDirectPlayerV2/);
+  assert.match(source, /selectedVideo/);
+  assert.match(source, /selectedAudio/);
+  assert.match(source, /drift > 0\.22/);
+  assert.match(source, /audio\.currentTime = target/);
+  assert.match(source, /video\.addEventListener\('play'/);
+  assert.match(source, /video\.addEventListener\('pause'/);
+  assert.match(source, /video\.addEventListener\('seeking'/);
+  assert.match(source, /video\.addEventListener\('ratechange'/);
+  assert.match(source, /video\.addEventListener\('volumechange'/);
+  assert.match(source, /setInterval\(\(\) =>/);
+  assert.match(source, /250/);
+});
