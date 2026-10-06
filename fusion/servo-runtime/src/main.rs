@@ -389,6 +389,7 @@ struct FusionState {
     downloads: RefCell<Vec<DownloadEntry>>,
     downloads_panel_open: Cell<bool>,
     smoke_probe_started: Cell<bool>,
+    smoke_started_at: Instant,
 }
 
 struct FusionDelegate {
@@ -504,56 +505,7 @@ impl servo::WebViewDelegate for FusionDelegate {
                 state.window.request_redraw();
             });
 
-            let weak = self.state.borrow().clone();
-            let webview_for_probe = webview.clone();
-            if let Some(state) = weak.upgrade() {
-                let smoke_target_matches = std::env::var("GEKKO_START_URL")
-                    .ok()
-                    .map(|target| {
-                        webview_for_probe
-                            .url()
-                            .is_some_and(|current| current.as_str() == target)
-                    })
-                    .unwrap_or(true);
-                if std::env::var_os("GEKKO_SMOKE_OUTPUT").is_some()
-                    && smoke_target_matches
-                    && !state.smoke_probe_started.replace(true)
-                    && state.active_webview() == webview_for_probe
-                {
-                    let proxy = state.event_proxy.clone();
-                    webview_for_probe.evaluate_javascript(
-                        r##"JSON.stringify({
-                            url: location.href,
-                            title: document.title,
-                            dom: !!document.querySelector("#gekko-smoke"),
-                            result: document.querySelector("#result")?.textContent || "",
-                            marker: window.__gekkoSmoke?.marker || "",
-                            params: window.__gekkoSmoke?.params || "",
-                            events: window.__gekkoSmoke?.events || 0,
-                            encodedLength: window.__gekkoSmoke?.encodedLength || 0,
-                            storage: window.__gekkoSmoke?.storage || "",
-                            urlApi: typeof URL === "function",
-                            promiseApi: typeof Promise === "function",
-                            textEncoderApi: typeof TextEncoder === "function",
-                            webrtcBlocked: typeof RTCPeerConnection === "undefined"
-                        })"##,
-                        move |result| {
-                            let payload = match result {
-                                Ok(JSValue::String(value)) => value,
-                                Ok(value) => serde_json::json!({
-                                    "error": format!("unexpected JS value: {value:?}")
-                                }).to_string(),
-                                Err(error) => serde_json::json!({
-                                    "error": format!("javascript evaluation failed: {error:?}")
-                                }).to_string(),
-                            };
-                            if let Ok(path) = std::env::var("GEKKO_SMOKE_OUTPUT") {
-                                let _ = fs::write(path, payload);
-                            }
-                            let _ = proxy.send_event(WakeEvent::SmokeComplete);
-                        },
-                    );
-                }
+            self.with_state(|state| state.try_smoke_probe());
             }
         }
     }
@@ -1965,6 +1917,62 @@ impl FusionState {
         servo::DevicePoint::new(x * scale, (y - 54.0) * scale)
     }
 
+    fn smoke_mode() -> bool {
+        std::env::var_os("GEKKO_SMOKE_OUTPUT").is_some()
+    }
+
+    fn try_smoke_probe(&self) {
+        if !Self::smoke_mode() || self.smoke_probe_started.replace(true) {
+            return;
+        }
+
+        let webview = self.active_webview();
+        let target_matches = std::env::var("GEKKO_START_URL")
+            .ok()
+            .map(|target| webview.url().is_some_and(|current| current.as_str() == target))
+            .unwrap_or(true);
+
+        if !target_matches {
+            self.smoke_probe_started.set(false);
+            return;
+        }
+
+        let proxy = self.event_proxy.clone();
+        webview.evaluate_javascript(
+            r##"JSON.stringify({
+                url: location.href,
+                title: document.title,
+                dom: !!document.querySelector("#gekko-smoke"),
+                result: document.querySelector("#result")?.textContent || "",
+                marker: window.__gekkoSmoke?.marker || "",
+                params: window.__gekkoSmoke?.params || "",
+                events: window.__gekkoSmoke?.events || 0,
+                encodedLength: window.__gekkoSmoke?.encodedLength || 0,
+                storage: window.__gekkoSmoke?.storage || "",
+                urlApi: typeof URL === "function",
+                promiseApi: typeof Promise === "function",
+                textEncoderApi: typeof TextEncoder === "function",
+                webrtcBlocked: typeof RTCPeerConnection === "undefined"
+            })"##,
+            move |result| {
+                let payload = match result {
+                    Ok(JSValue::String(value)) => value,
+                    Ok(value) => serde_json::json!({
+                        "error": format!("unexpected JS value: {value:?}")
+                    }).to_string(),
+                    Err(error) => serde_json::json!({
+                        "error": format!("javascript evaluation failed: {error:?}")
+                    }).to_string(),
+                };
+                if let Ok(path) = std::env::var("GEKKO_SMOKE_OUTPUT") {
+                    let _ = fs::write(path, payload);
+                }
+                let _ = proxy.send_event(WakeEvent::SmokeComplete);
+            },
+        );
+        self.servo.spin_event_loop();
+    }
+
     fn handle_mouse_move(&self, position: winit::dpi::PhysicalPosition<f64>) {
         let scale = self.window.scale_factor() as f32;
         let x = position.x as f32 / scale;
@@ -2161,9 +2169,11 @@ impl ApplicationHandler<WakeEvent> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let Self::Initial(waker) = self else { return; };
 
+        let smoke_mode = FusionState::smoke_mode();
         let window = event_loop.create_window(
             Window::default_attributes()
                 .with_title("Gekko — Quantic Browser")
+                .with_visible(!smoke_mode)
                 .with_inner_size(winit::dpi::PhysicalSize::new(1440_u32, 900_u32))
                 .with_min_inner_size(winit::dpi::PhysicalSize::new(980_u32, 680_u32)),
         ).expect("create Gekko window");
@@ -2286,6 +2296,7 @@ impl ApplicationHandler<WakeEvent> for App {
             downloads: RefCell::new(Vec::new()),
             downloads_panel_open: Cell::new(false),
             smoke_probe_started: Cell::new(false),
+            smoke_started_at: Instant::now(),
         });
         delegate.bind(&state);
         state.active_webview().load(configured_start.clone());
@@ -2365,8 +2376,12 @@ impl ApplicationHandler<WakeEvent> for App {
 
         match event {
             WindowEvent::CloseRequested => {
-                state.clear_private_state();
-                event_loop.exit();
+                if FusionState::smoke_mode() {
+                    state.window.request_redraw();
+                } else {
+                    state.clear_private_state();
+                    event_loop.exit();
+                }
             },
             WindowEvent::Resized(size) => {
                 state.window_context.resize(size);
@@ -2445,9 +2460,33 @@ impl ApplicationHandler<WakeEvent> for App {
 
         state.servo.spin_event_loop();
     }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Self::Running(state) = self {
+            state.servo.spin_event_loop();
+            if FusionState::smoke_mode()
+                && !state.smoke_probe_started.get()
+                && state.smoke_started_at.elapsed() >= Duration::from_millis(1200)
+            {
+                state.try_smoke_probe();
+            }
+            state.window.request_redraw();
+        }
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    if let Ok(smoke_output) = std::env::var("GEKKO_SMOKE_OUTPUT") {
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            let payload = serde_json::json!({
+                "error": format!("Gekko panic: {info}")
+            }).to_string();
+            let _ = fs::write(&smoke_output, payload);
+            previous(info);
+        }));
+    }
+
     // Hard runtime integration check: Ladybird's LibWeb tokenizer is linked into
     // this executable independently from Servo's SpiderMonkey/ICU dependency graph.
     use quantic_ladybird_html::{HtmlTokenizer, TokenType};
