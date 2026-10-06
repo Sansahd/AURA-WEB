@@ -29,20 +29,32 @@
 
   <nav id="bottom-dock" class="bottom-dock no-drag" aria-label="Navigation GEKKO">
     <div class="nav-row">
-      <button id="back" title="Précédent" aria-label="Précédent">‹</button>
-      <button id="forward" title="Suivant" aria-label="Suivant">›</button>
-      <button id="reload" title="Actualiser" aria-label="Actualiser">↻</button>
-      <button id="home-button" title="Accueil GEKKO" aria-label="Accueil GEKKO">⌂</button>
-      <div class="address glass-line">
-        <img class="address-mark" src="../assets/quantic-glide-mark.svg" alt="">
-        <input id="address" autocomplete="off" spellcheck="false" placeholder="Rechercher ou saisir une adresse…">
-        <span class="address-key">Ctrl L</span>
+      <div class="dock-history">
+        <button id="back" title="Précédent" aria-label="Précédent">‹</button>
+        <button id="forward" title="Suivant" aria-label="Suivant">›</button>
+        <button id="reload" title="Actualiser" aria-label="Actualiser">↻</button>
       </div>
-      <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
-      <button id="sidestage" title="SideStage · Lecteurs persistants" aria-label="Ouvrir SideStage">SIDE</button>
-      <button id="persona" title="Personnalisation locale" aria-label="Personnalisation">◈</button>
-      <button id="ai" title="AURA" aria-label="AURA">✦</button>
-      <button id="menu" title="Menu" aria-label="Menu">⋮</button>
+      <button id="dock-brand" class="dock-brand" title="Accueil GEKKO" aria-label="Accueil GEKKO">
+        <img src="../assets/quantic-glide-mark.svg" alt=""><span>GEKKO</span>
+      </button>
+      <div class="dock-nav">
+        <button id="home-button" title="Accueil" aria-label="Accueil"><span>⌂</span><small>Home</small></button>
+        <button id="discover" title="Découvrir" aria-label="Découvrir"><span>◎</span><small>Discover</small></button>
+        <button id="bookmarks" title="Favoris" aria-label="Favoris"><span>♡</span><small>Bookmarks</small></button>
+        <button id="sidestage" title="Apps · SideStage" aria-label="Ouvrir les apps"><span>▦</span><small>Apps</small></button>
+      </div>
+      <div class="address glass-line">
+        <span class="address-search">⌕</span>
+        <input id="address" autocomplete="off" spellcheck="false" placeholder="Search or enter a URL…">
+        <button id="address-go" type="button" title="Ouvrir" aria-label="Ouvrir">→</button>
+      </div>
+      <div class="dock-actions">
+        <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
+        <button id="ai" title="AURA" aria-label="AURA">✦</button>
+        <button id="downloads" title="Téléchargements GEKKO" aria-label="Téléchargements">⇩</button>
+        <button id="persona" title="Paramètres" aria-label="Paramètres">⚙</button>
+        <button id="menu" title="Menu" aria-label="Menu">⋮</button>
+      </div>
     </div>
   </nav>
 
