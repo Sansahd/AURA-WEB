@@ -73,7 +73,7 @@ test('new tab matches the approved cinematic GEKKO browser composition', () => {
   assert.equal(cards, 4);
   assert.match(html, /Private Search/);
   assert.match(html, /Secure Tabs/);
-  assert.match(html, /Fast & Light/);
+  assert.match(html, /Fast &amp; Light/);
   assert.match(html, /Explore More/);
 
   assert.match(css, /clip-path/);
