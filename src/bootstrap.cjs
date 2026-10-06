@@ -36,8 +36,12 @@ async function prepareProtectedMedia() {
 
 (async () => {
   await app.whenReady();
-  await prepareProtectedMedia();
+
+  // Create the browser immediately. Protected-media initialization is allowed
+  // to complete in the background so a slow Widevine component can never make
+  // GEKKO look like it failed to launch.
   require('./main.cjs');
+  void prepareProtectedMedia();
 })().catch((error) => {
   console.error('[bootstrap] Quantic startup failed:', error?.stack || error);
   app.quit();
