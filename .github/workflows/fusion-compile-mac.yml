@@ -61,3 +61,49 @@ jobs:
         run: cargo check
       - name: Run Gekko runtime tests
         run: cargo test
+
+      - name: Build Gekko release
+        run: cargo build --release
+
+      - name: Build Gekko macOS app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$GITHUB_WORKSPACE/dist/Gekko.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp target/release/quantic-gekko-servo-runtime "$APP/Contents/MacOS/QuanticGekko"
+          chmod +x "$APP/Contents/MacOS/QuanticGekko"
+          cp assets/gekko-mark.svg "$APP/Contents/Resources/gekko-mark.svg"
+          cat > "$APP/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Gekko</string>
+            <key>CFBundleDisplayName</key><string>Quantic Gekko</string>
+            <key>CFBundleIdentifier</key><string>com.quantic.gekko</string>
+            <key>CFBundleVersion</key><string>0.8.5</string>
+            <key>CFBundleShortVersionString</key><string>0.8.5</string>
+            <key>CFBundleExecutable</key><string>QuanticGekko</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>LSMinimumSystemVersion</key><string>13.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          /usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$APP/Contents/Info.plist"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$GITHUB_WORKSPACE/Quantic-Gekko-macOS.zip"
+
+      - name: Verify macOS bundle
+        shell: bash
+        run: |
+          test -x "$GITHUB_WORKSPACE/dist/Gekko.app/Contents/MacOS/QuanticGekko"
+          test -f "$GITHUB_WORKSPACE/dist/Gekko.app/Contents/Info.plist"
+          shasum -a 256 "$GITHUB_WORKSPACE/Quantic-Gekko-macOS.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quantic-Gekko-macOS
+          path: Quantic-Gekko-macOS.zip
+          if-no-files-found: error
+          retention-days: 30
