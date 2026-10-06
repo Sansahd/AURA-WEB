@@ -35,20 +35,33 @@ struct StructuredAnswer {
     actions: Vec<AuraAction>,
 }
 
-fn loopback_base_url(name: &str, fallback: &str) -> String {
-    let raw = std::env::var(name).unwrap_or_else(|_| fallback.to_string());
+fn configured_base_url(raw: &str, fallback: &str, allow_remote_https: bool) -> String {
     let Ok(url) = url::Url::parse(raw.trim().trim_end_matches('/')) else {
         return fallback.to_string();
     };
-    let is_loopback = matches!(
-        url.host_str().unwrap_or_default(),
-        "127.0.0.1" | "localhost" | "::1"
-    );
-    if is_loopback && matches!(url.scheme(), "http" | "https") {
+    let host = url.host_str().unwrap_or_default();
+    let is_loopback = matches!(host, "127.0.0.1" | "localhost" | "::1");
+    let accepted = (is_loopback && matches!(url.scheme(), "http" | "https"))
+        || (allow_remote_https && url.scheme() == "https" && !host.is_empty());
+
+    if accepted {
         url.origin().ascii_serialization()
     } else {
         fallback.to_string()
     }
+}
+
+fn aura_base_url() -> String {
+    let raw = std::env::var("QUANTIC_AURA_URL").unwrap_or_else(|_| DEFAULT_AURA_URL.to_string());
+    // AURA may be hosted remotely, but only when the operator explicitly configures
+    // an HTTPS origin. Page content can never choose this destination.
+    configured_base_url(&raw, DEFAULT_AURA_URL, true)
+}
+
+fn ollama_base_url() -> String {
+    let raw = std::env::var("QUANTIC_OLLAMA_URL").unwrap_or_else(|_| DEFAULT_OLLAMA_URL.to_string());
+    // Direct Ollama remains loopback-only by design.
+    configured_base_url(&raw, DEFAULT_OLLAMA_URL, false)
 }
 
 fn parse_answer(raw: &str) -> (String, Vec<AuraAction>) {
@@ -100,7 +113,7 @@ Ne produis jamais de JavaScript arbitraire."#
 }
 
 fn request_aura(prompt: &str, page_context: &str) -> Result<AuraReply, String> {
-    let base = loopback_base_url("QUANTIC_AURA_URL", DEFAULT_AURA_URL);
+    let base = aura_base_url();
     let full_prompt = format!(
         "DEMANDE UTILISATEUR:\n{}\n\nCONTEXTE PAGE GEKKO (lecture seule):\n{}",
         prompt.trim(),
@@ -152,7 +165,7 @@ fn request_aura(prompt: &str, page_context: &str) -> Result<AuraReply, String> {
 }
 
 fn request_ollama(prompt: &str, page_context: &str) -> Result<AuraReply, String> {
-    let base = loopback_base_url("QUANTIC_OLLAMA_URL", DEFAULT_OLLAMA_URL);
+    let base = ollama_base_url();
     let model = std::env::var("QUANTIC_OLLAMA_MODEL")
         .unwrap_or_else(|_| DEFAULT_OLLAMA_MODEL.to_string());
     let full_prompt = format!(
@@ -199,7 +212,7 @@ pub fn generate(prompt: &str, page_context: &str) -> AuraReply {
         Ok(reply) => reply,
         Err(aura_error) => match request_ollama(prompt, page_context) {
             Ok(mut reply) => {
-                reply.error = Some(format!("AURA locale indisponible: {aura_error}"));
+                reply.error = Some(format!("AURA indisponible: {aura_error}"));
                 reply
             }
             Err(ollama_error) => AuraReply {
@@ -234,5 +247,37 @@ mod tests {
         let (reply, actions) = parse_answer("Réponse simple");
         assert_eq!(reply, "Réponse simple");
         assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn aura_accepts_explicit_remote_https_origin() {
+        assert_eq!(
+            configured_base_url(
+                "https://aura.example.org/private/path",
+                DEFAULT_AURA_URL,
+                true
+            ),
+            "https://aura.example.org"
+        );
+    }
+
+    #[test]
+    fn aura_rejects_remote_plain_http() {
+        assert_eq!(
+            configured_base_url("http://aura.example.org", DEFAULT_AURA_URL, true),
+            DEFAULT_AURA_URL
+        );
+    }
+
+    #[test]
+    fn ollama_stays_loopback_only() {
+        assert_eq!(
+            configured_base_url("https://ollama.example.org", DEFAULT_OLLAMA_URL, false),
+            DEFAULT_OLLAMA_URL
+        );
+        assert_eq!(
+            configured_base_url("http://127.0.0.1:11434", DEFAULT_OLLAMA_URL, false),
+            "http://127.0.0.1:11434"
+        );
     }
 }
