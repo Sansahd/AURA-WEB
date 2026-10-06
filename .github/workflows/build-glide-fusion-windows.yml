@@ -71,6 +71,15 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item "fusion\servo-runtime\target\release\quantic-gekko-servo-runtime.exe" "dist\QuanticGekko.exe"
 
+          New-Item -ItemType Directory -Force dist\portable | Out-Null
+          Copy-Item "dist\QuanticGekko.exe" "dist\portable\QuanticGekko.exe"
+          New-Item -ItemType File -Force "dist\portable\portable.flag" | Out-Null
+          @'
+Gekko Portable
+Les données, favoris, sessions et téléchargements restent dans le dossier GekkoData à côté de l'exécutable.
+          '@ | Set-Content -Encoding UTF8 "dist\portable\LISEZ-MOI.txt"
+          Compress-Archive -Path "dist\portable\*" -DestinationPath "Quantic-Gekko-Portable.zip" -Force
+
           @'
           Unicode True
           !include "MUI2.nsh"
@@ -118,10 +127,13 @@ jobs:
         run: |
           Get-FileHash dist\QuanticGekko.exe -Algorithm SHA256 | Format-List
           Get-FileHash Quantic-Gekko-Setup.exe -Algorithm SHA256 | Format-List
+          Get-FileHash Quantic-Gekko-Portable.zip -Algorithm SHA256 | Format-List
 
       - uses: actions/upload-artifact@v4
         with:
           name: Quantic-Gekko-Windows
-          path: Quantic-Gekko-Setup.exe
+          path: |
+            Quantic-Gekko-Setup.exe
+            Quantic-Gekko-Portable.zip
           if-no-files-found: error
           retention-days: 30
