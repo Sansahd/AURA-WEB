@@ -1,7 +1,11 @@
+mod downloads;
+mod privacy;
+
 use std::cell::{Cell, RefCell};
 use std::error::Error;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
+use std::thread;
 use std::fs;
 use std::path::PathBuf;
 
@@ -16,7 +20,7 @@ use servo::{
     KeyboardEvent, LoadStatus, Location, Modifiers as ServoModifiers,
     MouseButton as ServoMouseButton, MouseButtonAction, MouseButtonEvent, MouseLeftViewportEvent,
     MouseMoveEvent, NamedKey as ServoNamedKey, NavigationRequest, OffscreenRenderingContext,
-    PermissionRequest, RenderingContext, Servo, ServoBuilder, WebResourceLoad, WebResourceResponse,
+    PermissionRequest, RenderingContext, Servo, ServoBuilder, StorageType, WebResourceLoad, WebResourceResponse,
     CreateNewWebViewRequest, WebView, WebViewBuilder, WheelDelta, WheelEvent, WheelMode, WindowRenderingContext,
 };
 use embedder_traits::EventLoopWaker;
@@ -26,6 +30,9 @@ use winit::event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key as WinitKey, ModifiersState, NamedKey as WinitNamedKey};
 use winit::window::{Fullscreen, Window};
+
+use downloads::{DownloadOutcome, is_probable_download_url};
+use privacy::{PrivacyStats, classify_resource};
 
 const START_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com";
 const QUANTIC_PORTAL: &str = START_URL;
@@ -74,35 +81,6 @@ fn save_browser_data(data: &BrowserData) {
 }
 
 
-const TRACKER_HOSTS: &[&str] = &[
-    "doubleclick.net",
-    "google-analytics.com",
-    "googletagmanager.com",
-    "adservice.google.com",
-    "connect.facebook.net",
-    "facebook.net",
-    "hotjar.com",
-    "clarity.ms",
-    "segment.com",
-    "segment.io",
-    "scorecardresearch.com",
-    "quantserve.com",
-];
-
-fn host_matches(host: &str, domain: &str) -> bool {
-    host == domain ||
-        host
-            .strip_suffix(domain)
-            .is_some_and(|prefix| prefix.ends_with('.'))
-}
-
-fn is_known_tracker(url: &Url) -> bool {
-    let Some(host) = url.host_str().map(str::to_ascii_lowercase) else {
-        return false;
-    };
-    TRACKER_HOSTS.iter().any(|domain| host_matches(&host, domain))
-}
-
 fn navigation_scheme_allowed(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https" | "about" | "data" | "blob")
 }
@@ -111,7 +89,10 @@ fn navigation_scheme_allowed(url: &Url) -> bool {
 struct Waker(EventLoopProxy<WakeEvent>);
 
 #[derive(Debug)]
-struct WakeEvent;
+enum WakeEvent {
+    Servo,
+    DownloadFinished(DownloadOutcome),
+}
 
 impl EventLoopWaker for Waker {
     fn clone_box(&self) -> Box<dyn EventLoopWaker> {
@@ -119,7 +100,7 @@ impl EventLoopWaker for Waker {
     }
 
     fn wake(&self) {
-        let _ = self.0.send_event(WakeEvent);
+        let _ = self.0.send_event(WakeEvent::Servo);
     }
 }
 
@@ -147,7 +128,10 @@ struct FusionState {
     cursor_point: Cell<(f32, f32)>,
     modifiers_state: Cell<ModifiersState>,
     blocked_resources: Cell<u64>,
+    privacy_stats: RefCell<PrivacyStats>,
     permissions_denied: Cell<u64>,
+    downloads_completed: Cell<u64>,
+    event_proxy: EventLoopProxy<WakeEvent>,
     quick_panel_open: Cell<bool>,
     browser_data: RefCell<BrowserData>,
     home_open: Cell<bool>,
@@ -290,7 +274,7 @@ impl servo::WebViewDelegate for FusionDelegate {
         });
     }
 
-        fn request_permission(&self, _webview: WebView, request: PermissionRequest) {
+    fn request_permission(&self, _webview: WebView, request: PermissionRequest) {
         self.with_state(|state| {
             state.permissions_denied.set(state.permissions_denied.get() + 1);
             *state.status.borrow_mut() = format!("Permission bloquée · {:?}", request.feature());
@@ -300,7 +284,11 @@ impl servo::WebViewDelegate for FusionDelegate {
     }
 
     fn request_navigation(&self, _webview: WebView, request: NavigationRequest) {
-        if navigation_scheme_allowed(&request.url) {
+        let url = request.url.clone();
+        if is_probable_download_url(&url) {
+            self.with_state(|state| state.start_download(url));
+            request.deny();
+        } else if navigation_scheme_allowed(&request.url) {
             request.allow();
         } else {
             self.with_state(|state| {
@@ -313,11 +301,19 @@ impl servo::WebViewDelegate for FusionDelegate {
     }
 
     fn load_web_resource(&self, _webview: WebView, load: WebResourceLoad) {
-        if !load.request.is_for_main_frame && is_known_tracker(&load.request.url) {
+        let reason = classify_resource(
+            &load.request.url,
+            load.request.referrer_url.as_ref(),
+            load.request.is_for_main_frame,
+        );
+
+        if let Some(reason) = reason {
             self.with_state(|state| {
                 state.blocked_resources.set(state.blocked_resources.get() + 1);
+                state.privacy_stats.borrow_mut().record(reason);
                 *state.status.borrow_mut() = format!(
-                    "Traqueur bloqué · {}",
+                    "Bloqué · {} · {}",
+                    reason.label(),
                     load.request.url.host_str().unwrap_or("ressource tierce")
                 );
                 state.window.request_redraw();
@@ -325,13 +321,54 @@ impl servo::WebViewDelegate for FusionDelegate {
 
             let response = WebResourceResponse::new(load.request.url.clone())
                 .status_code(http::StatusCode::NO_CONTENT)
-                .status_message(b"Blocked by Quantic Glide".to_vec());
+                .status_message(b"Blocked by Quantic Privacy Shield V2".to_vec());
             load.intercept(response).finish();
         }
     }
 }
 
 impl FusionState {
+    fn start_download(&self, url: Url) {
+        let proxy = self.event_proxy.clone();
+        let referrer = {
+            let current = self.current_url.borrow();
+            if current.starts_with("http://") || current.starts_with("https://") {
+                Some(current.clone())
+            } else {
+                None
+            }
+        };
+        *self.status.borrow_mut() = format!(
+            "Téléchargement · {}",
+            url.path_segments().and_then(|mut parts| parts.next_back()).unwrap_or("fichier")
+        );
+        self.window.request_redraw();
+
+        thread::spawn(move || {
+            let outcome = downloads::download_to_default(url, None, referrer);
+            let _ = proxy.send_event(WakeEvent::DownloadFinished(outcome));
+        });
+    }
+
+    fn clear_private_state(&self) {
+        self.servo.network_manager().clear_cache();
+        self.servo.site_data_manager().clear_cookies(None);
+
+        let storage = StorageType::Local | StorageType::Session;
+        let sites = self.servo.site_data_manager().site_data(storage);
+        let names: Vec<String> = sites.into_iter().map(|site| site.name()).collect();
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        if !refs.is_empty() {
+            self.servo.site_data_manager().clear_site_data(&refs, storage);
+        }
+
+        let mut data = self.browser_data.borrow_mut();
+        data.history.clear();
+        data.session_tabs.clear();
+        data.active_tab = 0;
+        save_browser_data(&data);
+    }
+
     fn active_webview(&self) -> WebView {
         self.tabs.borrow()[self.active_tab.get()].webview.clone()
     }
@@ -725,9 +762,13 @@ impl FusionState {
                         ui.label(egui::RichText::new("PROTECTION").strong().size(9.0).color(ACCENT));
                         ui.add_space(6.0);
                         ui.label(egui::RichText::new(format!("{} ressources bloquées", self.blocked_resources.get())).size(10.0).color(TEXT));
+                        let stats = *self.privacy_stats.borrow();
+                        ui.label(egui::RichText::new(format!("{} pubs · {} analytics · {} social", stats.advertising, stats.analytics, stats.social)).size(9.0).color(MUTED));
+                        ui.label(egui::RichText::new(format!("{} télémétrie · {} fingerprint · {} HTTP", stats.telemetry, stats.fingerprinting, stats.insecure)).size(9.0).color(MUTED));
                         ui.label(egui::RichText::new(format!("{} permissions refusées", self.permissions_denied.get())).size(10.0).color(TEXT));
+                        ui.label(egui::RichText::new(format!("{} téléchargements terminés", self.downloads_completed.get())).size(10.0).color(TEXT));
                         ui.add_space(8.0);
-                        ui.label(egui::RichText::new("Les données techniques restent discrètes et accessibles ici.").size(9.0).color(MUTED));
+                        ui.label(egui::RichText::new("Privacy Shield V2 · cache, cookies et stockages Web effacés à la fermeture.").size(9.0).color(MUTED));
                     });
             }
 
@@ -1230,7 +1271,10 @@ impl ApplicationHandler<WakeEvent> for App {
             cursor_point: Cell::new((0.0, 0.0)),
             modifiers_state: Cell::new(ModifiersState::empty()),
             blocked_resources: Cell::new(0),
+            privacy_stats: RefCell::new(PrivacyStats::default()),
             permissions_denied: Cell::new(0),
+            downloads_completed: Cell::new(0),
+            event_proxy: waker.0.clone(),
             quick_panel_open: Cell::new(false),
             browser_data: RefCell::new(load_browser_data()),
             home_open: Cell::new(true),
@@ -1267,9 +1311,22 @@ impl ApplicationHandler<WakeEvent> for App {
         *self = Self::Running(state);
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _event: WakeEvent) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: WakeEvent) {
         if let Self::Running(state) = self {
-            state.servo.spin_event_loop();
+            match event {
+                WakeEvent::Servo => state.servo.spin_event_loop(),
+                WakeEvent::DownloadFinished(DownloadOutcome::Completed { path, bytes }) => {
+                    state.downloads_completed.set(state.downloads_completed.get() + 1);
+                    *state.status.borrow_mut() = format!(
+                        "Téléchargé · {} · {:.1} Mo",
+                        path.file_name().and_then(|name| name.to_str()).unwrap_or("fichier"),
+                        bytes as f64 / 1_048_576.0
+                    );
+                }
+                WakeEvent::DownloadFinished(DownloadOutcome::Failed { url, error }) => {
+                    *state.status.borrow_mut() = format!("Téléchargement échoué · {error} · {url}");
+                }
+            }
             state.window.request_redraw();
         }
     }
@@ -1295,7 +1352,7 @@ impl ApplicationHandler<WakeEvent> for App {
 
         match event {
             WindowEvent::CloseRequested => {
-                state.persist_session();
+                state.clear_private_state();
                 event_loop.exit();
             },
             WindowEvent::Resized(size) => {
