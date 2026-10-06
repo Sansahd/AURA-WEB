@@ -626,6 +626,7 @@ impl FusionState {
     }
 
     fn select_tab(&self, index: usize) {
+        self.begin_transition();
         let tabs = self.tabs.borrow();
         if index >= tabs.len() { return; }
         self.active_tab.set(index);
