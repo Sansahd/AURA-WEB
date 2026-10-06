@@ -248,6 +248,18 @@ class YouTubeDirectResolver {
     const player = youtube.session?.player;
     const adaptive = selectAdaptiveFormats(info?.streaming_data?.adaptive_formats || []);
 
+    let progressiveFallback = null;
+    try {
+      const progressiveFormat = info?.chooseFormat?.({
+        type: 'video+audio',
+        quality: 'best',
+        format: 'mp4'
+      });
+      if (progressiveFormat && !isDrmFormat(progressiveFormat)) {
+        progressiveFallback = await decipherFormat(progressiveFormat, player, videoId);
+      }
+    } catch {}
+
     if (adaptive.video.length && adaptive.audio.length) {
       const videoCandidates = (await Promise.all(
         adaptive.video.map((format) => decipherFormat(format, player, videoId).catch(() => null))
@@ -268,6 +280,7 @@ class YouTubeDirectResolver {
           fps: top.fps,
           videoCandidates,
           audioCandidates,
+          progressiveFallback,
           resolvedAt: Date.now()
         };
         this.cache.set(videoId, result);
@@ -275,17 +288,8 @@ class YouTubeDirectResolver {
       }
     }
 
-    const progressive = info?.chooseFormat?.({
-      type: 'video+audio',
-      quality: 'best',
-      format: 'mp4'
-    });
-
-    if (!progressive) throw new Error('Aucun flux direct compatible');
-    if (isDrmFormat(progressive)) throw new Error('Contenu DRM: mode direct désactivé');
-
-    const fallback = await decipherFormat(progressive, player, videoId);
-    if (!fallback) throw new Error('Origine du flux direct refusée');
+    const fallback = progressiveFallback;
+    if (!fallback) throw new Error('Aucun flux direct compatible');
 
     const result = {
       mode: 'progressive',
@@ -313,7 +317,8 @@ function directPlayerSource(stream) {
     url: String(stream?.url || ''),
     mime: String(stream?.mime || ''),
     videoCandidates: Array.isArray(stream?.videoCandidates) ? stream.videoCandidates : [],
-    audioCandidates: Array.isArray(stream?.audioCandidates) ? stream.audioCandidates : []
+    audioCandidates: Array.isArray(stream?.audioCandidates) ? stream.audioCandidates : [],
+    progressiveFallback: stream?.progressiveFallback || null
   }).replace(/</g, '\\u003c');
 
   return String.raw`(() => {
@@ -342,11 +347,20 @@ function directPlayerSource(stream) {
 
     const videoCandidates = (payload.videoCandidates || []).filter((item) => canPlay(item, 'video'));
     const audioCandidates = (payload.audioCandidates || []).filter((item) => canPlay(item, 'audio'));
-    const selectedVideo = videoCandidates[0] || payload.videoCandidates?.[0] || null;
-    const selectedAudio = audioCandidates[0] || payload.audioCandidates?.[0] || null;
-    const adaptive = payload.mode === 'adaptive' && selectedVideo?.url && selectedAudio?.url;
-
-    const primaryUrl = adaptive ? selectedVideo.url : payload.url;
+    const selectedVideo = videoCandidates[0] || null;
+    const selectedAudio = audioCandidates[0] || null;
+    const progressive = payload.progressiveFallback?.url
+      ? payload.progressiveFallback
+      : (payload.url ? {
+          url: payload.url,
+          mime: payload.mime,
+          quality: payload.quality,
+          height: payload.height,
+          fps: payload.fps
+        } : null);
+    let adaptiveActive = Boolean(payload.mode === 'adaptive' && selectedVideo?.url && selectedAudio?.url);
+    const primary = adaptiveActive ? selectedVideo : progressive;
+    const primaryUrl = primary?.url || '';
     if (!primaryUrl) return { ok: false, error: 'stream-unavailable' };
 
     try { nativeVideo?.pause?.(); } catch {}
@@ -375,7 +389,7 @@ function directPlayerSource(stream) {
     video.muted = initialMuted;
     video.playbackRate = initialRate;
 
-    const audio = adaptive ? document.createElement('audio') : null;
+    const audio = adaptiveActive ? document.createElement('audio') : null;
     if (audio) {
       audio.src = selectedAudio.url;
       audio.preload = 'auto';
@@ -385,13 +399,17 @@ function directPlayerSource(stream) {
       audio.style.display = 'none';
     }
 
-    const quality = adaptive
+    let quality = adaptiveActive
       ? String(selectedVideo.quality || (selectedVideo.height ? selectedVideo.height + 'p' : payload.quality || 'HQ'))
-      : String(payload.quality || 'Direct');
-    const fps = adaptive ? Number(selectedVideo.fps || 0) : Number(payload.fps || 0);
+      : String(primary?.quality || payload.quality || 'Direct');
+    let fps = adaptiveActive ? Number(selectedVideo.fps || 0) : Number(primary?.fps || payload.fps || 0);
 
     const badge = document.createElement('div');
-    badge.textContent = 'GEKKO DIRECT · ' + quality + (fps > 30 ? ' · ' + fps + ' FPS' : '');
+    const updateBadge = () => {
+      badge.textContent = 'GEKKO DIRECT · ' + quality + (fps > 30 ? ' · ' + fps + ' FPS' : '') +
+        (adaptiveActive ? ' · A/V' : '');
+    };
+    updateBadge();
     badge.style.cssText = [
       'position:absolute',
       'top:12px',
@@ -453,18 +471,47 @@ function directPlayerSource(stream) {
       try {
         const promise = audio.play();
         promise?.catch?.(() => {
-          audioFailed = true;
-          destroy(true, 10000);
+          if (!downgradeToProgressive()) {
+            audioFailed = true;
+            destroy(true, 10000);
+          }
         });
       } catch {
-        audioFailed = true;
-        destroy(true, 10000);
+        if (!downgradeToProgressive()) {
+          audioFailed = true;
+          destroy(true, 10000);
+        }
       }
     }
 
     function stopAudio() {
       if (!audio) return;
       try { audio.pause(); } catch {}
+    }
+
+    function downgradeToProgressive() {
+      if (!adaptiveActive || !progressive?.url || destroyed) return false;
+      const resumeAt = safeTime(video.currentTime);
+      adaptiveActive = false;
+      audioFailed = true;
+      stopAudio();
+      try { audio?.removeAttribute?.('src'); audio?.load?.(); } catch {}
+      quality = String(progressive.quality || (progressive.height ? progressive.height + 'p' : 'Direct'));
+      fps = Number(progressive.fps || 0);
+      updateBadge();
+      try {
+        video.src = progressive.url;
+        video.load();
+        video.addEventListener('loadedmetadata', () => {
+          if (resumeAt > 0 && Number.isFinite(video.duration) && resumeAt < video.duration - 1) {
+            try { video.currentTime = resumeAt; } catch {}
+          }
+          try { video.play?.().catch?.(() => {}); } catch {}
+        }, { once: true });
+        return true;
+      } catch {
+        return false;
+      }
     }
 
     function destroy(resume = true, cooldownMs = 0) {
@@ -515,13 +562,17 @@ function directPlayerSource(stream) {
     video.addEventListener('ratechange', () => syncAudio(false));
     video.addEventListener('volumechange', () => syncAudio(false));
     video.addEventListener('ended', stopAudio);
-    video.addEventListener('error', () => destroy(true, 10000), { once: true });
+    video.addEventListener('error', () => {
+      if (!downgradeToProgressive()) destroy(true, 10000);
+    });
 
     if (audio) {
       audio.addEventListener('error', () => {
-        audioFailed = true;
-        destroy(true, 10000);
-      }, { once: true });
+        if (!downgradeToProgressive()) {
+          audioFailed = true;
+          destroy(true, 10000);
+        }
+      });
     }
 
     syncTimer = setInterval(() => {
@@ -537,7 +588,7 @@ function directPlayerSource(stream) {
       videoId: payload.videoId,
       snapshot: () => ({
         active: !destroyed,
-        mode: adaptive ? 'adaptive' : 'progressive',
+        mode: adaptiveActive ? 'adaptive' : 'progressive',
         videoId: payload.videoId,
         quality,
         fps,
@@ -549,12 +600,12 @@ function directPlayerSource(stream) {
 
     return {
       ok: true,
-      mode: adaptive ? 'adaptive' : 'progressive',
+      mode: adaptiveActive ? 'adaptive' : 'progressive',
       videoId: payload.videoId,
       quality,
       fps,
-      videoMime: adaptive ? selectedVideo.mime : payload.mime,
-      audioMime: adaptive ? selectedAudio.mime : ''
+      videoMime: adaptiveActive ? selectedVideo.mime : (progressive?.mime || payload.mime),
+      audioMime: adaptiveActive ? selectedAudio.mime : ''
     };
   })()`;
 }
@@ -576,10 +627,13 @@ function streamPayloadIsAllowed(stream) {
   if (stream.mode === 'adaptive') {
     const video = Array.isArray(stream.videoCandidates) ? stream.videoCandidates : [];
     const audio = Array.isArray(stream.audioCandidates) ? stream.audioCandidates : [];
+    const fallbackOk = !stream.progressiveFallback ||
+      isAllowedDirectStreamUrl(stream.progressiveFallback.url);
     return video.length > 0 &&
       audio.length > 0 &&
       video.every((item) => isAllowedDirectStreamUrl(item.url)) &&
-      audio.every((item) => isAllowedDirectStreamUrl(item.url));
+      audio.every((item) => isAllowedDirectStreamUrl(item.url)) &&
+      fallbackOk;
   }
   return isAllowedDirectStreamUrl(stream.url);
 }
