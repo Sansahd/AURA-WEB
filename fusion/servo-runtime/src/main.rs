@@ -1648,7 +1648,7 @@ impl FusionState {
                             self.ladybird_invalid.get()
                         )).size(9.0).color(MUTED));
                         ui.add_space(8.0);
-                        ui.label(egui::RichText::new("Privacy Shield V3 · WebRTC désactivé, empreinte réduite, cache/cookies/stockages effacés à la fermeture.").size(9.0).color(MUTED));
+                        ui.label(egui::RichText::new("Privacy Shield V3 · cookies tiers bloqués au réseau, WebRTC désactivé, empreinte réduite, données privées effacées à la fermeture.").size(9.0).color(MUTED));
                     });
             }
 
