@@ -193,9 +193,11 @@ mod tests {
     }
 
     #[test]
-    fn prefers_server_or_dom_filename() {
-        let url = Url::parse("https://example.com/export?id=42").unwrap();
-        let path = destination_path(&url, Some("report.pdf")).unwrap();
-        assert_eq!(path.file_name().and_then(|name| name.to_str()), Some("report.pdf"));
+    fn parses_server_filename_without_path_escape() {
+        assert_eq!(
+            filename_from_content_disposition("attachment; filename=report.pdf").as_deref(),
+            Some("report.pdf")
+        );
+        assert_eq!(sanitize_filename("../report?.pdf"), "_report_.pdf");
     }
 }
