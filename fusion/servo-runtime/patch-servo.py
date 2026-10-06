@@ -120,7 +120,28 @@ replace_once(
     http_loader,
     """fn set_default_accept_encoding(headers: &mut HeaderMap) {
 """,
-    r'''fn suggested_download_filename(headers: &HeaderMap) -> Option<String> {
+    r'''const QUANTIC_DOWNLOAD_HEADER: &str = "x-quantic-download";
+
+fn decode_download_filename(value: &str) -> Option<String> {
+    if value.is_empty() || value == "1" {
+        return None;
+    }
+    content_security_policy::percent_encoding::percent_decode_str(value)
+        .decode_utf8()
+        .ok()
+        .map(|value| value.into_owned())
+        .filter(|value| !value.trim().is_empty())
+}
+
+fn forced_download_filename(request: &Request) -> Option<String> {
+    request
+        .headers
+        .get(QUANTIC_DOWNLOAD_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(decode_download_filename)
+}
+
+fn suggested_download_filename(headers: &HeaderMap) -> Option<String> {
     let value = headers
         .get(header::CONTENT_DISPOSITION)?
         .to_str()
@@ -147,6 +168,10 @@ replace_once(
 fn is_native_download_response(request: &Request, headers: &HeaderMap) -> bool {
     if request.mode != RequestMode::Navigate || request.target_webview_id.is_none() {
         return false;
+    }
+
+    if request.headers.contains_key(QUANTIC_DOWNLOAD_HEADER) {
+        return true;
     }
 
     let attachment = headers
@@ -194,6 +219,30 @@ fn set_default_accept_encoding(headers: &mut HeaderMap) {
 )
 replace_once(
     http_loader,
+    """    let mut headers = request_headers.clone();
+
+    let devtools_bytes = StdArc::new(Mutex::new(vec![]));
+""",
+    """    let mut headers = request_headers.clone();
+    // Quantic's internal marker must survive Servo redirect/request cloning, but it
+    // must never be exposed to the remote server.
+    headers.remove(QUANTIC_DOWNLOAD_HEADER);
+
+    let devtools_bytes = StdArc::new(Mutex::new(vec![]));
+"""
+)
+replace_once(
+    http_loader,
+    """        let suggested_filename = suggested_download_filename(&response.headers);
+        let (path_sender, path_receiver) = tokio::sync::oneshot::channel();
+""",
+    """        let suggested_filename = forced_download_filename(request)
+            .or_else(|| suggested_download_filename(&response.headers));
+        let (path_sender, path_receiver) = tokio::sync::oneshot::channel();
+"""
+)
+replace_once(
+    http_loader,
     """    response.headers = response_stream.headers().clone();
     response.referrer = request.referrer.to_url().cloned();
     response.referrer_policy = request.referrer_policy;
@@ -208,7 +257,8 @@ replace_once(
         let webview_id = request
             .target_webview_id
             .expect("native download response must belong to a WebView");
-        let suggested_filename = suggested_download_filename(&response.headers);
+        let suggested_filename = forced_download_filename(request)
+            .or_else(|| suggested_download_filename(&response.headers));
         let (path_sender, path_receiver) = tokio::sync::oneshot::channel();
 
         context.state.embedder_proxy.send(NetToEmbedderMsg::RequestDownloadPath(
@@ -260,13 +310,22 @@ replace_once(
                                     Ok(())
                                 })();
 
-                                let error = result.err().map(|error| error.to_string());
-                                finish_proxy.send(NetToEmbedderMsg::DownloadFinished(
-                                    webview_id,
-                                    final_for_finish,
-                                    total,
-                                    error,
-                                ));
+                                if let Err(error) = result {
+                                    let _ = fs::remove_file(&temp_for_finish);
+                                    finish_proxy.send(NetToEmbedderMsg::DownloadFinished(
+                                        webview_id,
+                                        final_for_finish,
+                                        total,
+                                        Some(error.to_string()),
+                                    ));
+                                } else {
+                                    finish_proxy.send(NetToEmbedderMsg::DownloadFinished(
+                                        webview_id,
+                                        final_for_finish,
+                                        total,
+                                        None,
+                                    ));
+                                }
                                 future::ready(Ok(()))
                             })
                             .map_err(move |error| {
