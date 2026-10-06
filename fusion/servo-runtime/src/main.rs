@@ -429,7 +429,7 @@ impl FusionState {
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| "1".into());
 
-        if let Ok(value) = HeaderValue::from_str(&marker) {
+        if let Ok(value) = marker.parse::<HeaderValue>() {
             headers.insert("x-quantic-download", value);
         } else {
             headers.insert("x-quantic-download", HeaderValue::from_static("1"));
@@ -437,7 +437,7 @@ impl FusionState {
 
         let current = self.current_url.borrow().clone();
         if current.starts_with("http://") || current.starts_with("https://") {
-            if let Ok(value) = HeaderValue::from_str(&current) {
+            if let Ok(value) = current.parse::<HeaderValue>() {
                 headers.insert(http::header::REFERER, value);
             }
         }
