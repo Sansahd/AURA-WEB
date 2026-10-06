@@ -1,5 +1,7 @@
 use url::Url;
 
+use crate::youtube::is_youtube_ad_resource;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BlockReason {
     Advertising,
@@ -193,6 +195,13 @@ pub fn classify_resource(
     }
 
     let host = url.host_str()?.to_ascii_lowercase();
+
+    // YouTube needs a dedicated path because ads can come from the same
+    // first-party family/CDN as legitimate playback. Only high-confidence ad
+    // requests are rejected here; the player JSON/DOM layers handle the rest.
+    if is_youtube_ad_resource(url, referrer) {
+        return Some(BlockReason::Advertising);
+    }
 
     if host_in(&host, FINGERPRINT_HOSTS) {
         return Some(BlockReason::Fingerprinting);
