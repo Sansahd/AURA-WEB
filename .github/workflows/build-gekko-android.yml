@@ -1,0 +1,114 @@
+name: Build Quantic Gekko Android
+
+on:
+  push:
+    branches: ["quantic-fusion-servo-gecko-ladybird"]
+    paths:
+      - "fusion/android/**"
+      - "fusion/servo-runtime/patch-servo.py"
+      - "quantic-engine/vendor/ladybird_html/**"
+      - "vendor/servo"
+      - ".gitmodules"
+      - ".github/workflows/build-gekko-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gekko-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+  SHELL: /bin/bash
+
+jobs:
+  android-arm64:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+
+    steps:
+      - name: Free build disk
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: false
+          swap-storage: false
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Apply Gekko Servo engine patch
+        run: python fusion/servo-runtime/patch-servo.py
+
+      - name: Apply Gekko Android shell patch
+        run: python fusion/android/patch-gekko-android.py
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "20.1"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Bootstrap Servo dependencies
+        working-directory: vendor/servo
+        run: |
+          sudo apt-get update
+          ./mach bootstrap --yes --skip-lints --skip-nextest
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools platforms;android-34"
+
+      - name: Install Android NDK r29
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r29
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prime Gradle
+        working-directory: vendor/servo/support/android/apk
+        run: |
+          for i in {1..4}; do
+            ./gradlew --version && break
+            sleep $((3 ** i))
+          done
+
+      - name: Build native Gekko APK
+        working-directory: vendor/servo
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          ./mach build --locked --target aarch64-linux-android --profile release
+          test -f target/aarch64-linux-android/release/servoapp.apk
+          cp target/aarch64-linux-android/release/servoapp.apk "$GITHUB_WORKSPACE/Quantic-Gekko-Android-arm64.apk"
+
+      - name: Verify APK identity and payload
+        run: |
+          test -s Quantic-Gekko-Android-arm64.apk
+          unzip -l Quantic-Gekko-Android-arm64.apk | grep -q "lib/arm64-v8a/libservoshell.so"
+          sha256sum Quantic-Gekko-Android-arm64.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quantic-Gekko-Android-arm64
+          path: Quantic-Gekko-Android-arm64.apk
+          if-no-files-found: error
+          retention-days: 30
