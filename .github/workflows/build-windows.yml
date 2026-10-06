@@ -26,6 +26,50 @@ jobs:
         run: npm run check
       - name: Build
         run: npm run dist
+      - name: Smoke install
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path "dist/GEKKO-Setup.exe").Path
+          $process = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "GEKKO installer exited with code $($process.ExitCode)"
+          }
+
+          $programs = Join-Path $env:LOCALAPPDATA "Programs"
+          $exe = Get-ChildItem -Path $programs -Filter "GEKKO Browser.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) {
+            throw "GEKKO Browser.exe was not installed under $programs"
+          }
+
+          $uninstaller = Get-ChildItem -Path $exe.Directory.FullName -Filter "Uninstall*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $uninstaller) {
+            throw "GEKKO uninstaller executable was not created"
+          }
+
+          $uninstallRoots = @(
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+          )
+          $uninstallCandidates = @(
+            foreach ($root in $uninstallRoots) {
+              if (Test-Path $root) {
+                Get-ChildItem $root -ErrorAction SilentlyContinue |
+                  Get-ItemProperty |
+                  Where-Object { $_.DisplayName -like "GEKKO Browser*" }
+              }
+            }
+          )
+          $uninstall = $uninstallCandidates | Select-Object -First 1
+
+          Write-Host "Installed:" $exe.FullName
+          Write-Host "Uninstaller:" $uninstaller.FullName
+          if ($uninstall) {
+            Write-Host "Uninstall key:" $uninstall.PSPath
+            Write-Host "Display name:" $uninstall.DisplayName
+          } else {
+            Write-Warning "No GEKKO uninstall registry entry found; executable uninstall still exists."
+          }
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
