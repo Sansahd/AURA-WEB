@@ -364,7 +364,7 @@ function directPlayerSource(stream) {
     let selectedVideo = videoCandidates[0] || null;
     let selectedAudio = audioCandidates[0] || null;
     let adaptive = payload.mode === 'adaptive' && Boolean(selectedVideo?.url && selectedAudio?.url);
-    let fallbackUsed = false;
+    let fallbackUsed = !adaptive && Boolean(payload.fallback?.url) && !payload.url;
     let destroyed = false;
     let syncTimer = null;
 
@@ -710,7 +710,7 @@ function directPlayerSource(stream) {
       quality: state.quality,
       height: state.height,
       fps: state.fps,
-      videoMime: adaptive ? selectedVideo?.mime || '' : payload.mime,
+      videoMime: adaptive ? selectedVideo?.mime || '' : (fallbackUsed ? payload.fallback?.mime || '' : payload.mime),
       audioMime: adaptive ? selectedAudio?.mime || '' : ''
     };
   })()`;
