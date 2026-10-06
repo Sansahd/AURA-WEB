@@ -306,6 +306,38 @@ struct SideSurface {
     context: Rc<OffscreenRenderingContext>,
 }
 
+#[derive(Clone, Debug)]
+enum DownloadStatus {
+    Running,
+    Completed,
+    Cancelled,
+    Failed(String),
+}
+
+#[derive(Clone, Debug)]
+struct DownloadEntry {
+    path: PathBuf,
+    bytes: u64,
+    total: Option<u64>,
+    status: DownloadStatus,
+}
+
+impl DownloadEntry {
+    fn progress(&self) -> Option<f32> {
+        self.total
+            .filter(|total| *total > 0)
+            .map(|total| (self.bytes as f64 / total as f64).clamp(0.0, 1.0) as f32)
+    }
+
+    fn name(&self) -> String {
+        self.path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("fichier")
+            .to_string()
+    }
+}
+
 struct FusionState {
     window: Window,
     servo: Servo,
@@ -353,6 +385,8 @@ struct FusionState {
     side_surface: RefCell<Option<SideSurface>>,
     side_rect: RefCell<Option<egui::Rect>>,
     side_focus: Cell<bool>,
+    downloads: RefCell<Vec<DownloadEntry>>,
+    downloads_panel_open: Cell<bool>,
 }
 
 struct FusionDelegate {
@@ -555,12 +589,50 @@ impl servo::WebViewDelegate for FusionDelegate {
     ) -> Option<PathBuf> {
         let state = self.state.borrow().upgrade()?;
         let path = downloads::destination_path(&url, suggested_filename.as_deref())?;
+        downloads::clear_cancel_marker(&path);
+        {
+            let mut entries = state.downloads.borrow_mut();
+            entries.retain(|entry| entry.path != path);
+            entries.insert(0, DownloadEntry {
+                path: path.clone(),
+                bytes: 0,
+                total: None,
+                status: DownloadStatus::Running,
+            });
+            entries.truncate(40);
+        }
+        state.downloads_panel_open.set(true);
         *state.status.borrow_mut() = format!(
             "Téléchargement natif · {}",
             path.file_name().and_then(|name| name.to_str()).unwrap_or("fichier")
         );
         state.window.request_redraw();
         Some(path)
+    }
+
+    fn notify_download_progress(
+        &self,
+        _webview: WebView,
+        path: PathBuf,
+        bytes: u64,
+        total: Option<u64>,
+    ) {
+        self.with_state(|state| {
+            let mut entries = state.downloads.borrow_mut();
+            if let Some(entry) = entries.iter_mut().find(|entry| entry.path == path) {
+                entry.bytes = bytes;
+                entry.total = total.or(entry.total);
+                entry.status = DownloadStatus::Running;
+            } else {
+                entries.insert(0, DownloadEntry {
+                    path,
+                    bytes,
+                    total,
+                    status: DownloadStatus::Running,
+                });
+            }
+            state.window.request_redraw();
+        });
     }
 
     fn notify_download_finished(
@@ -571,6 +643,18 @@ impl servo::WebViewDelegate for FusionDelegate {
         error: Option<String>,
     ) {
         self.with_state(|state| {
+            {
+                let mut entries = state.downloads.borrow_mut();
+                if let Some(entry) = entries.iter_mut().find(|entry| entry.path == path) {
+                    entry.bytes = bytes;
+                    entry.status = match error.as_deref() {
+                        None => DownloadStatus::Completed,
+                        Some(message) if message.contains("cancelled") => DownloadStatus::Cancelled,
+                        Some(message) => DownloadStatus::Failed(message.to_string()),
+                    };
+                }
+            }
+            downloads::clear_cancel_marker(&path);
             match error {
                 None => {
                     state.downloads_completed.set(state.downloads_completed.get() + 1);
@@ -579,6 +663,9 @@ impl servo::WebViewDelegate for FusionDelegate {
                         path.file_name().and_then(|name| name.to_str()).unwrap_or("fichier"),
                         bytes as f64 / 1_048_576.0
                     );
+                },
+                Some(error) if error.contains("cancelled") => {
+                    *state.status.borrow_mut() = "Téléchargement annulé".into();
                 },
                 Some(error) => {
                     *state.status.borrow_mut() =
@@ -1135,6 +1222,68 @@ impl FusionState {
                     });
                 });
 
+            if self.downloads_panel_open.get() {
+                let entries = self.downloads.borrow().clone();
+                let mut open = true;
+                egui::Window::new("Téléchargements")
+                    .open(&mut open)
+                    .default_width(430.0)
+                    .resizable(true)
+                    .show(ctx, |ui| {
+                        if entries.is_empty() {
+                            ui.label(egui::RichText::new("Aucun téléchargement dans cette session.").size(10.0).color(MUTED));
+                            return;
+                        }
+
+                        for entry in entries.iter().take(20) {
+                            ui.group(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label(egui::RichText::new(entry.name()).strong().size(10.0).color(TEXT));
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        if ui.small_button("Dossier").clicked() {
+                                            let _ = downloads::reveal_in_folder(&entry.path);
+                                        }
+                                        if matches!(entry.status, DownloadStatus::Running)
+                                            && ui.small_button("Annuler").clicked()
+                                        {
+                                            let _ = downloads::request_cancel(&entry.path);
+                                        }
+                                    });
+                                });
+
+                                match &entry.status {
+                                    DownloadStatus::Running => {
+                                        if let Some(progress) = entry.progress() {
+                                            ui.add(egui::ProgressBar::new(progress).show_percentage());
+                                        } else {
+                                            ui.label(egui::RichText::new(format!(
+                                                "{:.1} Mo reçus",
+                                                entry.bytes as f64 / 1_048_576.0
+                                            )).size(9.0).color(MUTED));
+                                        }
+                                    }
+                                    DownloadStatus::Completed => {
+                                        ui.label(egui::RichText::new(format!(
+                                            "Terminé · {:.1} Mo",
+                                            entry.bytes as f64 / 1_048_576.0
+                                        )).size(9.0).color(ACCENT));
+                                    }
+                                    DownloadStatus::Cancelled => {
+                                        ui.label(egui::RichText::new("Annulé").size(9.0).color(MUTED));
+                                    }
+                                    DownloadStatus::Failed(error) => {
+                                        ui.label(egui::RichText::new(format!("Échec · {error}")).size(9.0).color(egui::Color32::from_rgb(214, 151, 112)));
+                                    }
+                                }
+                            });
+                            ui.add_space(5.0);
+                        }
+                    });
+                if !open {
+                    self.downloads_panel_open.set(false);
+                }
+            }
+
             if self.pending_permission.borrow().is_some() {
                 let label = self.pending_permission_label.borrow().clone();
                 egui::Window::new("Permission Gekko")
@@ -1391,6 +1540,15 @@ impl FusionState {
                                 *self.transition_started.borrow_mut() = None;
                                 *self.outgoing_snapshot.borrow_mut() = None;
                             }
+                        }
+
+                        if ui.add_sized(
+                            [ui.available_width(), 36.0],
+                            egui::Button::new(egui::RichText::new("↓  Téléchargements").size(10.0).color(TEXT))
+                                .fill(PANEL_SOFT)
+                                .corner_radius(16.0)
+                        ).clicked() {
+                            self.downloads_panel_open.set(true);
                         }
 
                         if self.history_open.get() {
@@ -2055,6 +2213,8 @@ impl ApplicationHandler<WakeEvent> for App {
             side_surface: RefCell::new(None),
             side_rect: RefCell::new(None),
             side_focus: Cell::new(false),
+            downloads: RefCell::new(Vec::new()),
+            downloads_panel_open: Cell::new(false),
         });
         delegate.bind(&state);
 
@@ -2343,5 +2503,33 @@ mod cinematic_transition_tests {
         assert!(source.contains("take_screenshot"));
         assert!(source.contains("outgoing_snapshot"));
         assert!(source.contains("painter.image"));
+    }
+}
+
+
+#[cfg(test)]
+mod download_manager_tests {
+    use super::*;
+
+    #[test]
+    fn download_entry_progress_is_bounded() {
+        let entry = DownloadEntry {
+            path: PathBuf::from("x.zip"),
+            bytes: 75,
+            total: Some(100),
+            status: DownloadStatus::Running,
+        };
+        assert_eq!(entry.progress(), Some(0.75));
+    }
+
+    #[test]
+    fn download_entry_handles_unknown_total() {
+        let entry = DownloadEntry {
+            path: PathBuf::from("x.bin"),
+            bytes: 1024,
+            total: None,
+            status: DownloadStatus::Running,
+        };
+        assert_eq!(entry.progress(), None);
     }
 }
