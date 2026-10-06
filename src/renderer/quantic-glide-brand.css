@@ -286,3 +286,35 @@ body{
   .dock-brand{min-width:42px}
   .address{min-width:120px}
 }
+
+
+/* Quantic app launcher */
+.apps-panel{
+  position:absolute;z-index:40;left:50%;bottom:74px;transform:translateX(-50%);
+  width:min(700px,calc(100vw - 36px));padding:16px;border-radius:22px;
+  border:1px solid rgba(111,247,255,.20);
+  background:linear-gradient(160deg,rgba(3,18,27,.97),rgba(5,38,47,.94));
+  box-shadow:0 28px 90px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter:blur(28px) saturate(135%);
+}
+.apps-panel.hidden{display:none}
+.apps-panel-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.apps-panel-head>div{display:flex;flex-direction:column;gap:2px}
+.apps-panel-head small{font-size:8px;letter-spacing:.24em;color:#6df0d3}
+.apps-panel-head strong{font-size:18px;font-weight:520}
+.apps-panel-head button{
+  margin-left:auto;width:32px;height:32px;border:1px solid rgba(255,255,255,.10);
+  border-radius:10px;background:rgba(255,255,255,.035);color:#efffff;font-size:18px
+}
+.apps-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.app-tile{
+  min-height:98px;padding:14px;border:1px solid rgba(255,255,255,.08);border-radius:16px;
+  background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.016));
+  color:#efffff;text-align:left;display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;column-gap:10px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045)
+}
+.app-tile:hover{background:rgba(91,240,198,.07);border-color:rgba(111,247,255,.20)}
+.app-tile>span{grid-row:1/3;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(91,240,198,.08);color:#7af6e4;font-size:18px}
+.app-tile strong{font-size:12px;align-self:end}
+.app-tile small{font-size:9px;color:rgba(218,243,245,.54);align-self:start}
+@media(max-width:650px){.apps-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.apps-panel{bottom:70px;padding:12px}}
