@@ -57,6 +57,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Servo Python tooling
+        run: python -m pip install --upgrade uv
+
       - name: Bootstrap Servo dependencies
         working-directory: vendor/servo
         run: |
