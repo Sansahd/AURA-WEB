@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Gekko</title>
+  <desc id="desc">A warm golden gekko gripping a dark globe.</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="118" cy="128" r="68" fill="#161c18" stroke="#f6b540" stroke-width="9"/>
+    <path d="M55 128h126M118 62v132" stroke="#b99952" stroke-width="4" opacity=".9"/>
+    <ellipse cx="118" cy="128" rx="39" ry="68" stroke="#708471" stroke-width="3" opacity=".85"/>
+    <ellipse cx="118" cy="128" rx="68" ry="31" stroke="#708471" stroke-width="3" opacity=".75"/>
+    <path d="M159 76c24 9 39 28 41 51 2 24-8 47-29 66-8 7-18 13-29 17" stroke="#dfbe54" stroke-width="17"/>
+    <circle cx="158" cy="75" r="13" fill="#f6d363" stroke="none"/>
+    <circle cx="165" cy="72" r="2.8" fill="#0a0a0b" stroke="none"/>
+    <path d="M176 98l-23-18M197 126l24-11M189 161l-21 19M167 191l17 18" stroke="#dfbe54" stroke-width="7"/>
+    <circle cx="151" cy="79" r="5" fill="#f6d363" stroke="none"/>
+    <circle cx="222" cy="115" r="5" fill="#f6d363" stroke="none"/>
+    <circle cx="168" cy="180" r="5" fill="#f6d363" stroke="none"/>
+    <circle cx="184" cy="209" r="5" fill="#f6d363" stroke="none"/>
+  </g>
+</svg>
