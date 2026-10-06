@@ -9,13 +9,13 @@
   <link rel="stylesheet" href="persona-sidestage.css">
   <link rel="stylesheet" href="product-suite.css">
   <link rel="stylesheet" href="quantic-glide-brand.css">
-  <title>Quantic Glide</title>
+  <title>GEKKO</title>
 </head>
 <body>
 <div id="shell">
   <header id="chrome">
     <div class="tabs-row">
-      <button id="logo" class="logo no-drag" title="Accueil Quantic Glide" aria-label="Accueil Quantic Glide"><img src="../assets/quantic-glide-mark.svg" alt="Quantic Glide"></button>
+      <button id="logo" class="logo no-drag" title="Accueil GEKKO" aria-label="Accueil GEKKO"><img src="../assets/quantic-glide-mark.svg" alt="GEKKO"></button>
       <div id="tabs" class="tabs no-drag"></div>
       <button id="plus" class="plus no-drag" title="Nouvel onglet" aria-label="Nouvel onglet">+</button>
       <div class="drag-zone"></div>
@@ -25,28 +25,39 @@
         <button data-win="close" aria-label="Fermer">×</button>
       </div>
     </div>
-    <div class="nav-row no-drag">
-      <button id="back" title="Précédent">‹</button>
-      <button id="forward" title="Suivant">›</button>
-      <button id="reload" title="Actualiser">↻</button>
-      <div class="address glass-line"><span class="dot">●</span><input id="address" autocomplete="off" spellcheck="false" placeholder="Rechercher, ouvrir une URL ou exprimer une intention…"></div>
-      <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">😍</button>
-      <button id="sidestage" title="SideStage · Lecteurs persistants" aria-label="Ouvrir SideStage">SIDE</button>
-      <button id="persona" title="Quantic Persona · Personnalisation locale">◈</button>
-      <button id="ai" title="Quantic AI">✦</button>
-      <button id="menu" title="Menu">⋮</button>
-    </div>
   </header>
+
+  <nav id="bottom-dock" class="bottom-dock no-drag" aria-label="Navigation GEKKO">
+    <div class="nav-row">
+      <button id="back" title="Précédent" aria-label="Précédent">‹</button>
+      <button id="forward" title="Suivant" aria-label="Suivant">›</button>
+      <button id="reload" title="Actualiser" aria-label="Actualiser">↻</button>
+      <button id="home-button" title="Accueil GEKKO" aria-label="Accueil GEKKO">⌂</button>
+      <div class="address glass-line">
+        <img class="address-mark" src="../assets/quantic-glide-mark.svg" alt="">
+        <input id="address" autocomplete="off" spellcheck="false" placeholder="Rechercher ou saisir une adresse…">
+        <span class="address-key">Ctrl L</span>
+      </div>
+      <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
+      <button id="sidestage" title="SideStage · Lecteurs persistants" aria-label="Ouvrir SideStage">SIDE</button>
+      <button id="persona" title="Personnalisation locale" aria-label="Personnalisation">◈</button>
+      <button id="ai" title="AURA" aria-label="AURA">✦</button>
+      <button id="menu" title="Menu" aria-label="Menu">⋮</button>
+    </div>
+  </nav>
+
+  <div id="navigation-transition" class="navigation-transition" aria-hidden="true">
+    <div class="transition-aura"></div>
+    <img src="../assets/quantic-glide-mark.svg" alt="">
+    <strong>GEKKO</strong>
+  </div>
 
   <section id="home" class="home">
     <div class="hero glass">
-      <img src="../assets/quantic-glide-logo.svg" class="hero-logo" alt="Quantic Glide — Movement Without Limits">
-      <h1>Browse without limits.</h1>
-      <p>Naviguez plus loin. Sans perdre le contrôle.</p>
-      <div class="home-search glass-line">
-        <input id="home-search" autocomplete="off" spellcheck="false" placeholder="Quelle est votre prochaine intention ?">
-        <button id="home-go" aria-label="Rechercher">→</button>
-      </div>
+      <img src="../assets/quantic-glide-logo.svg" class="hero-logo" alt="GEKKO — Browse Freely">
+      <h1>Browse freely.</h1>
+      <p>Le Web, plus léger. Vos données, vos règles.</p>
+      <div class="hero-badge">BROWSE FREELY</div>
     </div>
     <div class="quick-row">
       <button data-q="Rechercher sur le web">Rechercher</button>
@@ -60,7 +71,7 @@
       <button class="quantic-suite-card" data-quantic-suite="shield"><strong>Quantic Shield</strong><span>Protection réseau légère, permissions strictes.</span><span class="suite-status">Actif</span></button>
       <button class="quantic-suite-card" data-quantic-suite="vault"><strong>Quantic Vault</strong><span>Coffre local chiffré, chargé uniquement à la demande.</span><span class="suite-status">Local · bêta</span></button>
       <button class="quantic-suite-card" data-quantic-suite="proof"><strong>Quantic Proof</strong><span>SHA-256 local et preuves de build vérifiables.</span><span class="suite-status">Vérifiable</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="transparency"><strong>Transparency</strong><span>Ce que Glide protège, conserve et expose.</span><span class="suite-status">Lisible</span></button>
+      <button class="quantic-suite-card" data-quantic-suite="transparency"><strong>Transparency</strong><span>Ce que GEKKO protège, conserve et expose.</span><span class="suite-status">Lisible</span></button>
       <button class="quantic-suite-card" data-quantic-suite="mail"><strong>Quantic Mail</strong><span>Messagerie Quantic chiffrée, pensée pour fonctionner hors des géants du mail.</span><span class="suite-status">Réseau Quantic</span></button>
       <button class="quantic-suite-card" data-quantic-suite="analysis"><strong>Providence</strong><span>Analyse séparée du cœur de navigation.</span><span class="suite-status">À la demande</span></button>
     </div>
@@ -82,7 +93,7 @@
   <aside id="sidestage-rail" class="hidden" aria-label="SideStage · Lecteurs persistants"></aside>
 
   <aside id="ai-panel" class="ai-panel glass closed">
-    <div class="ai-head"><img src="../assets/quantic-glide-mark.svg" alt="Quantic Glide"><strong>AURA 2.0</strong><button id="ai-close" aria-label="Fermer">×</button></div>
+    <div class="ai-head"><img src="../assets/quantic-glide-mark.svg" alt="GEKKO"><strong>AURA 2.0</strong><button id="ai-close" aria-label="Fermer">×</button></div>
     <div id="ai-engine" class="ai-engine">AURA 2.0 · local</div>
     <div class="orb"></div>
     <p>Assistant de navigation local-first, relié au MoA et au Mesh AURA.</p>
