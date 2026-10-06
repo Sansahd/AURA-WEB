@@ -3,7 +3,7 @@ name = "quantic-engine"
 version = "0.7.0-fusion.1"
 edition = "2021"
 license = "MPL-2.0"
-description = "Experimental non-Chromium web engine core for Quantic Glide"
+description = "Experimental non-Chromium web engine core for Quantic Gekko"
 
 [lib]
 name = "quantic_engine"
@@ -26,7 +26,7 @@ name = "qcareer"
 path = "src/bin/qcareer.rs"
 
 [[bin]]
-name = "qglide"
+name = "qgekko"
 path = "src/bin/qglide.rs"
 
 [features]
