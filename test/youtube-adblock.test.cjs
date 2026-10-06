@@ -11,6 +11,14 @@ const {
   isYouTubeUrl,
   youtubeGuardSource
 } = require('../src/services/youtube-guard.cjs');
+const {
+  extractYouTubeVideoId,
+  directRequestUrl,
+  parseDirectRequest,
+  isAllowedDirectStreamUrl,
+  isDrmFormat,
+  directPlayerSource
+} = require('../src/services/youtube-direct.cjs');
 
 test('YouTube hosts are detected narrowly', () => {
   assert.equal(isYouTubeHost('www.youtube.com'), true);
@@ -82,4 +90,56 @@ test('player guard scrubs player ad structures and includes a playback fallback'
   assert.match(source, /ytp-ad-skip-button/);
   assert.match(source, /playbackRate = 16/);
   assert.match(source, /video\.currentTime/);
+});
+
+
+test('GEKKO Direct extracts only valid YouTube video ids', () => {
+  assert.equal(extractYouTubeVideoId('https://www.youtube.com/watch?v=dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+  assert.equal(extractYouTubeVideoId('https://youtu.be/dQw4w9WgXcQ?t=4'), 'dQw4w9WgXcQ');
+  assert.equal(extractYouTubeVideoId('https://www.youtube.com/shorts/dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+  assert.equal(extractYouTubeVideoId('https://www.youtube.com/embed/dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+  assert.equal(extractYouTubeVideoId('https://example.com/watch?v=dQw4w9WgXcQ'), '');
+});
+
+test('GEKKO Direct protocol round-trips a video id', () => {
+  const request = directRequestUrl('dQw4w9WgXcQ');
+  assert.equal(request, 'gekko-direct://youtube/dQw4w9WgXcQ');
+  assert.equal(parseDirectRequest(request), 'dQw4w9WgXcQ');
+  assert.equal(parseDirectRequest('https://www.youtube.com/watch?v=dQw4w9WgXcQ'), '');
+  assert.equal(directRequestUrl('bad id'), '');
+});
+
+test('GEKKO Direct only accepts HTTPS googlevideo streams', () => {
+  assert.equal(isAllowedDirectStreamUrl('https://rr1---sn-ab5l6n7z.googlevideo.com/videoplayback?id=abc'), true);
+  assert.equal(isAllowedDirectStreamUrl('http://rr1---sn-ab5l6n7z.googlevideo.com/videoplayback?id=abc'), false);
+  assert.equal(isAllowedDirectStreamUrl('https://googlevideo.com.evil.example/videoplayback?id=abc'), false);
+  assert.equal(isAllowedDirectStreamUrl('https://example.com/video.mp4'), false);
+});
+
+test('GEKKO Direct refuses formats marked as DRM', () => {
+  assert.equal(isDrmFormat({ is_drm: true }), true);
+  assert.equal(isDrmFormat({ drm_families: ['widevine'] }), true);
+  assert.equal(isDrmFormat({ mime_type: 'video/mp4' }), false);
+});
+
+test('GEKKO Direct player is reversible and preserves normal YouTube fallback', () => {
+  const source = directPlayerSource({
+    videoId: 'dQw4w9WgXcQ',
+    url: 'https://rr1---sn-ab5l6n7z.googlevideo.com/videoplayback?id=abc',
+    quality: '720p',
+    mime: 'video/mp4'
+  });
+  assert.match(source, /GEKKO DIRECT/);
+  assert.match(source, /Player YouTube/);
+  assert.match(source, /nativeVideo\.currentTime/);
+  assert.match(source, /video\.addEventListener\('error'/);
+  assert.match(source, /destroy\(true\)/);
+});
+
+test('YouTube guard exposes manual Direct mode and automatic persistent-ad fallback', () => {
+  const source = youtubeGuardSource();
+  assert.match(source, /gekko-direct-button/);
+  assert.match(source, /gekko-direct:\/\/youtube\//);
+  assert.match(source, /Date\.now\(\) - state\.adSince >= 1800/);
+  assert.match(source, /directResult/);
 });
