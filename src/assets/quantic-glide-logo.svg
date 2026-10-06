@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 210" role="img" aria-label="Quantic Glide — Movement Without Limits"><defs><linearGradient id="g" x1="20" y1="145" x2="210" y2="48" gradientUnits="userSpaceOnUse"><stop stop-color="#0A1F3D"/><stop offset=".48" stop-color="#00D9FF"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs><g fill="none" stroke="url(#g)" stroke-linecap="round"><path d="M30 118c41-31 77-36 110-20 31 15 57 13 89-15" stroke-width="13"/><path d="M34 143c39-24 75-27 107-13 29 13 54 11 82-9" stroke-width="10" opacity=".88"/><path d="M44 164c34-17 66-20 95-9 26 10 48 9 72-6" stroke-width="7" opacity=".72"/></g><text x="255" y="105" fill="#EAFBFF" font-family="Space Grotesk,Segoe UI,Arial,sans-serif" font-size="54" font-weight="500" letter-spacing="1">Quantic Glide</text><text x="258" y="143" fill="#66E9FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="600" letter-spacing="5">MOVEMENT WITHOUT LIMITS</text><text x="258" y="173" fill="#A7C8D2" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" letter-spacing="4">A SMOOTHER TOMORROW</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 250" role="img" aria-label="GEKKO — Browse Freely">
+<defs>
+  <radialGradient id="ocean" cx="38%" cy="28%" r="78%"><stop stop-color="#22d3ee"/><stop offset=".42" stop-color="#087c9d"/><stop offset="1" stop-color="#031521"/></radialGradient>
+  <linearGradient id="skin" x1="25" y1="20" x2="195" y2="220"><stop stop-color="#b8ffb2"/><stop offset=".24" stop-color="#48efb8"/><stop offset=".62" stop-color="#14b8a6"/><stop offset="1" stop-color="#0797b7"/></linearGradient>
+</defs>
+<g transform="translate(16 5)">
+  <circle id="earth" cx="120" cy="122" r="76" fill="url(#ocean)" stroke="#71f7ff" stroke-width="3"/>
+  <g fill="#78d68d" class="continent"><path d="M88 68l20-9 20 6 10 13-10 10-15 2-10 13-14-3-9-14z"/><path d="M85 107l18 2 13 13-3 16 9 11-9 16-5 24-14 13-8-22-11-17 6-16-10-13z"/><path d="M139 80l21 4 14 13 17 4 10 14-12 11-15-4-9 9-13-4-8-12-14-6 2-15z"/></g>
+  <g id="gecko" fill="none" stroke="url(#skin)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M45 170C18 132 22 75 58 42c24-22 60-30 89-20 22 7 36 23 34 38-2 15-18 23-39 21-16-2-29-11-40-17" stroke-width="19"/>
+    <path d="M46 170c19 34 59 45 93 29 24-12 35-34 29-50-4-14-18-22-33-18-13 3-22 12-20 23 2 10 13 15 24 10" stroke-width="14"/>
+    <path d="M72 75l-19 28m53-34-18 30m-31 55 29-20m36 53 21-21" stroke-width="11"/>
+    <g class="toe" stroke-width="5"><path d="M52 102l-10-5m11 6l-8 7m42-11l-10-6m11 7l-2 11m-1 23l-11 0m12 0l-5 10m62 22l11-3m-10 4l7 8"/></g>
+  </g>
+  <circle cx="155" cy="47" r="7" fill="#03101a" stroke="#d7fff1" stroke-width="2"/>
+</g>
+<text x="255" y="118" fill="#f4feff" font-family="Segoe UI,Arial,sans-serif" font-size="72" font-weight="300" letter-spacing="13">GEKKO</text>
+<text x="262" y="164" fill="#75f5e2" font-family="Segoe UI,Arial,sans-serif" font-size="16" font-weight="600" letter-spacing="8">BROWSE FREELY</text>
+<text x="262" y="196" fill="#91b9c2" font-family="Segoe UI,Arial,sans-serif" font-size="12" letter-spacing="3">PRIVATE · LIGHT · OPEN</text>
+</svg>
