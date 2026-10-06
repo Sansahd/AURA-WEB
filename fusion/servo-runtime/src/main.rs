@@ -177,8 +177,17 @@ impl servo::WebViewDelegate for FusionDelegate {
         self.with_state(|state| state.window.request_redraw());
     }
 
-    fn notify_url_changed(&self, _webview: WebView, url: Url) {
+    fn notify_url_changed(&self, webview: WebView, url: Url) {
         self.with_state(|state| {
+            {
+                let tabs = state.tabs.borrow();
+                if let Some(tab) = tabs.iter().find(|tab| tab.webview == webview) {
+                    *tab.url.borrow_mut() = url.to_string();
+                }
+            }
+            if state.active_webview() != webview {
+                return;
+            }
             *state.current_url.borrow_mut() = url.to_string();
             state.home_open.set(false);
             if matches!(url.scheme(), "http" | "https") {
@@ -196,14 +205,20 @@ impl servo::WebViewDelegate for FusionDelegate {
         });
     }
 
-    fn notify_page_title_changed(&self, _webview: WebView, title: Option<String>) {
+    fn notify_page_title_changed(&self, webview: WebView, title: Option<String>) {
         self.with_state(|state| {
             let title = title
                 .filter(|value| !value.trim().is_empty())
                 .unwrap_or_else(|| "Glide".into());
-            state
-                .window
-                .set_title(&format!("{title} — Quantic Glide Fusion"));
+            {
+                let tabs = state.tabs.borrow();
+                if let Some(tab) = tabs.iter().find(|tab| tab.webview == webview) {
+                    *tab.title.borrow_mut() = title.clone();
+                }
+            }
+            if state.active_webview() == webview {
+                state.window.set_title(&format!("{title} — Quantic Glide Fusion"));
+            }
         });
     }
 
@@ -419,7 +434,44 @@ impl FusionState {
                         ui.label(egui::RichText::new("GLIDE").strong().size(15.0).color(TEXT));
                         ui.label(egui::RichText::new("FUSION").strong().size(10.0).color(ACCENT));
 
-                        ui.add_space(18.0);
+                        ui.add_space(12.0);
+                        let tab_meta: Vec<(usize, String)> = self.tabs.borrow().iter().enumerate()
+                            .map(|(index, tab)| {
+                                let title = tab.title.borrow();
+                                let compact: String = title.chars().take(16).collect();
+                                (index, compact)
+                            })
+                            .collect();
+                        for (index, title) in tab_meta.into_iter().take(5) {
+                            let active = index == self.active_tab.get();
+                            if ui.add(
+                                egui::Button::new(egui::RichText::new(title).size(9.0).color(if active { TEXT } else { MUTED }))
+                                    .fill(if active { PANEL_SOFT } else { BG })
+                                    .stroke(egui::Stroke::new(1.0, if active { ACCENT_SOFT } else { BORDER }))
+                                    .corner_radius(14.0)
+                                    .min_size(egui::vec2(86.0, 28.0))
+                            ).clicked() {
+                                self.active_tab.set(index);
+                                let url = self.tabs.borrow()[index].url.borrow().clone();
+                                *self.current_url.borrow_mut() = url.clone();
+                                *self.dock_input.borrow_mut() = url;
+                                self.home_open.set(false);
+                            }
+                        }
+                        if ui.add(
+                            egui::Button::new(egui::RichText::new("+").strong().size(15.0).color(ACCENT))
+                                .fill(PANEL)
+                                .corner_radius(14.0)
+                                .min_size(egui::vec2(30.0, 28.0))
+                        ).on_hover_text("Nouvel onglet · Ctrl+T").clicked() {
+                            if let Ok(url) = Url::parse("about:blank") {
+                                self.new_tab(url);
+                                self.home_open.set(true);
+                                *self.status.borrow_mut() = "Nouvel onglet".into();
+                            }
+                        }
+
+                        ui.add_space(10.0);
                         egui::Frame::new()
                             .fill(PANEL)
                             .stroke(egui::Stroke::new(1.0, BORDER))
@@ -1151,9 +1203,21 @@ impl ApplicationHandler<WakeEvent> for App {
                 let is_back_shortcut = alt && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::ArrowLeft));
                 let is_forward_shortcut = alt && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::ArrowRight));
                 let is_home_shortcut = alt && matches!(&event.logical_key, WinitKey::Named(WinitNamedKey::Home));
+                let is_new_tab_shortcut = command
+                    && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("t"));
+                let is_close_tab_shortcut = command
+                    && matches!(&event.logical_key, WinitKey::Character(value) if value.eq_ignore_ascii_case("w"));
 
                 if event.state == ElementState::Pressed {
-                    if is_reload_shortcut {
+                    if is_new_tab_shortcut {
+                        if let Ok(url) = Url::parse("about:blank") {
+                            state.new_tab(url);
+                            state.home_open.set(true);
+                            *state.status.borrow_mut() = "Nouvel onglet".into();
+                        }
+                    } else if is_close_tab_shortcut {
+                        state.close_active_tab();
+                    } else if is_reload_shortcut {
                         state.active_webview().reload();
                         state.window.request_redraw();
                     } else if is_back_shortcut {
@@ -1169,7 +1233,7 @@ impl ApplicationHandler<WakeEvent> for App {
                     } else if !is_location_shortcut {
                         state.handle_keyboard_input(event);
                     }
-                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut && !is_home_shortcut {
+                } else if !is_location_shortcut && !is_reload_shortcut && !is_back_shortcut && !is_forward_shortcut && !is_home_shortcut && !is_new_tab_shortcut && !is_close_tab_shortcut {
                     state.handle_keyboard_input(event);
                 }
             }
