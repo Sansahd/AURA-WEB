@@ -53,37 +53,49 @@
   </div>
 
   <section id="home" class="home">
-    <div class="hero glass">
-      <img src="../assets/quantic-glide-logo.svg" class="hero-logo" alt="GEKKO — Browse Freely">
-      <h1>Browse freely.</h1>
-      <p>Le Web, plus léger. Vos données, vos règles.</p>
-      <div class="hero-badge">BROWSE FREELY</div>
-    </div>
-    <div class="quick-row">
-      <button data-q="Rechercher sur le web">Rechercher</button>
-      <button data-q="Comparer des sources">Comparer</button>
-      <button data-q="Planifier un projet">Planifier</button>
-      <button data-q="Apprendre quelque chose">Apprendre</button>
-      <button data-q="Créer quelque chose">Créer</button>
-    </div>
+    <div class="gekko-home-scene" aria-label="Nouvel onglet GEKKO">
+      <div class="gekko-home-sky" aria-hidden="true"></div>
+      <div class="gekko-home-aurora" aria-hidden="true"></div>
+      <div class="gekko-home-mountains back" aria-hidden="true"></div>
+      <div class="gekko-home-mountains front" aria-hidden="true"></div>
+      <div class="gekko-home-reflection" aria-hidden="true"></div>
 
-    <div class="quantic-suite" aria-label="Suite sécurité et transparence Quantic">
-      <button class="quantic-suite-card" data-quantic-suite="shield"><strong>Quantic Shield</strong><span>Protection réseau légère, permissions strictes.</span><span class="suite-status">Actif</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="vault"><strong>Quantic Vault</strong><span>Coffre local chiffré, chargé uniquement à la demande.</span><span class="suite-status">Local · bêta</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="proof"><strong>Quantic Proof</strong><span>SHA-256 local et preuves de build vérifiables.</span><span class="suite-status">Vérifiable</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="transparency"><strong>Transparency</strong><span>Ce que GEKKO protège, conserve et expose.</span><span class="suite-status">Lisible</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="mail"><strong>Quantic Mail</strong><span>Messagerie Quantic chiffrée, pensée pour fonctionner hors des géants du mail.</span><span class="suite-status">Réseau Quantic</span></button>
-      <button class="quantic-suite-card" data-quantic-suite="analysis"><strong>Providence</strong><span>Analyse séparée du cœur de navigation.</span><span class="suite-status">À la demande</span></button>
+      <div class="gekko-home-tools" aria-hidden="true">
+        <span>⌂</span><span>♢</span><span>▦</span><span>♙</span>
+      </div>
+
+      <div class="gekko-home-brand">
+        <img src="../assets/quantic-glide-mark.svg" alt="GEKKO">
+        <strong>GEKKO</strong>
+        <span>BROWSE FREELY</span>
+      </div>
+
+      <div class="gekko-home-cards" aria-label="Actions rapides GEKKO">
+        <button class="gekko-home-card" data-home-action="private-search">
+          <b>▣</b><strong>Private Search</strong><span>No tracking.<br>Just results.</span>
+        </button>
+        <button class="gekko-home-card" data-home-action="secure-tabs">
+          <b>◇</b><strong>Secure Tabs</strong><span>Keep your<br>browsing yours.</span>
+        </button>
+        <button class="gekko-home-card" data-home-action="fast-light">
+          <b>ϟ</b><strong>Fast &amp; Light</strong><span>Built for a<br>smoother web.</span>
+        </button>
+        <button class="gekko-home-card" data-home-action="explore-more">
+          <b>◒</b><strong>Explore More</strong><span>A cleaner,<br>brighter internet.</span>
+        </button>
+      </div>
+
+      <div class="gekko-home-caption">
+        <span>PRIVATE BY DESIGN</span>
+        <span>FAST &amp; LIGHT</span>
+        <span>A CLEANER WEB</span>
+      </div>
     </div>
 
     <div id="quantic-suite-panel" class="quantic-suite-panel hidden" aria-live="polite">
       <div class="quantic-suite-head"><h2 id="quantic-suite-title">Quantic</h2><button id="quantic-suite-close" type="button" aria-label="Fermer">×</button></div>
       <div id="quantic-suite-body" class="quantic-suite-body"></div>
     </div>
-
-    <footer class="quantic-footer">
-      <a id="quantic-minds-link" href="https://xdsawyerlol.github.io/QuanticMinds/">Quantic Sillage — Ideas Travel Further</a>
-    </footer>
   </section>
 
   <section id="internal-page" class="internal-page hidden" aria-live="polite">
