@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 
 use url::Url;
 
+use crate::paths;
+
 fn fallback_filename(url: &Url) -> String {
     url.path_segments()
         .and_then(|segments| segments.filter(|part| !part.is_empty()).next_back())
@@ -30,9 +32,7 @@ fn sanitize_filename(name: &str) -> String {
 }
 
 fn default_download_dir() -> Option<PathBuf> {
-    dirs::download_dir().or_else(|| {
-        dirs::data_local_dir().map(|root| root.join("Quantic").join("Gekko").join("Downloads"))
-    })
+    paths::download_dir()
 }
 
 fn unique_path(dir: &Path, filename: &str) -> PathBuf {
