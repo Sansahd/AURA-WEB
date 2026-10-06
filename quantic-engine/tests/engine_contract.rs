@@ -8,7 +8,7 @@ fn engine_is_not_chromium_shell() {
 
     let engine = Engine::new();
     let output = engine.load_html(
-        "<!doctype html><html><body><h1>Quantic Glide</h1><p>Own engine core.</p></body></html>",
+        "<!doctype html><html><body><h1>Quantic Gekko</h1><p>Own engine core.</p></body></html>",
     );
 
     assert!(output.document.nodes.len() >= 5);
@@ -18,7 +18,7 @@ fn engine_is_not_chromium_shell() {
         .filter(|item| item.kind == DisplayItemKind::Text)
         .map(|item| item.text.as_str())
         .collect::<Vec<_>>();
-    assert_eq!(words, vec!["Quantic", "Glide", "Own", "engine", "core."]);
+    assert_eq!(words, vec!["Quantic", "Gekko", "Own", "engine", "core."]);
 }
 
 #[test]
