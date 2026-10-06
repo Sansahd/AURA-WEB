@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: gekko-windows-${{ github.sha }}
-  cancel-in-progress: false
+  group: gekko-windows-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows:
