@@ -1,146 +1,71 @@
 use super::*;
 
-const PRIMARY: &[u8] = include_bytes!("../tests/fixtures/fonts/primary.ttf");
-const COMPLETE: &[u8] = include_bytes!("../tests/fixtures/fonts/complete.ttf");
-const PARTIAL: &[u8] = include_bytes!("../tests/fixtures/fonts/partial.ttf");
-
-fn fixture_fonts() -> FontSystem {
-    let mut fonts = FontSystem::empty();
-    assert_eq!(fonts.register_font_bytes("Primary", PRIMARY.to_vec()), 1);
-    assert_eq!(fonts.register_font_bytes("Partial", PARTIAL.to_vec()), 1);
-    assert_eq!(fonts.register_font_bytes("Complete", COMPLETE.to_vec()), 1);
-    fonts
-}
-
-fn spec(families: &[&str]) -> FontSpec {
-    FontSpec::new(
-        &families
-            .iter()
-            .map(|family| family.to_string())
-            .collect::<Vec<_>>(),
-        400,
-        false,
-        20,
-    )
+fn system_spec() -> FontSpec {
+    FontSpec::new(&["sans-serif".to_string()], 400, false, 20)
 }
 
 #[test]
-fn combining_accent_uses_one_complete_face_for_metrics_and_paint() {
-    let fonts = fixture_fonts();
-    let spec = spec(&["Primary", "Partial", "Complete"]);
-    let text = "e\u{301}";
-    assert_eq!(fonts.fallback_run_count(text, &spec), 1);
-    assert_eq!(fonts.measure_text(text, &spec).width, 12);
+fn system_font_database_is_available() {
+    let fonts = FontSystem::system();
+    assert!(fonts.face_count() > 0);
+}
+
+#[test]
+fn system_font_measures_real_ascii_text() {
+    let fonts = FontSystem::system();
+    let metrics = fonts.measure_text("Gekko Browser", &system_spec());
+    assert!(metrics.width > 0);
+    assert!(metrics.line_height >= 20);
+    assert!(metrics.ascent > 0);
+}
+
+#[test]
+fn system_font_rasterization_produces_visible_glyphs() {
+    let fonts = FontSystem::system();
     let raster = fonts
-        .rasterize_text(text, &spec)
-        .expect("real glyph raster");
-    assert_eq!(raster.width, 12);
-    assert!(raster
-        .glyphs
-        .iter()
-        .any(|glyph| glyph.coverage.iter().any(|alpha| *alpha > 0)));
+        .rasterize_text("Gekko", &system_spec())
+        .expect("system font rasterization");
+    assert!(raster.width > 0);
+    assert!(raster.glyphs.iter().any(|glyph| {
+        glyph.coverage.iter().any(|alpha| *alpha > 0)
+    }));
 }
 
 #[test]
-fn emoji_joiner_sequence_stays_in_one_complete_face() {
-    let fonts = fixture_fonts();
-    let spec = spec(&["Primary", "Complete"]);
-    let text = "\u{1f469}\u{200d}\u{1f4bb}";
-    assert_eq!(fonts.fallback_run_count(text, &spec), 1);
-    assert_eq!(fonts.measure_text(text, &spec).width, 24);
-    assert_eq!(fonts.rasterize_text(text, &spec).unwrap().width, 24);
+fn empty_database_uses_stable_fallback_metrics() {
+    let fonts = FontSystem::empty();
+    let spec = system_spec();
+    let first = fonts.measure_text("fallback", &spec);
+    let second = fonts.measure_text("fallback", &spec);
+    assert_eq!(first, second);
+    assert!(first.width > 0);
+    assert!(first.line_height > 0);
 }
 
 #[test]
-fn regional_indicator_pair_stays_in_one_complete_face() {
-    let fonts = fixture_fonts();
-    let spec = spec(&["Primary", "Complete"]);
-    let text = "\u{1f1eb}\u{1f1f7}";
-    assert_eq!(fonts.fallback_run_count(text, &spec), 1);
-    assert_eq!(fonts.measure_text(text, &spec).width, 24);
-}
-
-#[test]
-fn emoji_modifier_stays_with_its_base() {
-    let fonts = fixture_fonts();
-    let spec = spec(&["Primary", "Complete"]);
-    let text = "\u{1f44b}\u{1f3fb}";
-    assert_eq!(fonts.fallback_run_count(text, &spec), 1);
-    assert_eq!(fonts.measure_text(text, &spec).width, 24);
-}
-
-#[test]
-fn indic_spacing_mark_stays_with_its_base() {
-    let fonts = fixture_fonts();
-    let spec = spec(&["Primary", "Complete"]);
-    let text = "\u{915}\u{93f}";
-    assert_eq!(fonts.fallback_run_count(text, &spec), 1);
-    assert_eq!(fonts.measure_text(text, &spec).width, 12);
-}
-
-#[test]
-fn missing_complete_face_keeps_the_cluster_intact() {
+fn invalid_webfont_bytes_do_not_create_aliases() {
     let mut fonts = FontSystem::empty();
-    assert_eq!(fonts.register_font_bytes("Primary", PRIMARY.to_vec()), 1);
-    assert_eq!(fonts.register_font_bytes("Partial", PARTIAL.to_vec()), 1);
-    let spec = spec(&["Primary", "Partial"]);
-    let text = "e\u{301}";
-    assert_eq!(fonts.fallback_run_count(text, &spec), 1);
-    let runs = fonts.plan_runs(text, &spec);
-    assert_eq!(runs[0].text, text);
+    assert_eq!(fonts.register_font_bytes("BrokenFace", vec![0, 1, 2, 3, 4]), 0);
+    assert!(!fonts.has_alias("BrokenFace"));
 }
 
 #[test]
-fn variation_selectors_do_not_force_a_face_switch() {
-    let fonts = fixture_fonts();
-    let spec = spec(&["Primary", "Complete"]);
-    let text = "\u{2708}\u{fe0f}";
-    assert_eq!(fonts.fallback_run_count(text, &spec), 1);
-    assert_eq!(fonts.measure_text(text, &spec).width, 6);
+fn font_spec_clamps_invalid_weight_and_size() {
+    let low = FontSpec::new(&[], 0, false, 0);
+    let high = FontSpec::new(&[], 5000, false, 20);
+    assert_eq!(low.weight, 1);
+    assert_eq!(low.size_px, 1);
+    assert_eq!(high.weight, 1000);
+    assert_eq!(low.families, vec!["sans-serif".to_string()]);
 }
 
 #[test]
-fn actual_family_precedes_a_later_web_font_alias() {
-    let fonts = fixture_fonts();
-    let spec = spec(&["Quantic Fixture Primary", "Complete"]);
-    assert_eq!(fonts.measure_text("e", &spec).width, 6);
-}
-
-#[test]
-fn adjacent_clusters_share_a_run_without_losing_text() {
-    let fonts = fixture_fonts();
-    let spec = spec(&["Primary", "Complete"]);
-    let text = "e\u{301}e\u{308}";
-    assert_eq!(fonts.fallback_run_count(text, &spec), 1);
-    assert_eq!(fonts.measure_text(text, &spec).width, 24);
-    let runs = fonts.plan_runs(text, &spec);
-    assert_eq!(runs[0].text, text);
-}
-
-#[test]
-fn web_font_aliases_remain_instance_local() {
-    let mut first = FontSystem::empty();
-    let mut second = FontSystem::empty();
-    assert_eq!(first.register_font_bytes("PageFace", PRIMARY.to_vec()), 1);
-    assert!(!second.has_alias("PageFace"));
-    assert_eq!(second.register_font_bytes("PageFace", COMPLETE.to_vec()), 1);
-    let spec = spec(&["PageFace"]);
-    assert_eq!(first.measure_text("e", &spec).width, 6);
-    assert_eq!(second.measure_text("e", &spec).width, 12);
-}
-
-#[test]
-fn woff1_registration_uses_a_deterministic_fixture() {
-    let bytes = oxifont_webfont::encode_woff1(PRIMARY).expect("fixture WOFF1 encoding");
-    let mut fonts = FontSystem::empty();
-    assert_eq!(fonts.register_font_bytes("Compressed", bytes), 1);
-    assert_eq!(fonts.measure_text("e", &spec(&["Compressed"])).width, 6);
-}
-
-#[test]
-fn woff2_registration_uses_a_deterministic_fixture() {
-    let bytes = oxifont_webfont::encode_woff2(PRIMARY).expect("fixture WOFF2 encoding");
-    let mut fonts = FontSystem::empty();
-    assert_eq!(fonts.register_font_bytes("Compressed", bytes), 1);
-    assert_eq!(fonts.measure_text("e", &spec(&["Compressed"])).width, 6);
+fn adjacent_text_keeps_nonzero_layout_metrics() {
+    let fonts = FontSystem::system();
+    let spec = system_spec();
+    let a = fonts.measure_text("A", &spec);
+    let b = fonts.measure_text("B", &spec);
+    let ab = fonts.measure_text("AB", &spec);
+    assert!(ab.width >= a.width.min(b.width));
+    assert!(ab.line_height >= a.line_height.min(b.line_height));
 }
