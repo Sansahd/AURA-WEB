@@ -2,6 +2,10 @@ use std::cell::{Cell, RefCell};
 use std::error::Error;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
+use std::fs;
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
 
 use egui::{LayerId, PaintCallback};
 use egui_glow::{CallbackFn, EguiGlow};
@@ -37,6 +41,33 @@ const MUTED: egui::Color32 = egui::Color32::from_rgb(158, 153, 145);
 const ACCENT: egui::Color32 = egui::Color32::from_rgb(246, 181, 64);
 const ACCENT_SOFT: egui::Color32 = egui::Color32::from_rgb(105, 72, 25);
 const BORDER: egui::Color32 = egui::Color32::from_rgb(76, 67, 55);
+
+#[derive(Default, Serialize, Deserialize)]
+struct BrowserData {
+    favorites: Vec<String>,
+    history: Vec<String>,
+}
+
+fn browser_data_path() -> Option<PathBuf> {
+    dirs::data_local_dir().map(|root| root.join("Quantic").join("Glide").join("browser-data.json"))
+}
+
+fn load_browser_data() -> BrowserData {
+    browser_data_path()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn save_browser_data(data: &BrowserData) {
+    let Some(path) = browser_data_path() else { return; };
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(raw) = serde_json::to_string_pretty(data) {
+        let _ = fs::write(path, raw);
+    }
+}
 
 
 const TRACKER_HOSTS: &[&str] = &[
@@ -106,6 +137,7 @@ struct FusionState {
     blocked_resources: Cell<u64>,
     permissions_denied: Cell<u64>,
     quick_panel_open: Cell<bool>,
+    browser_data: RefCell<BrowserData>,
 }
 
 struct FusionDelegate {
@@ -138,6 +170,14 @@ impl servo::WebViewDelegate for FusionDelegate {
     fn notify_url_changed(&self, _webview: WebView, url: Url) {
         self.with_state(|state| {
             *state.current_url.borrow_mut() = url.to_string();
+            if matches!(url.scheme(), "http" | "https") {
+                let mut data = state.browser_data.borrow_mut();
+                let value = url.to_string();
+                data.history.retain(|item| item != &value);
+                data.history.insert(0, value);
+                data.history.truncate(100);
+                save_browser_data(&data);
+            }
             if !state.egui.borrow().egui_ctx.memory(|memory| memory.focused().is_some()) {
                 *state.dock_input.borrow_mut() = url.to_string();
             }
@@ -401,6 +441,40 @@ impl FusionState {
                             }
                             ui.add_space(6.0);
                         }
+
+                        ui.add_space(8.0);
+                        if ui.add_sized(
+                            [ui.available_width(), 36.0],
+                            egui::Button::new(egui::RichText::new("★  Ajouter aux favoris").size(10.0).color(ACCENT))
+                                .fill(egui::Color32::from_rgb(35, 30, 23))
+                                .stroke(egui::Stroke::new(1.0, ACCENT_SOFT))
+                                .corner_radius(16.0)
+                        ).clicked() {
+                            let url = self.current_url.borrow().clone();
+                            let mut data = self.browser_data.borrow_mut();
+                            if !data.favorites.contains(&url) {
+                                data.favorites.insert(0, url);
+                                data.favorites.truncate(24);
+                                save_browser_data(&data);
+                                *self.status.borrow_mut() = "Ajouté aux favoris".into();
+                            }
+                        }
+
+                        let data = self.browser_data.borrow();
+                        if !data.favorites.is_empty() {
+                            ui.add_space(10.0);
+                            ui.label(egui::RichText::new("FAVORIS").strong().size(9.0).color(ACCENT));
+                            for favorite in data.favorites.iter().take(4) {
+                                let label = Url::parse(favorite).ok()
+                                    .and_then(|u| u.host_str().map(str::to_string))
+                                    .unwrap_or_else(|| favorite.clone());
+                                if ui.add(egui::Button::new(egui::RichText::new(label).size(9.5).color(TEXT)).frame(false)).clicked() {
+                                    *self.dock_input.borrow_mut() = favorite.clone();
+                                    execute = true;
+                                }
+                            }
+                        }
+                        drop(data);
 
                         ui.add_space(12.0);
                         ui.separator();
@@ -827,6 +901,7 @@ impl ApplicationHandler<WakeEvent> for App {
             blocked_resources: Cell::new(0),
             permissions_denied: Cell::new(0),
             quick_panel_open: Cell::new(false),
+            browser_data: RefCell::new(load_browser_data()),
         });
         delegate.bind(&state);
 
