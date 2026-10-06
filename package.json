@@ -1,6 +1,6 @@
 {
   "name": "gekko-browser-aura-career",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "GEKKO Browser with integrated AURA Career",
   "main": "src/bootstrap.cjs",
   "author": "Quantic",
@@ -8,7 +8,7 @@
   "scripts": {
     "start": "electron .",
     "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/renderer/renderer.js && node --check src/services/youtube-guard.cjs && node --check src/services/youtube-direct.cjs && node --check src/services/career-agent.cjs && npm test",
-    "dist": "electron-builder --win nsis --x64 --publish never",
+    "dist": "electron-builder --win --x64 --publish never",
     "test": "node --test test/*.test.cjs"
   },
   "devDependencies": {
@@ -31,23 +31,33 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "GEKKO Browser",
-      "runAfterFinish": false,
+      "runAfterFinish": true,
       "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "allowElevation": true,
+      "artifactName": "GEKKO-Setup.${ext}"
     },
-    "artifactName": "GEKKO-Setup.${ext}",
     "directories": {
       "buildResources": "build",
       "output": "dist"
+    },
+    "portable": {
+      "artifactName": "GEKKO-Portable.${ext}"
     }
   },
   "dependencies": {
