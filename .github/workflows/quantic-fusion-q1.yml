@@ -155,6 +155,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Install pinned NSS for Neqo
+        uses: mozilla/nss-rs/install-nss@ba8a3f6acffc7e25749054969ccbbb3ca615df7f
+        with:
+          working-directory: fusion/mozilla-network
+
       - name: Compile real Neqo HTTP3 core
         working-directory: fusion/mozilla-network
         run: cargo check
