@@ -21,6 +21,7 @@ const forward = $('#forward');
 const fav = $('#fav');
 const reload = $('#reload');
 const navigationTransition = $('#navigation-transition');
+const appsPanel = $('#apps-panel');
 const sideStageRail = $('#sidestage-rail');
 let lastWallpaperVersion = -1;
 let lastSideStageKey = '';
@@ -479,6 +480,14 @@ $('#home-button').onclick = () => fire(window.quantic.home());
 $('#discover').onclick = () => { address.value = 'Découvrir le web'; address.focus(); address.select(); };
 $('#bookmarks').onclick = () => fire(window.quantic.newTab('quantic://favorites'));
 $('#downloads').onclick = () => fire(window.quantic.navigate('https://mediumorchid-badger-314305.hostingersite.com/downloads/#gekko'));
+$('#apps-button').onclick = () => appsPanel?.classList.toggle('hidden');
+$('#apps-close').onclick = () => appsPanel?.classList.add('hidden');
+document.querySelectorAll('[data-app-url]').forEach((button) => {
+  button.onclick = () => {
+    appsPanel?.classList.add('hidden');
+    fire(window.quantic.newTab(button.dataset.appUrl));
+  };
+});
 $('#plus').onclick = () => fire(window.quantic.newTab());
 $('#plus').oncontextmenu = (event) => { event.preventDefault(); fire(window.quantic.plusMenu()); };
 $('#menu').onclick = () => fire(window.quantic.mainMenu());
@@ -580,3 +589,9 @@ aiPrompt.onkeydown = (event) => {
     $('#ai-send').click();
   }
 };
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && appsPanel && !appsPanel.classList.contains('hidden')) {
+    appsPanel.classList.add('hidden');
+  }
+});
