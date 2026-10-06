@@ -289,6 +289,10 @@ test('GEKKO Direct adaptive selector prefers 4K high-fps video and strong defaul
 test('GEKKO Direct adaptive payload requires all media URLs to remain on googlevideo HTTPS', () => {
   const good = {
     mode: 'adaptive',
+    progressiveFallback: {
+      url: 'https://rr3---sn-c.googlevideo.com/videoplayback?p=1',
+      mime: 'video/mp4'
+    },
     videoCandidates: [
       { url: 'https://rr1---sn-a.googlevideo.com/videoplayback?v=1' },
       { url: 'https://rr2---sn-b.googlevideo.com/videoplayback?v=2' }
@@ -301,6 +305,10 @@ test('GEKKO Direct adaptive payload requires all media URLs to remain on googlev
   assert.equal(streamPayloadIsAllowed({
     ...good,
     audioCandidates: [{ url: 'https://evil.example/audio.webm' }]
+  }), false);
+  assert.equal(streamPayloadIsAllowed({
+    ...good,
+    progressiveFallback: { url: 'https://evil.example/fallback.mp4' }
   }), false);
 });
 
@@ -321,7 +329,14 @@ test('GEKKO Direct V2 synchronizes split audio with video controls and drift cor
     audioCandidates: [{
       url: 'https://rr1---sn-a.googlevideo.com/videoplayback?a=1',
       mime: 'audio/webm; codecs="opus"'
-    }]
+    }],
+    progressiveFallback: {
+      url: 'https://rr2---sn-b.googlevideo.com/videoplayback?p=1',
+      mime: 'video/mp4; codecs="avc1.640028, mp4a.40.2"',
+      quality: '720p',
+      height: 720,
+      fps: 30
+    }
   });
 
   assert.match(source, /__gekkoDirectPlayerV2/);
@@ -336,4 +351,7 @@ test('GEKKO Direct V2 synchronizes split audio with video controls and drift cor
   assert.match(source, /video\.addEventListener\('volumechange'/);
   assert.match(source, /setInterval\(\(\) =>/);
   assert.match(source, /250/);
+  assert.match(source, /downgradeToProgressive/);
+  assert.match(source, /progressiveFallback/);
+  assert.match(source, /video\.src = progressive\.url/);
 });
