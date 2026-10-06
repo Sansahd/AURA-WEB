@@ -97,14 +97,21 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Verify Mozilla Neqo integration contract
+      - name: Verify Mozilla Neqo source provenance
         run: |
           grep -q 'mozilla/neqo' quantic-engine/THIRD_PARTY_FUSION.md
           grep -q 'HTTP/3' quantic-engine/THIRD_PARTY_FUSION.md
-          test -f fusion/mozilla-network/Cargo.toml
-          grep -q 'neqo-http3' fusion/mozilla-network/Cargo.toml
-          grep -q 'neqo-transport' fusion/mozilla-network/Cargo.toml
-          echo "NEQO SOURCE CONTRACT PASSED"
+          test -f fusion/mozilla-network/src/lib.rs
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Compile real Neqo HTTP3 core
+        working-directory: fusion/mozilla-network
+        run: cargo check
+
+      - name: Test real Neqo QUIC packet generation
+        working-directory: fusion/mozilla-network
+        run: cargo test
 
   ladybird-html:
     runs-on: ubuntu-latest
