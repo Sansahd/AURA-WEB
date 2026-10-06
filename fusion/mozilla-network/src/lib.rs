@@ -223,7 +223,7 @@ fn process_events(
                     }
                 }
             }
-            Http3ClientEvent::StateChange(Http3State::Closed { .. }) => {
+            Http3ClientEvent::StateChange(Http3State::Closed(_)) => {
                 if !*done {
                     return Err("Neqo HTTP/3 connection closed before response completed".into());
                 }
