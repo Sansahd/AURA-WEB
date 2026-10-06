@@ -34,6 +34,7 @@ use winit::window::{Fullscreen, Window};
 
 use privacy::{PrivacyStats, classify_resource};
 
+const GEKKO_VERSION: &str = env!("CARGO_PKG_VERSION");
 const START_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com";
 const QUANTIC_PORTAL: &str = START_URL;
 const SEARCH_PREFIX: &str = "https://duckduckgo.com/?q=";
@@ -767,6 +768,7 @@ impl FusionState {
                         paint_gekko_mark(ui, 30.0);
                         ui.add_space(4.0);
                         ui.label(egui::RichText::new("GEKKO").strong().size(15.0).color(TEXT));
+                        ui.label(egui::RichText::new(format!("v{GEKKO_VERSION}")).size(8.5).color(MUTED));
                         ui.label(egui::RichText::new("FUSION").strong().size(10.0).color(ACCENT));
 
                         ui.add_space(12.0);
