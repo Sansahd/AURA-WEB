@@ -104,7 +104,7 @@ fn browser_data_path() -> Option<PathBuf> {
 }
 
 fn legacy_browser_data_path() -> Option<PathBuf> {
-    dirs::data_local_dir().map(|root| root.join("Quantic").join("Gekko").join("browser-data.json"))
+    dirs::data_local_dir().map(|root| root.join("Quantic").join("Glide").join("browser-data.json"))
 }
 
 fn load_browser_data() -> BrowserData {
