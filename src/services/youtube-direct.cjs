@@ -246,19 +246,19 @@ class YouTubeDirectResolver {
     }
 
     const player = youtube.session?.player;
-    const adaptive = selectAdaptiveFormats(info?.streaming_data?.adaptive_formats || []);
-
     let progressiveFallback = null;
     try {
-      const progressiveFormat = info?.chooseFormat?.({
+      const progressive = info?.chooseFormat?.({
         type: 'video+audio',
         quality: 'best',
         format: 'mp4'
       });
-      if (progressiveFormat && !isDrmFormat(progressiveFormat)) {
-        progressiveFallback = await decipherFormat(progressiveFormat, player, videoId);
+      if (progressive && !isDrmFormat(progressive)) {
+        progressiveFallback = await decipherFormat(progressive, player, videoId);
       }
     } catch {}
+
+    const adaptive = selectAdaptiveFormats(info?.streaming_data?.adaptive_formats || []);
 
     if (adaptive.video.length && adaptive.audio.length) {
       const videoCandidates = (await Promise.all(
@@ -280,7 +280,7 @@ class YouTubeDirectResolver {
           fps: top.fps,
           videoCandidates,
           audioCandidates,
-          progressiveFallback,
+          fallback: progressiveFallback,
           resolvedAt: Date.now()
         };
         this.cache.set(videoId, result);
@@ -288,12 +288,14 @@ class YouTubeDirectResolver {
       }
     }
 
-    const fallback = progressiveFallback;
-    if (!fallback) throw new Error('Aucun flux direct compatible');
+    if (!progressiveFallback) {
+      throw new Error('Aucun flux direct compatible');
+    }
 
     const result = {
       mode: 'progressive',
-      ...fallback,
+      ...progressiveFallback,
+      fallback: null,
       resolvedAt: Date.now()
     };
     this.cache.set(videoId, result);
@@ -316,17 +318,26 @@ function directPlayerSource(stream) {
     fps: Number(stream?.fps || 0),
     url: String(stream?.url || ''),
     mime: String(stream?.mime || ''),
+    fallback: stream?.fallback ? {
+      url: String(stream.fallback.url || ''),
+      mime: String(stream.fallback.mime || ''),
+      quality: String(stream.fallback.quality || ''),
+      height: Number(stream.fallback.height || 0),
+      fps: Number(stream.fallback.fps || 0)
+    } : null,
     videoCandidates: Array.isArray(stream?.videoCandidates) ? stream.videoCandidates : [],
-    audioCandidates: Array.isArray(stream?.audioCandidates) ? stream.audioCandidates : [],
-    progressiveFallback: stream?.progressiveFallback || null
+    audioCandidates: Array.isArray(stream?.audioCandidates) ? stream.audioCandidates : []
   }).replace(/</g, '\\u003c');
 
   return String.raw`(() => {
     const payload = ${payload};
     const KEY = '__gekkoDirectPlayerV2';
+    const LEGACY_KEY = '__gekkoDirectPlayerV1';
+    const HARD_DRIFT = 0.22;
+    const SOFT_DRIFT = 0.08;
 
-    try { window.__gekkoDirectPlayerV1?.destroy?.(false); } catch {}
     try { window[KEY]?.destroy?.(false); } catch {}
+    try { window[LEGACY_KEY]?.destroy?.(false); } catch {}
 
     const moviePlayer = document.querySelector('#movie_player');
     if (!moviePlayer) return { ok: false, error: 'player-unavailable' };
@@ -347,20 +358,18 @@ function directPlayerSource(stream) {
 
     const videoCandidates = (payload.videoCandidates || []).filter((item) => canPlay(item, 'video'));
     const audioCandidates = (payload.audioCandidates || []).filter((item) => canPlay(item, 'audio'));
-    const selectedVideo = videoCandidates[0] || null;
-    const selectedAudio = audioCandidates[0] || null;
-    const progressive = payload.progressiveFallback?.url
-      ? payload.progressiveFallback
-      : (payload.url ? {
-          url: payload.url,
-          mime: payload.mime,
-          quality: payload.quality,
-          height: payload.height,
-          fps: payload.fps
-        } : null);
-    let adaptiveActive = Boolean(payload.mode === 'adaptive' && selectedVideo?.url && selectedAudio?.url);
-    const primary = adaptiveActive ? selectedVideo : progressive;
-    const primaryUrl = primary?.url || '';
+
+    let videoIndex = 0;
+    let audioIndex = 0;
+    let selectedVideo = videoCandidates[0] || null;
+    let selectedAudio = audioCandidates[0] || null;
+    let adaptive = payload.mode === 'adaptive' && Boolean(selectedVideo?.url && selectedAudio?.url);
+    let fallbackUsed = false;
+    let destroyed = false;
+    let syncTimer = null;
+
+    const progressiveUrl = payload.url || payload.fallback?.url || '';
+    const primaryUrl = adaptive ? selectedVideo.url : progressiveUrl;
     if (!primaryUrl) return { ok: false, error: 'stream-unavailable' };
 
     try { nativeVideo?.pause?.(); } catch {}
@@ -389,27 +398,15 @@ function directPlayerSource(stream) {
     video.muted = initialMuted;
     video.playbackRate = initialRate;
 
-    const audio = adaptiveActive ? document.createElement('audio') : null;
-    if (audio) {
-      audio.src = selectedAudio.url;
-      audio.preload = 'auto';
-      audio.volume = initialVolume;
-      audio.muted = initialMuted;
-      audio.playbackRate = initialRate;
-      audio.style.display = 'none';
-    }
-
-    let quality = adaptiveActive
-      ? String(selectedVideo.quality || (selectedVideo.height ? selectedVideo.height + 'p' : payload.quality || 'HQ'))
-      : String(primary?.quality || payload.quality || 'Direct');
-    let fps = adaptiveActive ? Number(selectedVideo.fps || 0) : Number(primary?.fps || payload.fps || 0);
+    const audio = document.createElement('audio');
+    audio.preload = 'auto';
+    audio.style.display = 'none';
+    audio.volume = initialVolume;
+    audio.muted = initialMuted;
+    audio.playbackRate = initialRate;
+    if (adaptive) audio.src = selectedAudio.url;
 
     const badge = document.createElement('div');
-    const updateBadge = () => {
-      badge.textContent = 'GEKKO DIRECT · ' + quality + (fps > 30 ? ' · ' + fps + ' FPS' : '') +
-        (adaptiveActive ? ' · A/V' : '');
-    };
-    updateBadge();
     badge.style.cssText = [
       'position:absolute',
       'top:12px',
@@ -444,84 +441,176 @@ function directPlayerSource(stream) {
       'backdrop-filter:blur(12px)'
     ].join(';');
 
-    let syncTimer = null;
-    let destroyed = false;
-    let audioFailed = false;
-
     const safeTime = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 
+    function qualityState() {
+      if (adaptive && selectedVideo) {
+        return {
+          quality: String(selectedVideo.quality || (selectedVideo.height ? selectedVideo.height + 'p' : payload.quality || 'HQ')),
+          height: Number(selectedVideo.height || 0),
+          fps: Number(selectedVideo.fps || 0)
+        };
+      }
+      const fallback = fallbackUsed ? payload.fallback : null;
+      return {
+        quality: String(fallback?.quality || payload.quality || 'Direct'),
+        height: Number(fallback?.height || payload.height || 0),
+        fps: Number(fallback?.fps || payload.fps || 0)
+      };
+    }
+
+    function updateBadge(suffix = '') {
+      const state = qualityState();
+      badge.textContent = 'GEKKO DIRECT · ' + state.quality +
+        (state.fps > 30 ? ' · ' + state.fps + ' FPS' : '') +
+        (adaptive ? ' · A/V SYNC' : '') +
+        (suffix ? ' · ' + suffix : '');
+    }
+
     function syncAudio(force = false) {
-      if (!audio || audioFailed || destroyed) return;
+      if (!adaptive || destroyed || !audio.src) return;
       const target = safeTime(video.currentTime);
       const actual = safeTime(audio.currentTime);
-      const drift = Math.abs(target - actual);
-      if (force || drift > 0.22) {
+      const drift = actual - target;
+      const absDrift = Math.abs(drift);
+
+      try {
+        audio.volume = video.volume;
+        audio.muted = video.muted;
+      } catch {}
+
+      const baseRate = Number(video.playbackRate || 1);
+      if (force || absDrift >= HARD_DRIFT) {
         try { audio.currentTime = target; } catch {}
+        try { audio.playbackRate = baseRate; } catch {}
+        return;
       }
-      if (audio.playbackRate !== video.playbackRate) {
-        try { audio.playbackRate = video.playbackRate; } catch {}
+
+      if (absDrift >= SOFT_DRIFT) {
+        const correction = drift > 0 ? -0.025 : 0.025;
+        try { audio.playbackRate = Math.max(0.25, Math.min(4, baseRate + correction)); } catch {}
+      } else if (Math.abs(Number(audio.playbackRate || 1) - baseRate) > 0.001) {
+        try { audio.playbackRate = baseRate; } catch {}
       }
-      if (audio.volume !== video.volume) audio.volume = video.volume;
-      if (audio.muted !== video.muted) audio.muted = video.muted;
     }
 
     function startAudio() {
-      if (!audio || audioFailed || video.paused || destroyed) return;
+      if (!adaptive || destroyed || video.paused || !audio.src) return;
       syncAudio(true);
-      try {
-        const promise = audio.play();
-        promise?.catch?.(() => {
-          if (!downgradeToProgressive()) {
-            audioFailed = true;
-            destroy(true, 10000);
-          }
-        });
-      } catch {
-        if (!downgradeToProgressive()) {
-          audioFailed = true;
-          destroy(true, 10000);
-        }
-      }
+      try { audio.play?.().catch?.(() => {}); } catch {}
     }
 
     function stopAudio() {
-      if (!audio) return;
       try { audio.pause(); } catch {}
     }
 
-    function downgradeToProgressive() {
-      if (!adaptiveActive || !progressive?.url || destroyed) return false;
-      const resumeAt = safeTime(video.currentTime);
-      adaptiveActive = false;
-      audioFailed = true;
-      stopAudio();
-      try { audio?.removeAttribute?.('src'); audio?.load?.(); } catch {}
-      quality = String(progressive.quality || (progressive.height ? progressive.height + 'p' : 'Direct'));
-      fps = Number(progressive.fps || 0);
-      updateBadge();
+    function loadVideoCandidate(candidate, at, autoplay = true) {
+      if (!candidate?.url) return false;
+      selectedVideo = candidate;
       try {
-        video.src = progressive.url;
+        video.pause();
+        video.src = candidate.url;
         video.load();
-        video.addEventListener('loadedmetadata', () => {
-          if (resumeAt > 0 && Number.isFinite(video.duration) && resumeAt < video.duration - 1) {
-            try { video.currentTime = resumeAt; } catch {}
-          }
-          try { video.play?.().catch?.(() => {}); } catch {}
-        }, { once: true });
-        return true;
       } catch {
         return false;
       }
+      updateBadge('CODEC FALLBACK');
+      video.addEventListener('loadedmetadata', () => {
+        try {
+          if (at > 0 && Number.isFinite(video.duration) && at < video.duration - 1) video.currentTime = at;
+          if (autoplay) video.play?.().catch?.(() => {});
+        } catch {}
+      }, { once: true });
+      return true;
+    }
+
+    function loadAudioCandidate(candidate, at) {
+      if (!candidate?.url) return false;
+      selectedAudio = candidate;
+      try {
+        audio.pause();
+        audio.src = candidate.url;
+        audio.load();
+        audio.volume = video.volume;
+        audio.muted = video.muted;
+        audio.playbackRate = video.playbackRate;
+      } catch {
+        return false;
+      }
+      updateBadge('AUDIO FALLBACK');
+      audio.addEventListener('loadedmetadata', () => {
+        try {
+          audio.currentTime = at;
+          if (!video.paused) audio.play?.().catch?.(() => {});
+        } catch {}
+      }, { once: true });
+      return true;
+    }
+
+    function tryNextVideoCandidate() {
+      if (!adaptive) return false;
+      const at = safeTime(video.currentTime);
+      while (++videoIndex < videoCandidates.length) {
+        if (loadVideoCandidate(videoCandidates[videoIndex], at, !video.paused)) return true;
+      }
+      return false;
+    }
+
+    function tryNextAudioCandidate() {
+      if (!adaptive) return false;
+      const at = safeTime(video.currentTime);
+      while (++audioIndex < audioCandidates.length) {
+        if (loadAudioCandidate(audioCandidates[audioIndex], at)) return true;
+      }
+      return false;
+    }
+
+    function useProgressiveFallback(reason = '') {
+      const fallback = payload.fallback || (payload.url ? {
+        url: payload.url,
+        mime: payload.mime,
+        quality: payload.quality,
+        height: payload.height,
+        fps: payload.fps
+      } : null);
+
+      if (fallbackUsed || !fallback?.url) return false;
+      fallbackUsed = true;
+      adaptive = false;
+      stopAudio();
+      try {
+        audio.removeAttribute('src');
+        audio.load();
+      } catch {}
+
+      const at = safeTime(video.currentTime || startTime);
+      try {
+        video.pause();
+        video.src = fallback.url;
+        video.load();
+      } catch {
+        return false;
+      }
+
+      updateBadge(reason ? 'FALLBACK' : '');
+      video.addEventListener('loadedmetadata', () => {
+        try {
+          if (at > 0 && Number.isFinite(video.duration) && at < video.duration - 1) video.currentTime = at;
+          video.play?.().catch?.(() => {});
+        } catch {}
+      }, { once: true });
+      return true;
     }
 
     function destroy(resume = true, cooldownMs = 0) {
       if (destroyed) return;
       destroyed = true;
-      if (syncTimer) clearInterval(syncTimer);
+      clearInterval(syncTimer);
       try { video.pause(); } catch {}
-      try { audio?.pause?.(); } catch {}
+      stopAudio();
       try { overlay.remove(); } catch {}
       try { window.__gekkoYoutubeAdGuardV1?.resetDirect?.(cooldownMs); } catch {}
+
       if (resume && nativeVideo?.isConnected) {
         try {
           nativeVideo.currentTime = safeTime(video.currentTime || startTime);
@@ -531,7 +620,9 @@ function directPlayerSource(stream) {
           nativeVideo.play?.().catch?.(() => {});
         } catch {}
       }
+
       try { delete window[KEY]; } catch {}
+      try { delete window[LEGACY_KEY]; } catch {}
     }
 
     back.addEventListener('click', () => destroy(true, 30000));
@@ -540,9 +631,10 @@ function directPlayerSource(stream) {
       if (startTime > 0 && Number.isFinite(video.duration) && startTime < video.duration - 1) {
         try { video.currentTime = startTime; } catch {}
       }
-      if (audio) {
+      if (adaptive) {
         try { audio.currentTime = startTime; } catch {}
       }
+      updateBadge();
       try { video.play?.().catch?.(() => {}); } catch {}
     }, { once: true });
 
@@ -563,49 +655,63 @@ function directPlayerSource(stream) {
     video.addEventListener('volumechange', () => syncAudio(false));
     video.addEventListener('ended', stopAudio);
     video.addEventListener('error', () => {
-      if (!downgradeToProgressive()) destroy(true, 10000);
+      if (tryNextVideoCandidate()) return;
+      if (useProgressiveFallback('VIDEO FALLBACK')) return;
+      destroy(true, 10000);
     });
 
-    if (audio) {
-      audio.addEventListener('error', () => {
-        if (!downgradeToProgressive()) {
-          audioFailed = true;
-          destroy(true, 10000);
-        }
-      });
-    }
+    audio.addEventListener('error', () => {
+      if (!adaptive) return;
+      if (tryNextAudioCandidate()) return;
+      if (useProgressiveFallback('AUDIO FALLBACK')) return;
+      destroy(true, 10000);
+    });
+
+    overlay.addEventListener('pointerdown', () => {
+      if (!video.paused && adaptive) startAudio();
+    }, { passive: true });
 
     syncTimer = setInterval(() => {
       if (!video.paused && !video.seeking) syncAudio(false);
     }, 250);
 
-    overlay.append(video, badge, back);
-    if (audio) overlay.appendChild(audio);
+    overlay.append(video, audio, badge, back);
     moviePlayer.appendChild(overlay);
 
-    window[KEY] = {
+    updateBadge();
+
+    const api = {
       destroy,
       videoId: payload.videoId,
-      snapshot: () => ({
-        active: !destroyed,
-        mode: adaptiveActive ? 'adaptive' : 'progressive',
-        videoId: payload.videoId,
-        quality,
-        fps,
-        currentTime: safeTime(video.currentTime),
-        paused: Boolean(video.paused),
-        drift: audio ? Math.abs(safeTime(video.currentTime) - safeTime(audio.currentTime)) : 0
-      })
+      snapshot: () => {
+        const state = qualityState();
+        return {
+          active: !destroyed,
+          mode: adaptive ? 'adaptive' : 'progressive',
+          videoId: payload.videoId,
+          quality: state.quality,
+          height: state.height,
+          fps: state.fps,
+          currentTime: safeTime(video.currentTime),
+          paused: Boolean(video.paused),
+          drift: adaptive ? Number((safeTime(audio.currentTime) - safeTime(video.currentTime)).toFixed(3)) : 0
+        };
+      }
     };
 
+    window[KEY] = api;
+    window[LEGACY_KEY] = api;
+
+    const state = qualityState();
     return {
       ok: true,
-      mode: adaptiveActive ? 'adaptive' : 'progressive',
+      mode: adaptive ? 'adaptive' : 'progressive',
       videoId: payload.videoId,
-      quality,
-      fps,
-      videoMime: adaptiveActive ? selectedVideo.mime : (progressive?.mime || payload.mime),
-      audioMime: adaptiveActive ? selectedAudio.mime : ''
+      quality: state.quality,
+      height: state.height,
+      fps: state.fps,
+      videoMime: adaptive ? selectedVideo?.mime || '' : payload.mime,
+      audioMime: adaptive ? selectedAudio?.mime || '' : ''
     };
   })()`;
 }
@@ -627,13 +733,12 @@ function streamPayloadIsAllowed(stream) {
   if (stream.mode === 'adaptive') {
     const video = Array.isArray(stream.videoCandidates) ? stream.videoCandidates : [];
     const audio = Array.isArray(stream.audioCandidates) ? stream.audioCandidates : [];
-    const fallbackOk = !stream.progressiveFallback ||
-      isAllowedDirectStreamUrl(stream.progressiveFallback.url);
+    const fallbackOk = !stream.fallback || isAllowedDirectStreamUrl(stream.fallback.url);
     return video.length > 0 &&
       audio.length > 0 &&
+      fallbackOk &&
       video.every((item) => isAllowedDirectStreamUrl(item.url)) &&
-      audio.every((item) => isAllowedDirectStreamUrl(item.url)) &&
-      fallbackOk;
+      audio.every((item) => isAllowedDirectStreamUrl(item.url));
   }
   return isAllowedDirectStreamUrl(stream.url);
 }
