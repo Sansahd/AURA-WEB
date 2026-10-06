@@ -141,5 +141,6 @@ test('YouTube guard exposes manual Direct mode and automatic persistent-ad fallb
   assert.match(source, /gekko-direct-button/);
   assert.match(source, /gekko-direct:\/\/youtube\//);
   assert.match(source, /Date\.now\(\) - state\.adSince >= 1800/);
-  assert.match(source, /directResult/);\n  assert.match(source, /resetDirect/);
+  assert.match(source, /directResult/);
+  assert.match(source, /resetDirect/);
 });
