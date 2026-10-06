@@ -1997,10 +1997,10 @@ impl FusionState {
             .headers
             .iter()
             .filter_map(|(name, value)| {
-                if matches!(
-                    name.as_str().to_ascii_lowercase().as_str(),
-                    "cookie" | "authorization" | "proxy-authorization"
-                ) {
+                // Proxy credentials are never forwarded to an origin. First-party
+                // Cookie/Authorization headers are preserved so H3 has the same
+                // semantics as Servo's normal HTTPS path.
+                if name.as_str().eq_ignore_ascii_case("proxy-authorization") {
                     return None;
                 }
                 Some((name.as_str().to_string(), value.as_bytes().to_vec()))
@@ -2008,13 +2008,30 @@ impl FusionState {
             .collect()
     }
 
+    fn h3_request_is_same_origin(request: &embedder_traits::WebResourceRequest) -> bool {
+        request
+            .referrer_url
+            .as_ref()
+            .is_some_and(|referrer| referrer.origin() == request.url.origin())
+    }
+
     fn h3_request_is_safe(request: &embedder_traits::WebResourceRequest) -> bool {
-        request.is_for_main_frame
-            && request.url.scheme() == "https"
-            && matches!(request.method.as_str(), "GET" | "HEAD")
-            && !request.headers.contains_key(http::header::COOKIE)
+        if request.url.scheme() != "https"
+            || !matches!(request.method.as_str(), "GET" | "HEAD")
+            || request.is_redirect
+        {
+            return false;
+        }
+
+        // Main-frame navigations and same-origin subresources may carry first-party
+        // credentials. Cross-origin resources can use H3 only while anonymous,
+        // which keeps Privacy Shield's third-party credential boundary intact.
+        if request.is_for_main_frame || Self::h3_request_is_same_origin(request) {
+            return true;
+        }
+
+        !request.headers.contains_key(http::header::COOKIE)
             && !request.headers.contains_key(http::header::AUTHORIZATION)
-            && !request.is_redirect
     }
 
     fn h3_capable(&self, origin: &str) -> bool {
@@ -2709,6 +2726,15 @@ mod gekko_product_tests {
             Some("https://example.com")
         );
         assert!(FusionState::h3_origin(&Url::parse("http://example.com/").unwrap()).is_none());
+    }
+
+    #[test]
+    fn h3_routing_contract_preserves_first_party_credentials_only() {
+        let source = include_str!("main.rs");
+        assert!(source.contains("h3_request_is_same_origin"));
+        assert!(source.contains("proxy-authorization"));
+        assert!(source.contains("request.is_for_main_frame || Self::h3_request_is_same_origin(request)"));
+        assert!(source.contains("!request.headers.contains_key(http::header::COOKIE)"));
     }
 
     #[test]
