@@ -108,3 +108,10 @@ test('Apps button opens a real Quantic launcher', () => {
   assert.match(renderer, /data-app-url/);
   assert.match(renderer, /appsPanel/);
 });
+
+
+test('Discover actions navigate immediately', () => {
+  const renderer = read('src/renderer/renderer.js');
+  const matches = renderer.match(/window\.quantic\.navigate\('Découvrir le web'\)/g) || [];
+  assert.ok(matches.length >= 2);
+});
