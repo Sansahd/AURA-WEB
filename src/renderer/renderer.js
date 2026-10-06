@@ -444,6 +444,7 @@ function render() {
   reload.title = tab?.loading ? 'Arrêter' : 'Actualiser';
   navigationTransition?.classList.toggle('active', Boolean(tab?.transitioning));
   navigationTransition?.setAttribute('aria-hidden', tab?.transitioning ? 'false' : 'true');
+  $('#home-button')?.classList.toggle('active', state.internal?.kind === 'home');
 
   setInternalVisibility();
   renderInternal();
@@ -481,6 +482,9 @@ $('#discover').onclick = () => { address.value = 'Découvrir le web'; address.fo
 $('#bookmarks').onclick = () => fire(window.quantic.newTab('quantic://favorites'));
 $('#downloads').onclick = () => fire(window.quantic.navigate('https://mediumorchid-badger-314305.hostingersite.com/downloads/#gekko'));
 $('#apps-button').onclick = () => appsPanel?.classList.toggle('hidden');
+$('#home-tool-apps').onclick = () => appsPanel?.classList.toggle('hidden');
+$('#home-tool-home').onclick = () => fire(window.quantic.home());
+$('#home-tool-settings').onclick = () => fire(window.quantic.newTab('quantic://settings'));
 $('#apps-close').onclick = () => appsPanel?.classList.add('hidden');
 document.querySelectorAll('[data-app-url]').forEach((button) => {
   button.onclick = () => {
