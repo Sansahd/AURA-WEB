@@ -318,3 +318,47 @@ body{
 .app-tile strong{font-size:12px;align-self:end}
 .app-tile small{font-size:9px;color:rgba(218,243,245,.54);align-self:start}
 @media(max-width:650px){.apps-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.apps-panel{bottom:70px;padding:12px}}
+
+
+/* Cinematic navigation cue: visual only, never delays navigation. */
+.navigation-transition{
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 50%,rgba(41,231,214,.14),transparent 22%),
+    radial-gradient(ellipse at 50% 115%,rgba(62,199,225,.12),transparent 42%),
+    linear-gradient(135deg,rgba(1,10,17,.955),rgba(3,30,40,.925))!important;
+}
+.navigation-transition::before{
+  content:"";position:absolute;inset:-18% -35%;pointer-events:none;opacity:0;
+  background:linear-gradient(104deg,transparent 37%,rgba(102,247,255,.035) 44%,rgba(134,255,240,.28) 50%,rgba(63,211,236,.07) 56%,transparent 64%);
+  transform:translate3d(-62%,0,0) skewX(-8deg);
+}
+.navigation-transition::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 37%,rgba(0,5,9,.18) 75%,rgba(0,3,7,.42) 100%);
+  opacity:.74;
+}
+.navigation-transition.active::before{animation:gekko-film-sweep .28s cubic-bezier(.16,.74,.24,1) both}
+.navigation-transition.active .transition-aura{animation:gekko-film-ring .28s cubic-bezier(.16,.74,.24,1) both}
+.navigation-transition.active img{animation:gekko-film-mark .28s cubic-bezier(.16,.74,.24,1) both}
+.navigation-transition strong{z-index:2}
+.navigation-transition img,.navigation-transition .transition-aura{z-index:2}
+@keyframes gekko-film-sweep{
+  0%{opacity:0;transform:translate3d(-62%,0,0) skewX(-8deg)}
+  28%{opacity:.9}
+  100%{opacity:0;transform:translate3d(62%,0,0) skewX(-8deg)}
+}
+@keyframes gekko-film-ring{
+  0%{opacity:0;transform:scale(.72)}
+  46%{opacity:.72}
+  100%{opacity:.16;transform:scale(1.18)}
+}
+@keyframes gekko-film-mark{
+  0%{opacity:0;transform:scale(.94) translateY(4px)}
+  45%{opacity:1;transform:scale(1.025) translateY(0)}
+  100%{opacity:.84;transform:scale(1) translateY(-1px)}
+}
+@media(prefers-reduced-motion:reduce){
+  .navigation-transition::before,.navigation-transition.active::before,
+  .navigation-transition.active .transition-aura,.navigation-transition.active img{animation:none!important}
+}
