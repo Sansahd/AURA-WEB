@@ -2624,7 +2624,7 @@ mod tests {
         let effects = runtime.drain_effects().unwrap();
         assert!(effects.mutations.iter().any(|mutation| matches!(
             mutation,
-            DomMutation::SetText { node_id: _, value } if value == "New"
+            DomMutation::SetText { value, .. } if value == "New"
         )));
     }
 
