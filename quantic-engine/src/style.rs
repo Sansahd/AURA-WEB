@@ -922,6 +922,22 @@ mod tests {
     }
 
     #[test]
+    fn user_agent_element_defaults_follow_inheritance_but_precede_author_css() {
+        let document = html::parse(
+            "<div style='font-size:18px;white-space:normal'><h1 id='title'>Title</h1><pre id='pre'>A   B</pre></div>",
+        );
+        let sheet = css::parse_stylesheet("#title{font-size:40px}");
+        let styles = compute_styles(&document, &sheet);
+
+        let title = document.find_by_id("title").unwrap();
+        let pre = document.find_by_id("pre").unwrap();
+
+        assert_eq!(styles[title].font_size, 40);
+        assert_eq!(styles[pre].white_space, WhiteSpace::Pre);
+        assert_eq!(styles[pre].font_families, vec!["monospace".to_string()]);
+    }
+
+    #[test]
     fn important_overrides_higher_specificity_non_important() {
         let document = html::parse("<div id='target' class='card' style='color:green'>x</div>");
         let sheet = css::parse_stylesheet(
