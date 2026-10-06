@@ -57,7 +57,7 @@ jobs:
             'Accueil Glide',
             'Le Web, sans Chromium.'
           )) {
-            if ($runtime -match [regex]::Escape($legacyBrand)) {
+            if ($runtime -cmatch [regex]::Escape($legacyBrand)) {
               throw "Legacy visible branding remains: $legacyBrand"
             }
           }
