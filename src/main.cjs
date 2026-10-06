@@ -14,7 +14,8 @@ const { AuraEverywherePresence } = require('./services/aura-everywhere.cjs');
 const { GlideCareerAgent } = require('./services/career-agent.cjs');
 
 const HOME = 'quantic://newtab';
-const CHROME_H = 86;
+const TOP_CHROME_H = 42;
+const BOTTOM_DOCK_H = 60;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 58;
 const SIDESTAGE_COLLAPSED_W = 22;
@@ -105,6 +106,7 @@ function tabState(tab) {
     title: tab.title || 'Nouvel onglet',
     url: tab.url || HOME,
     loading: Boolean(tab.loading),
+    transitioning: Boolean(tab.transitioning),
     sleeping: Boolean(tab.sleeping),
     favorite: Boolean(store?.isFavorite(tab.url)),
     ...navState(isExternal(tab.url) ? tab.view?.webContents : null)
@@ -465,7 +467,10 @@ function showInternal(tab, url) {
   tab.url = url;
   tab.title = internalTitle(url);
   tab.loading = false;
+  tab.transitioning = false;
   tab.awaitingNetwork = false;
+  tab.awaitingPage = false;
+  tab.transitioning = false;
   tab.view?.setVisible(false);
   chromeVisible = true;
   layout();
@@ -537,6 +542,14 @@ function createView(tab) {
     else if (tabs.has(tab.id)) showInternal(tab, internalErrorUrl('Réseau privé indisponible', veil?.error || 'Quantic Veil ne dispose pas encore de circuit utilisable.'));
   });
 
+  wc.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+    if (!isMainFrame || isInPlace) return;
+    tab.transitioning = true;
+    tab.awaitingPage = true;
+    if (activeId === tab.id) view.setVisible(false);
+    emitState(true);
+  });
+
   wc.on('did-start-loading', () => {
     if (!tab.loading) {
       tab.loading = true;
@@ -580,6 +593,7 @@ function createView(tab) {
   wc.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
     if (!isMainFrame || code === -3) return;
     tab.loading = false;
+    tab.transitioning = false;
     tab.awaitingPage = false;
     const detail = `${description || 'Erreur réseau'} (${code})${url ? ` — ${url}` : ''}`;
     showInternal(tab, internalErrorUrl('Impossible de charger cette page', detail));
@@ -647,7 +661,7 @@ function createTab(url = HOME, activate = true) {
   const now = Date.now();
   const tab = {
     id: nextId++, title: 'Nouvel onglet', url: HOME, lastExternalUrl: '', view: null,
-    loading: false, awaitingNetwork: false, awaitingPage: false, boundsKey: '',
+    loading: false, transitioning: false, awaitingNetwork: false, awaitingPage: false, boundsKey: '',
     createdAt: now, lastActiveAt: now, lastBackgroundAt: 0, sleeping: false,
     mediaPlaying: false, audible: false, permissionPromptOpen: false, downloadActive: false
   };
@@ -718,18 +732,20 @@ function layout() {
   if (!win || win.isDestroyed()) return;
   const tab = activeTab();
   const [width, height] = win.getContentSize();
-  const y = isImmersive() && !chromeVisible ? 0 : CHROME_H;
+  const chromeHidden = isImmersive() && !chromeVisible;
+  const top = chromeHidden ? 0 : TOP_CHROME_H;
+  const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
   const rail = stageState.enabled && !isPrivateMode() ? (stageState.collapsed ? SIDESTAGE_COLLAPSED_W : SIDESTAGE_RAIL_W) : 0;
   const stageWidth = stageState.open && !stageState.collapsed ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed) ? AI_W : 0;
   const right = rail + stageWidth + aiWidth;
   if (tab?.view && isExternal(tab.url)) {
-    const bounds = { x: 0, y, width: Math.max(1, width - right), height: Math.max(1, height - y) };
+    const bounds = { x: 0, y: top, width: Math.max(1, width - right), height: Math.max(1, height - top - bottom) };
     const key = `${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`;
     if (tab.boundsKey !== key) { tab.boundsKey = key; tab.view.setBounds(bounds); }
   }
-  sideStage?.layout({ x: Math.max(0, width - rail - stageWidth), y, width: stageWidth, height: Math.max(1, height - y), privateMode: isPrivateMode() });
+  sideStage?.layout({ x: Math.max(0, width - rail - stageWidth), y: top, width: stageWidth, height: Math.max(1, height - top - bottom), privateMode: isPrivateMode() });
 }
 
 function scheduleLayout() {
@@ -753,8 +769,10 @@ function startImmersionWatcher() {
     const pointer = screen.getCursorScreenPoint();
     const insideX = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width;
     if (!insideX) return;
-    if (!chromeVisible && pointer.y <= bounds.y + EDGE_TRIGGER) return showChrome(false);
-    if (chromeVisible && Date.now() > revealUntil && pointer.y > bounds.y + CHROME_H + 36) {
+    const nearTop = pointer.y <= bounds.y + EDGE_TRIGGER;
+    const nearBottom = pointer.y >= bounds.y + bounds.height - EDGE_TRIGGER;
+    if (!chromeVisible && (nearTop || nearBottom)) return showChrome(false);
+    if (chromeVisible && Date.now() > revealUntil && pointer.y > bounds.y + TOP_CHROME_H + 36 && pointer.y < bounds.y + bounds.height - BOTTOM_DOCK_H - 36) {
       chromeVisible = false;
       aiOpen = false;
       layout();
