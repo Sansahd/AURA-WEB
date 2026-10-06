@@ -11,7 +11,7 @@ neqo-common = { git = "https://github.com/mozilla/neqo", tag = "v0.32.0", packag
 neqo-http3 = { git = "https://github.com/mozilla/neqo", tag = "v0.32.0", package = "neqo-http3" }
 neqo-transport = { git = "https://github.com/mozilla/neqo", tag = "v0.32.0", package = "neqo-transport" }
 
-nss = { version = "0.16.1", package = "nss-rs", git = "https://github.com/mozilla/nss-rs", rev = "ba8a3f6acffc7e25749054969ccbbb3ca615df7f" }
+nss = { version = "0.16.1", package = "nss-rs", path = "../../vendor/nss-rs" }
 
 [patch."https://github.com/mozilla/nss-rs"]
-nss-rs = { git = "https://github.com/mozilla/nss-rs", rev = "ba8a3f6acffc7e25749054969ccbbb3ca615df7f" }
+nss-rs = { path = "../../vendor/nss-rs" }
