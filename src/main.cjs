@@ -432,7 +432,7 @@ async function setNetworkMode(mode) {
 }
 
 function resolvedInput(raw) {
-  return resolveInput(raw, store?.settings().searchEngine || 'duckduckgo');
+  return resolveInput(raw, store?.settings().searchEngine || 'gekko');
 }
 
 function isBenignLoadError(error) {
@@ -748,6 +748,16 @@ async function loadTab(tab, raw) {
   if (!tab) return { ok: false, error: 'Aucun onglet actif' };
   const target = resolvedInput(raw);
 
+  // "Tor" in the search palette is a real route, not a fake search engine.
+  // For search queries only, move into the isolated private workspace first,
+  // then run DuckDuckGo through Quantic Veil/Tor.
+  if (target.requiresTor && !isPrivateMode()) {
+    await setNetworkMode('private');
+    const privateTab = activeTab();
+    if (!privateTab) return { ok: false, error: 'private-workspace-unavailable' };
+    return loadTab(privateTab, raw);
+  }
+
   if (isInternal(target.value)) {
     showInternal(tab, target.value);
     return { ok: true, url: target.value };
@@ -941,8 +951,15 @@ function mainMenu() {
     { label: 'Téléchargements', click: () => shell.openPath(app.getPath('downloads')) },
     { type: 'separator' },
     { label: 'Moteur de recherche', submenu: [
+      { label: 'GEKKO Search', type: 'radio', checked: settings.searchEngine === 'gekko', click: () => setSearchEngine('gekko') },
+      { type: 'separator' },
       { label: 'DuckDuckGo', type: 'radio', checked: settings.searchEngine === 'duckduckgo', click: () => setSearchEngine('duckduckgo') },
-      { label: 'Qwant', type: 'radio', checked: settings.searchEngine === 'qwant', click: () => setSearchEngine('qwant') }
+      { label: 'Qwant', type: 'radio', checked: settings.searchEngine === 'qwant', click: () => setSearchEngine('qwant') },
+      { label: 'Startpage', type: 'radio', checked: settings.searchEngine === 'startpage', click: () => setSearchEngine('startpage') },
+      { label: 'Brave Search', type: 'radio', checked: settings.searchEngine === 'brave', click: () => setSearchEngine('brave') },
+      { label: 'SearXNG', type: 'radio', checked: settings.searchEngine === 'searxng', click: () => setSearchEngine('searxng') },
+      { type: 'separator' },
+      { label: 'Tor · DuckDuckGo via Veil', type: 'radio', checked: settings.searchEngine === 'tor', click: () => setSearchEngine('tor') }
     ] },
     { label: 'Réseau privé (Tor)', type: 'checkbox', checked: settings.networkMode === 'private', click: (item) => { setNetworkMode(item.checked ? 'private' : 'balanced').catch(() => {}); } },
     { label: 'Mode immersion', type: 'checkbox', checked: settings.immersiveMode !== false, click: (item) => { store.setSetting('immersiveMode', item.checked); chromeVisible = true; layout(); emitState(true); } },

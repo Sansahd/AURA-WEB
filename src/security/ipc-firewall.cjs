@@ -1,7 +1,7 @@
 'use strict';
 
 const INSTALLED = Symbol.for('quantic.ipcFirewallInstalled');
-const SEARCH_ENGINES = new Set(['duckduckgo', 'qwant']);
+const SEARCH_ENGINES = new Set(['gekko', 'duckduckgo', 'qwant', 'startpage', 'brave', 'searxng', 'tor']);
 const AI_ACTIONS = new Set(['summarize', 'compare', 'plan', 'chat']);
 const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close']);
 const NETWORK_MODES = new Set(['balanced', 'private']);

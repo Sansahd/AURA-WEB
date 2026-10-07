@@ -1,9 +1,13 @@
 const ENGINES = {
+  gekko: (q) => `quantic://search?q=${encodeURIComponent(q)}`,
   brave: (q) => `https://search.brave.com/search?q=${encodeURIComponent(q)}`,
   duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
   qwant: (q) => `https://www.qwant.com/?q=${encodeURIComponent(q)}&t=web`,
   startpage: (q) => `https://www.startpage.com/sp/search?query=${encodeURIComponent(q)}`,
-  mojeek: (q) => `https://www.mojeek.com/search?q=${encodeURIComponent(q)}`
+  searxng: (q) => `https://searxng.website/search?q=${encodeURIComponent(q)}`,
+  // Tor is a route rather than a search index. GEKKO uses DuckDuckGo for the
+  // query and marks the target so main.cjs can enter Quantic Veil first.
+  tor: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`
 };
 
 const COMMON_SITES = {
@@ -24,13 +28,21 @@ const COMMON_SITES = {
   drive: 'https://drive.google.com/'
 };
 
-const VALID_ENGINES = new Set(['duckduckgo', 'qwant']);
+const VALID_ENGINES = new Set([
+  'gekko',
+  'duckduckgo',
+  'qwant',
+  'startpage',
+  'brave',
+  'searxng',
+  'tor'
+]);
 
 function normalizeEngine(value) {
-  return VALID_ENGINES.has(String(value || '').toLowerCase()) ? String(value).toLowerCase() : 'duckduckgo';
+  return VALID_ENGINES.has(String(value || '').toLowerCase()) ? String(value).toLowerCase() : 'gekko';
 }
 
-function resolveInput(raw, searchEngine = 'duckduckgo') {
+function resolveInput(raw, searchEngine = 'gekko') {
   const value = String(raw || '').trim();
   if (!value) return { type: 'home', value: 'quantic://newtab' };
 
@@ -41,7 +53,12 @@ function resolveInput(raw, searchEngine = 'duckduckgo') {
   if (/^[^\s]+\.[a-z]{2,}(?::\d+)?(?:\/.*)?$/i.test(value)) return { type: 'url', value: `https://${value}` };
 
   const selected = normalizeEngine(searchEngine);
-  return { type: 'search', value: ENGINES[selected](value) };
+  return {
+    type: 'search',
+    engine: selected,
+    value: ENGINES[selected](value),
+    requiresTor: selected === 'tor'
+  };
 }
 
 module.exports = { resolveInput, normalizeEngine, ENGINES, COMMON_SITES, VALID_ENGINES };

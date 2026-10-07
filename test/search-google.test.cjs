@@ -11,34 +11,45 @@ const { CHANNEL_VALIDATORS } = require('../src/security/ipc-firewall.cjs');
 const main = fs.readFileSync(path.join(root, 'src', 'main.cjs'), 'utf8');
 const store = fs.readFileSync(path.join(root, 'src', 'services', 'store.cjs'), 'utf8');
 
-test('omnibox searches go directly to the persistent engine', () => {
-  assert.equal(normalizeEngine('duckduckgo'), 'duckduckgo');
-  assert.equal(normalizeEngine('qwant'), 'qwant');
-  assert.equal(normalizeEngine('quantic'), 'duckduckgo');
-  assert.equal(normalizeEngine('brave'), 'duckduckgo');
+test('omnibox exposes GEKKO plus the extended persistent search palette', () => {
+  for (const engine of ['gekko', 'duckduckgo', 'qwant', 'startpage', 'brave', 'searxng', 'tor']) {
+    assert.equal(normalizeEngine(engine), engine);
+  }
+  assert.equal(normalizeEngine('unknown-engine'), 'gekko');
 
-  assert.equal(
-    resolveInput('navigateur privé', 'duckduckgo').value,
-    'https://duckduckgo.com/?q=navigateur%20priv%C3%A9'
-  );
-  assert.equal(
-    resolveInput('navigateur privé', 'qwant').value,
-    'https://www.qwant.com/?q=navigateur%20priv%C3%A9&t=web'
-  );
+  const query = 'navigateur privé';
+  assert.equal(resolveInput(query, 'gekko').value, 'quantic://search?q=navigateur%20priv%C3%A9');
+  assert.equal(resolveInput(query, 'duckduckgo').value, 'https://duckduckgo.com/?q=navigateur%20priv%C3%A9');
+  assert.equal(resolveInput(query, 'qwant').value, 'https://www.qwant.com/?q=navigateur%20priv%C3%A9&t=web');
+  assert.equal(resolveInput(query, 'startpage').value, 'https://www.startpage.com/sp/search?query=navigateur%20priv%C3%A9');
+  assert.equal(resolveInput(query, 'brave').value, 'https://search.brave.com/search?q=navigateur%20priv%C3%A9');
+  assert.equal(resolveInput(query, 'searxng').value, 'https://searxng.website/search?q=navigateur%20priv%C3%A9');
+
+  const tor = resolveInput(query, 'tor');
+  assert.equal(tor.value, 'https://duckduckgo.com/?q=navigateur%20priv%C3%A9');
+  assert.equal(tor.requiresTor, true);
 });
 
-test('search engine IPC accepts only DuckDuckGo and Qwant', () => {
+test('search engine IPC accepts the complete palette and rejects unknown engines', () => {
   const validate = CHANNEL_VALIDATORS['set-setting'];
-  assert.equal(validate(['searchEngine', 'duckduckgo']), true);
-  assert.equal(validate(['searchEngine', 'qwant']), true);
-  assert.equal(validate(['searchEngine', 'quantic']), false);
-  assert.equal(validate(['searchEngine', 'brave']), false);
+  for (const engine of ['gekko', 'duckduckgo', 'qwant', 'startpage', 'brave', 'searxng', 'tor']) {
+    assert.equal(validate(['searchEngine', engine]), true, engine);
+  }
+  assert.equal(validate(['searchEngine', 'google']), false);
+  assert.equal(validate(['searchEngine', 'unknown']), false);
 });
 
-test('legacy search settings migrate to DuckDuckGo', () => {
-  assert.match(store, /searchEngine: 'duckduckgo'/);
-  assert.match(store, /compatibilityPolicyVersion: 3/);
-  assert.match(store, /!\['duckduckgo', 'qwant'\]\.includes\(existingSettings\.searchEngine\)/);
+test('new installs default to GEKKO while old valid choices are preserved', () => {
+  assert.match(store, /searchEngine: 'gekko'/);
+  assert.match(store, /compatibilityPolicyVersion: 4/);
+  assert.match(store, /existingSettings\.searchEngine === 'quantic'/);
+  assert.match(store, /'startpage', 'brave', 'searxng', 'tor'/);
+});
+
+test('Tor search route enters private mode before loading the query', () => {
+  assert.match(main, /target\.requiresTor && !isPrivateMode\(\)/);
+  assert.match(main, /await setNetworkMode\('private'\)/);
+  assert.match(main, /return loadTab\(privateTab, raw\)/);
 });
 
 test('Google consent guard targets Google only and contains explicit reject actions', () => {

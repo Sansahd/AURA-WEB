@@ -61,10 +61,10 @@
 
       <div class="address-wrap">
         <div class="address glass-line">
-          <button id="search-engine-button" class="search-engine-button" type="button" aria-haspopup="menu" aria-expanded="false" title="Moteur de recherche">
-            <span id="search-engine-mark" class="search-engine-mark">D</span>
-            <span id="search-engine-label" class="search-engine-label">DuckDuckGo</span>
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+          <button id="search-engine-button" class="search-engine-button" type="button" aria-haspopup="menu" aria-expanded="false" data-engine="gekko" title="Moteur de recherche">
+            <span id="search-engine-mark" class="search-engine-mark"><span id="search-engine-mark-text">G</span></span>
+            <span id="search-engine-label" class="search-engine-label">GEKKO</span>
+            <svg class="engine-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
           </button>
           <span class="address-divider" aria-hidden="true"></span>
           <svg class="address-search" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
@@ -74,12 +74,50 @@
           </button>
         </div>
         <div id="search-engine-menu" class="search-engine-menu hidden" role="menu" aria-label="Choisir le moteur de recherche">
-          <button type="button" role="menuitemradio" data-search-engine="duckduckgo" aria-checked="true">
-            <span class="engine-badge duck">D</span><span><strong>DuckDuckGo</strong><small>Privé · direct</small></span><span class="engine-check">✓</span>
-          </button>
-          <button type="button" role="menuitemradio" data-search-engine="qwant" aria-checked="false">
-            <span class="engine-badge qwant">Q</span><span><strong>Qwant</strong><small>Européen · direct</small></span><span class="engine-check">✓</span>
-          </button>
+          <div class="engine-menu-head">
+            <div><span>SEARCH ROUTE</span><strong>Choisir le moteur</strong></div>
+            <small>Le choix reste actif pour les recherches suivantes.</small>
+          </div>
+          <div class="engine-menu-grid">
+            <button class="engine-option featured" type="button" role="menuitemradio" data-search-engine="gekko" aria-checked="true">
+              <span class="engine-badge gekko"><img src="../assets/quantic-glide-mark.svg" alt=""></span>
+              <span class="engine-copy"><strong>GEKKO Search</strong><small>Recherche interne · intentions</small></span>
+              <span class="engine-check">✓</span>
+            </button>
+            <button class="engine-option" type="button" role="menuitemradio" data-search-engine="duckduckgo" aria-checked="false">
+              <span class="engine-badge duck">D</span>
+              <span class="engine-copy"><strong>DuckDuckGo</strong><small>Privé · direct</small></span>
+              <span class="engine-check">✓</span>
+            </button>
+            <button class="engine-option" type="button" role="menuitemradio" data-search-engine="qwant" aria-checked="false">
+              <span class="engine-badge qwant">Q</span>
+              <span class="engine-copy"><strong>Qwant</strong><small>Européen · direct</small></span>
+              <span class="engine-check">✓</span>
+            </button>
+            <button class="engine-option" type="button" role="menuitemradio" data-search-engine="startpage" aria-checked="false">
+              <span class="engine-badge startpage">S</span>
+              <span class="engine-copy"><strong>Startpage</strong><small>Google sans profilage</small></span>
+              <span class="engine-check">✓</span>
+            </button>
+            <button class="engine-option" type="button" role="menuitemradio" data-search-engine="brave" aria-checked="false">
+              <span class="engine-badge brave">B</span>
+              <span class="engine-copy"><strong>Brave Search</strong><small>Index indépendant</small></span>
+              <span class="engine-check">✓</span>
+            </button>
+            <button class="engine-option" type="button" role="menuitemradio" data-search-engine="searxng" aria-checked="false">
+              <span class="engine-badge searxng">Sx</span>
+              <span class="engine-copy"><strong>SearXNG</strong><small>Métamoteur open source</small></span>
+              <span class="engine-check">✓</span>
+            </button>
+            <button class="engine-option tor-option" type="button" role="menuitemradio" data-search-engine="tor" aria-checked="false">
+              <span class="engine-badge tor">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c3.2 2 5.5 5.2 5.5 8.8A5.5 5.5 0 0 1 12 17.8a5.5 5.5 0 0 1-5.5-5.5C6.5 8.7 8.8 5.5 12 3.5Z"/><path d="M9 20.5h6"/><path d="M12 7v10.5"/></svg>
+              </span>
+              <span class="engine-copy"><strong>Tor · Veil</strong><small>DuckDuckGo via espace privé Tor</small></span>
+              <span class="engine-route-pill">ROUTED</span>
+              <span class="engine-check">✓</span>
+            </button>
+          </div>
         </div>
       </div>
 
