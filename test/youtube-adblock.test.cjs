@@ -286,12 +286,14 @@ test('GEKKO Direct V2 synchronizes split audio and supports codec/progressive fa
   assert.match(source, /destroy\(true, 30000\)/);
 });
 
-test('YouTube guard recognizes Direct V2 and keeps automatic persistent-ad fallback', () => {
+test('YouTube guard recognizes Direct V2 and requests it immediately on ad detection', () => {
   const source = youtubeGuardSource();
   assert.match(source, /gekko-direct-button/);
   assert.match(source, /gekko-direct:\/\/youtube\//);
   assert.match(source, /__gekkoDirectPlayerV2/);
-  assert.match(source, /Date\.now\(\) - state\.adSince >= 1800/);
+  assert.doesNotMatch(source, /Date\.now\(\) - state\.adSince >= 1800/);
+  assert.match(source, /if \(!state\.directRequested\)\s*\{\s*requestDirect\(\)/s);
+  assert.match(source, /setInterval\(refresh, 250\)/);
   assert.match(source, /directResult/);
   assert.match(source, /resetDirect/);
 });
