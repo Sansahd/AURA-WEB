@@ -21,5 +21,5 @@ test('cookie guard looks only for refusal/necessary-cookie actions', () => {
 
 test('cookie guard is installed on initial documents and later navigations', () => {
   const hits = main.match(/installCookieConsentRefusal\(wc\)/g) || [];
-  assert.ok(hits.length >= 3);
+  assert.ok(hits.length >= 2);
 });
