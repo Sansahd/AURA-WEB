@@ -228,3 +228,20 @@ test('omnibox includes a zero-network popular-site suggestion surface', () => {
   assert.match(css, /\.site-suggestions/);
   assert.match(css, /\.site-suggestion\.selected/);
 });
+
+
+test('omnibox auto-launches reserved site aliases without Enter', () => {
+  const renderer = read('src/renderer/renderer.js');
+  const preload = read('src/preload.cjs');
+  const main = read('src/main.cjs');
+  const firewall = read('src/security/ipc-firewall.cjs');
+
+  assert.match(renderer, /maybeInstantLaunch/);
+  assert.match(renderer, /instantSite/);
+  assert.match(renderer, /maybePrewarmPopularSite/);
+  assert.match(renderer, /prewarmSite/);
+  assert.match(preload, /prewarmSite: \(u\) => ipcRenderer\.invoke\('prewarm-site', u\)/);
+  assert.match(main, /normalSession\.preconnect/);
+  assert.match(main, /ipcMain\.handle\('prewarm-site'/);
+  assert.match(firewall, /'prewarm-site'/);
+});
