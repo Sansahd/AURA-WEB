@@ -19,7 +19,9 @@ const { GlideCareerAgent } = require('./services/career-agent.cjs');
 const HOME = 'quantic://newtab';
 const TOP_CHROME_H = 42;
 const BOTTOM_DOCK_H = 66;
-const MIN_NAV_TRANSITION_MS = 260;
+const MIN_NAV_TRANSITION_MS = 140;
+const PAGE_FADE_OUT_MS = 120;
+const PAGE_FADE_IN_MS = 220;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 58;
 const SIDESTAGE_COLLAPSED_W = 22;
@@ -507,6 +509,61 @@ function internalErrorUrl(title, detail) {
   return `quantic://error?title=${encodeURIComponent(title)}&detail=${encodeURIComponent(detail || '')}`;
 }
 
+async function preparePageFadeOut(wc) {
+  if (!wc || wc.isDestroyed?.()) return;
+  await wc.executeJavaScript(`(() => {
+    try {
+      let veil = document.getElementById('__gekko-page-fade');
+      if (!veil) {
+        veil = document.createElement('div');
+        veil.id = '__gekko-page-fade';
+        veil.style.cssText = [
+          'position:fixed','inset:0','z-index:2147483647','pointer-events:none',
+          'background:#06131c','opacity:0','transition:opacity ${PAGE_FADE_OUT_MS}ms ease'
+        ].join(';');
+        (document.documentElement || document.body).appendChild(veil);
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => { veil.style.opacity = '1'; }));
+    } catch {}
+  })()`, true).catch(() => {});
+}
+
+async function installPageFadeIn(wc) {
+  if (!wc || wc.isDestroyed?.()) return;
+  await wc.executeJavaScript(`(() => {
+    try {
+      let veil = document.getElementById('__gekko-page-fade');
+      if (!veil) {
+        veil = document.createElement('div');
+        veil.id = '__gekko-page-fade';
+        veil.style.cssText = [
+          'position:fixed','inset:0','z-index:2147483647','pointer-events:none',
+          'background:#06131c','opacity:1','transition:opacity ${PAGE_FADE_IN_MS}ms ease'
+        ].join(';');
+        (document.documentElement || document.body).appendChild(veil);
+      } else {
+        veil.style.transition = 'none';
+        veil.style.opacity = '1';
+      }
+    } catch {}
+  })()`, true).catch(() => {});
+}
+
+async function releasePageFadeIn(wc) {
+  if (!wc || wc.isDestroyed?.()) return;
+  await wc.executeJavaScript(`(() => {
+    try {
+      const veil = document.getElementById('__gekko-page-fade');
+      if (!veil) return;
+      veil.style.transition = 'opacity ${PAGE_FADE_IN_MS}ms ease';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        veil.style.opacity = '0';
+        setTimeout(() => veil.remove(), ${PAGE_FADE_IN_MS + 60});
+      }));
+    } catch {}
+  })()`, true).catch(() => {});
+}
+
 function showInternal(tab, url) {
   if (!tab) return;
   clearTimeout(tab.revealTimer);
@@ -530,7 +587,10 @@ function finishRevealTabView(tab) {
   tab.awaitingNetwork = false;
   tab.awaitingPage = false;
   tab.transitioning = false;
-  if (activeId === tab.id && isExternal(tab.url)) tab.view.setVisible(true);
+  if (activeId === tab.id && isExternal(tab.url)) {
+    tab.view.setVisible(true);
+    releasePageFadeIn(tab.view.webContents).catch(() => {});
+  }
   layout();
   emitState(true);
 }
@@ -621,7 +681,27 @@ async function activateYouTubeDirect(tab, requestUrl = '') {
   }
 }
 
+function scheduleYouTubeDirect(tab, delayMs = 0) {
+  if (!tab || isPrivateMode()) return;
+  clearTimeout(tab.youtubeDirectTimer);
+  tab.youtubeDirectTimer = null;
+  const wc = tab.view?.webContents;
+  const videoId = extractYouTubeVideoId(wc?.getURL?.() || tab.url || '');
+  if (!videoId) return;
+
+  if (tab.youtubeDirect?.videoId === videoId && ['resolving', 'active'].includes(tab.youtubeDirect?.status)) return;
+
+  tab.youtubeDirectTimer = setTimeout(() => {
+    tab.youtubeDirectTimer = null;
+    if (!tabs.has(tab.id)) return;
+    activateYouTubeDirect(tab).catch(() => {});
+  }, Math.max(0, Number(delayMs || 0)));
+  tab.youtubeDirectTimer.unref?.();
+}
+
 async function clearYouTubeDirect(tab) {
+  clearTimeout(tab?.youtubeDirectTimer);
+  if (tab) tab.youtubeDirectTimer = null;
   const wc = tab?.view?.webContents;
   if (wc && !wc.isDestroyed()) await removeYouTubeDirectPlayer(wc);
   if (tab) tab.youtubeDirect = null;
@@ -707,17 +787,19 @@ function createView(tab) {
   });
 
   wc.on('dom-ready', async () => {
-    // Google consent is rejected before revealing the page when possible, so
-    // the consent interstitial does not flash in front of the user.
     const currentUrl = wc.getURL();
     if (isGoogleConsentUrl(currentUrl)) {
       await installGoogleConsentRefusal(wc).catch(() => {});
     }
 
-    // Reveal only after Chromium has a real document and the cinematic bridge
-    // has had enough time to complete. This avoids both white flashes and abrupt cuts.
+    await installPageFadeIn(wc).catch(() => {});
+
+    if (isYouTubeUrl(currentUrl)) {
+      await installYouTubeGuard(wc).catch(() => {});
+      scheduleYouTubeDirect(tab, 0);
+    }
+
     if (tab.awaitingPage) revealTabView(tab);
-    if (isYouTubeUrl(currentUrl)) installYouTubeGuard(wc).catch(() => {});
   });
 
   wc.on('did-stop-loading', () => {
@@ -750,7 +832,10 @@ function createView(tab) {
     syncFromView(tab, true);
     const nextVideoId = extractYouTubeVideoId(url);
     if (previousDirectId && previousDirectId !== nextVideoId) clearYouTubeDirect(tab).catch(() => {});
-    if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
+    if (isYouTubeUrl(url)) {
+      installYouTubeGuard(wc).catch(() => {});
+      if (nextVideoId) scheduleYouTubeDirect(tab, 120);
+    }
     if (isGoogleConsentUrl(url)) installGoogleConsentRefusal(wc).catch(() => {});
     emitState();
   });
@@ -780,6 +865,12 @@ function syncFromView(tab, saveHistory = false) {
 async function loadTab(tab, raw) {
   if (!tab) return { ok: false, error: 'Aucun onglet actif' };
   const target = resolvedInput(raw);
+
+  const existingWc = tab.view?.webContents;
+  if (existingWc && !existingWc.isDestroyed() && isExternal(tab.url)) {
+    await preparePageFadeOut(existingWc);
+    await new Promise((resolve) => setTimeout(resolve, PAGE_FADE_OUT_MS));
+  }
 
   // "Tor" in the search palette is a real route, not a fake search engine.
   // For search queries only, move into the isolated private workspace first,
@@ -841,7 +932,7 @@ function createTab(url = HOME, activate = true) {
   const now = Date.now();
   const tab = {
     id: nextId++, title: 'Nouvel onglet', url: HOME, lastExternalUrl: '', view: null,
-    loading: false, transitioning: false, transitionStartedAt: 0, revealTimer: null,
+    loading: false, transitioning: false, transitionStartedAt: 0, revealTimer: null, youtubeDirectTimer: null,
     awaitingNetwork: false, awaitingPage: false, boundsKey: '',
     createdAt: now, lastActiveAt: now, lastBackgroundAt: 0, sleeping: false,
     mediaPlaying: false, audible: false, permissionPromptOpen: false, downloadActive: false
