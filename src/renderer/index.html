@@ -73,6 +73,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg>
           </button>
         </div>
+        <div id="site-suggestions" class="site-suggestions hidden" role="listbox" aria-label="Sites populaires"></div>
         <div id="search-engine-menu" class="search-engine-menu hidden" role="menu" aria-label="Choisir le moteur de recherche">
           <div class="engine-menu-head">
             <div><span>SEARCH ROUTE</span><strong>Choisir le moteur</strong></div>
@@ -156,6 +157,9 @@
     <div class="cinema-focus">
       <img src="../assets/quantic-glide-mark.svg" alt="">
       <span>GEKKO</span>
+      <strong id="cinema-target">Ouverture…</strong>
+      <div class="cinema-loader" aria-hidden="true"><i></i></div>
+      <small id="cinema-status">Préparation de la page</small>
     </div>
   </div>
 
@@ -257,6 +261,7 @@
     <div class="ai-chat"><textarea id="ai-prompt" placeholder="Posez-moi une question…"></textarea><button id="ai-send" title="Envoyer">→</button></div>
   </aside>
 </div>
+<script src="site-cache.js"></script>
 <script src="renderer.js"></script>
 <script src="product-suite.js"></script>
 </body>

@@ -28,6 +28,11 @@ const searchEngineMenu = $('#search-engine-menu');
 const searchEngineMark = $('#search-engine-mark');
 const searchEngineMarkText = $('#search-engine-mark-text');
 const searchEngineLabel = $('#search-engine-label');
+const siteSuggestions = $('#site-suggestions');
+const cinemaTarget = $('#cinema-target');
+const cinemaStatus = $('#cinema-status');
+let siteMatches = [];
+let siteSelection = 0;
 let lastWallpaperVersion = -1;
 let lastSideStageKey = '';
 
@@ -66,6 +71,100 @@ function el(tag, className = '', text = '') {
   if (className) node.className = className;
   if (text) node.textContent = text;
   return node;
+}
+
+function closeSiteSuggestions() {
+  siteMatches = [];
+  siteSelection = 0;
+  siteSuggestions?.classList.add('hidden');
+  siteSuggestions?.replaceChildren();
+  address?.setAttribute('aria-expanded', 'false');
+}
+
+function refreshSiteSelection() {
+  if (!siteSuggestions) return;
+  [...siteSuggestions.querySelectorAll('.site-suggestion')].forEach((button, index) => {
+    const selected = index === siteSelection;
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-selected', selected ? 'true' : 'false');
+  });
+}
+
+function renderSiteSuggestions(matches = siteMatches) {
+  if (!siteSuggestions) return;
+  siteSuggestions.replaceChildren();
+  siteMatches = Array.isArray(matches) ? matches : [];
+  if (!siteMatches.length || document.activeElement !== address) {
+    siteSuggestions.classList.add('hidden');
+    address?.setAttribute('aria-expanded', 'false');
+    return;
+  }
+
+  siteSuggestions.classList.remove('hidden');
+  address?.setAttribute('aria-expanded', 'true');
+  address?.setAttribute('aria-controls', 'site-suggestions');
+
+  siteMatches.forEach((site, index) => {
+    const button = el('button', 'site-suggestion' + (index === siteSelection ? ' selected' : ''));
+    button.type = 'button';
+    button.role = 'option';
+    button.setAttribute('aria-selected', index === siteSelection ? 'true' : 'false');
+    button.dataset.url = site.url;
+
+    const icon = el('span', 'site-suggestion-icon', site.name.slice(0, 1).toUpperCase());
+    const copy = el('span', 'site-suggestion-copy');
+    copy.append(el('strong', '', site.name), el('small', '', new URL(site.url).hostname.replace(/^www\./, '')));
+    const meta = el('span', 'site-suggestion-meta', site.tag || 'Site');
+    const arrow = el('span', 'site-suggestion-arrow', '↗');
+
+    button.append(icon, copy, meta, arrow);
+    button.onpointerdown = (event) => event.preventDefault();
+    button.onmouseenter = () => {
+      siteSelection = index;
+      refreshSiteSelection();
+    };
+    button.onclick = () => openSiteSuggestion(index);
+    siteSuggestions.append(button);
+  });
+}
+
+function updateSiteSuggestions() {
+  const query = address?.value || '';
+  const matches = window.GekkoSiteCache?.matchSites?.(query, 5) || [];
+  siteSelection = 0;
+  renderSiteSuggestions(matches);
+}
+
+function openSiteSuggestion(index = siteSelection) {
+  const site = siteMatches[index];
+  if (!site) return false;
+  closeSiteSuggestions();
+  address.value = site.url;
+  address.blur();
+  fire(window.quantic.navigate(site.url));
+  return true;
+}
+
+function navigateAddressValue() {
+  const value = address.value.trim();
+  if (!value) return;
+  if (siteMatches.length && openSiteSuggestion(siteSelection)) return;
+  closeSiteSuggestions();
+  address.blur();
+  fire(window.quantic.navigate(value));
+}
+
+function cinematicTargetFor(tab) {
+  const raw = tab?.url || '';
+  if (!raw) return 'Ouverture…';
+  try {
+    const url = new URL(raw);
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.hostname.replace(/^www\./, '');
+    }
+    if (url.protocol === 'quantic:') return 'GEKKO';
+  } catch {}
+  return 'Ouverture…';
 }
 
 function createTabNode(tab) {
@@ -482,8 +581,15 @@ function render() {
   fav.title = tab?.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris';
   reload.classList.toggle('loading', Boolean(tab?.loading));
   reload.title = tab?.loading ? 'Arrêter' : 'Actualiser';
-  navigationTransition?.classList.toggle('active', Boolean(tab?.transitioning));
-  navigationTransition?.setAttribute('aria-hidden', tab?.transitioning ? 'false' : 'true');
+  const cinematicActive = Boolean(tab?.transitioning);
+  navigationTransition?.classList.toggle('active', cinematicActive);
+  navigationTransition?.setAttribute('aria-hidden', cinematicActive ? 'false' : 'true');
+  if (cinematicActive) {
+    if (cinemaTarget) cinemaTarget.textContent = cinematicTargetFor(tab);
+    if (cinemaStatus) cinemaStatus.textContent = tab?.awaitingNetwork
+      ? 'Création du circuit privé…'
+      : (tab?.loading ? 'Chargement de la page…' : 'Préparation de la page…');
+  }
   $('#home-button')?.classList.toggle('active', state.internal?.kind === 'home');
 
   setInternalVisibility();
@@ -537,6 +643,7 @@ $('#menu').onclick = () => fire(window.quantic.mainMenu());
 $('#persona').onclick = () => fire(window.quantic.newTab('quantic://settings'));
 
 searchEngineButton.onclick = () => {
+  closeSiteSuggestions();
   const opening = searchEngineMenu.classList.contains('hidden');
   searchEngineMenu.classList.toggle('hidden', !opening);
   searchEngineButton.setAttribute('aria-expanded', opening ? 'true' : 'false');
@@ -563,21 +670,45 @@ document.querySelectorAll('[data-win]').forEach((button) => {
   button.onclick = () => fire(window.quantic.windowControl(button.dataset.win));
 });
 
+address.oninput = () => {
+  if (!searchEngineMenu.classList.contains('hidden')) {
+    searchEngineMenu.classList.add('hidden');
+    searchEngineButton.setAttribute('aria-expanded', 'false');
+  }
+  updateSiteSuggestions();
+};
 address.onkeydown = (event) => {
+  if (event.key === 'ArrowDown' && siteMatches.length) {
+    event.preventDefault();
+    siteSelection = (siteSelection + 1) % siteMatches.length;
+    refreshSiteSelection();
+    return;
+  }
+  if (event.key === 'ArrowUp' && siteMatches.length) {
+    event.preventDefault();
+    siteSelection = (siteSelection - 1 + siteMatches.length) % siteMatches.length;
+    refreshSiteSelection();
+    return;
+  }
+  if (event.key === 'Escape' && siteMatches.length) {
+    event.preventDefault();
+    closeSiteSuggestions();
+    return;
+  }
   if (event.key === 'Enter') {
-    const value = address.value;
-    address.blur();
-    fire(window.quantic.navigate(value));
+    event.preventDefault();
+    navigateAddressValue();
   }
 };
-$('#address-go').onclick = () => {
-  const value = address.value;
-  if (!value.trim()) return;
-  address.blur();
-  fire(window.quantic.navigate(value));
+$('#address-go').onclick = () => navigateAddressValue();
+address.onfocus = () => {
+  fire(window.quantic.chromeLock(true));
+  updateSiteSuggestions();
 };
-address.onfocus = () => fire(window.quantic.chromeLock(true));
-address.onblur = () => fire(window.quantic.chromeLock(false));
+address.onblur = () => {
+  closeSiteSuggestions();
+  fire(window.quantic.chromeLock(false));
+};
 
 document.querySelectorAll('[data-q]').forEach((button) => {
   button.onclick = () => {
@@ -661,5 +792,8 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && searchEngineMenu && !searchEngineMenu.classList.contains('hidden')) {
     searchEngineMenu.classList.add('hidden');
     searchEngineButton.setAttribute('aria-expanded', 'false');
+  }
+  if (event.key === 'Escape' && siteSuggestions && !siteSuggestions.classList.contains('hidden')) {
+    closeSiteSuggestions();
   }
 });

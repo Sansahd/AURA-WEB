@@ -51,7 +51,7 @@ test('navigation transition is lifecycle driven and reduced-motion safe', () => 
   assert.match(main, /did-start-navigation/);
   assert.match(main, /tab\.transitioning\s*=\s*true/);
   assert.match(main, /tab\.transitioning\s*=\s*false/);
-  assert.match(main, /MIN_NAV_TRANSITION_MS\s*=\s*480/);
+  assert.match(main, /MIN_NAV_TRANSITION_MS\s*=\s*260/);
   assert.match(renderer, /navigation-transition/);
   assert.match(html, /id="navigation-transition"/);
   assert.match(css, /prefers-reduced-motion:reduce/);
@@ -193,4 +193,38 @@ test('home controls use vector icons and compact horizontal action tiles', () =>
   assert.match(css, /grid-template-columns:42px minmax\(0,1fr\) 22px/);
   assert.match(css, /min-height:78px!important/);
   assert.match(css, /border:1px solid rgba\(210,255,249,.095\)!important/);
+});
+
+
+test('cinematic bridge holds a live loading scene instead of going blank', () => {
+  const html = read('src/renderer/index.html');
+  const css = read('src/renderer/quantic-glide-brand.css');
+  const renderer = read('src/renderer/renderer.js');
+  const main = read('src/main.cjs');
+
+  assert.match(html, /id="cinema-target"/);
+  assert.match(html, /class="cinema-loader"/);
+  assert.match(html, /id="cinema-status"/);
+  assert.match(css, /Cinematic bridge is now stateful/);
+  assert.match(css, /cinema-hold-breathe/);
+  assert.match(css, /cinema-loader-pass/);
+  assert.match(renderer, /cinematicTargetFor/);
+  assert.match(renderer, /Création du circuit privé/);
+  assert.match(main, /tab\.transitioning = true/);
+  assert.match(main, /setTimeout\(resolve, 32\)/);
+});
+
+test('omnibox includes a zero-network popular-site suggestion surface', () => {
+  const html = read('src/renderer/index.html');
+  const renderer = read('src/renderer/renderer.js');
+  const css = read('src/renderer/quantic-glide-brand.css');
+
+  assert.match(html, /id="site-suggestions"/);
+  assert.match(html, /site-cache\.js/);
+  assert.match(renderer, /GekkoSiteCache/);
+  assert.match(renderer, /updateSiteSuggestions/);
+  assert.match(renderer, /ArrowDown/);
+  assert.match(renderer, /ArrowUp/);
+  assert.match(css, /\.site-suggestions/);
+  assert.match(css, /\.site-suggestion\.selected/);
 });
