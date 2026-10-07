@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { SITES, matchSites, firstSite } = require('../src/renderer/site-cache.js');
+const { SITES, matchSites, firstSite, instantSite, prewarmSite } = require('../src/renderer/site-cache.js');
 
 test('popular site cache is local, broad and deterministic', () => {
   assert.ok(Array.isArray(SITES));
@@ -31,4 +31,25 @@ test('ambiguous prefixes remain ranked suggestions instead of a network lookup',
   assert.ok(matches.some((site) => site.name === 'X · Twitter'));
   assert.ok(matches.some((site) => site.name === 'Twitch'));
   assert.ok(matches.every((site) => site.url.startsWith('https://')));
+});
+
+
+test('reserved aliases launch the requested world sites immediately', () => {
+  assert.equal(instantSite('you')?.name, 'YouTube');
+  assert.equal(instantSite('spo')?.name, 'Spotify');
+  assert.equal(instantSite('wiki')?.name, 'Wikipedia');
+  assert.equal(instantSite('net')?.name, 'Netflix');
+  assert.equal(instantSite('ama')?.name, 'Amazon');
+  assert.equal(instantSite('goo')?.name, 'Google');
+  assert.equal(instantSite('git')?.name, 'GitHub');
+  assert.equal(instantSite('random'), null);
+});
+
+test('two-letter unique prefixes prewarm before the instant alias completes', () => {
+  assert.equal(prewarmSite('yo')?.name, 'YouTube');
+  assert.equal(prewarmSite('sp')?.name, 'Spotify');
+  assert.equal(prewarmSite('wi')?.name, 'Wikipedia');
+  assert.equal(prewarmSite('ne')?.name, 'Netflix');
+  assert.equal(prewarmSite('am')?.name, 'Amazon');
+  assert.equal(prewarmSite('st'), null);
 });
