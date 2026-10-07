@@ -18,7 +18,8 @@ class QuanticStore {
         networkMode: 'balanced',
         compatibilityPolicyVersion: 4,
         appearance: { ...DEFAULT_APPEARANCE },
-        sideStage: { ...DEFAULT_SIDESTAGE, pinnedApps: [...DEFAULT_SIDESTAGE.pinnedApps] }
+        sideStage: { ...DEFAULT_SIDESTAGE, pinnedApps: [...DEFAULT_SIDESTAGE.pinnedApps] },
+        extensionPaths: []
       }
     };
     this.favoriteUrls = new Set();
@@ -38,7 +39,8 @@ class QuanticStore {
           ...this.data.settings,
           ...existingSettings,
           appearance: normalizeAppearance(existingSettings.appearance, DEFAULT_APPEARANCE),
-          sideStage: normalizeSideStage(existingSettings.sideStage, DEFAULT_SIDESTAGE)
+          sideStage: normalizeSideStage(existingSettings.sideStage, DEFAULT_SIDESTAGE),
+          extensionPaths: Array.isArray(existingSettings.extensionPaths) ? existingSettings.extensionPaths.filter((item) => typeof item === 'string') : []
         },
         history: Array.isArray(existing.history) ? existing.history : [],
         favorites: Array.isArray(existing.favorites) ? existing.favorites : [],
@@ -178,6 +180,39 @@ class QuanticStore {
     const item = this.data.recentlyClosed.shift() || null;
     if (item) this.scheduleSave(120);
     return item;
+  }
+
+  syncSnapshot() {
+    return {
+      version: 1,
+      exportedAt: Date.now(),
+      favorites: this.data.favorites.slice(0, 500),
+      history: this.data.history.slice(0, 500),
+      projects: Array.isArray(this.data.projects) ? this.data.projects.slice(0, 200) : [],
+      settings: {
+        ...this.settings(),
+        networkMode: 'balanced'
+      }
+    };
+  }
+
+  applySyncSnapshot(snapshot) {
+    if (!snapshot || Number(snapshot.version || 0) !== 1) throw new Error('Snapshot GEKKO non pris en charge');
+    const nextSettings = snapshot.settings && typeof snapshot.settings === 'object' ? snapshot.settings : {};
+    this.data.favorites = Array.isArray(snapshot.favorites) ? snapshot.favorites.slice(0, 500) : this.data.favorites;
+    this.data.history = Array.isArray(snapshot.history) ? snapshot.history.slice(0, 500) : this.data.history;
+    this.data.projects = Array.isArray(snapshot.projects) ? snapshot.projects.slice(0, 200) : this.data.projects;
+    this.data.settings = {
+      ...this.data.settings,
+      ...nextSettings,
+      networkMode: 'balanced',
+      appearance: normalizeAppearance(nextSettings.appearance, this.data.settings.appearance),
+      sideStage: normalizeSideStage(nextSettings.sideStage, this.data.settings.sideStage),
+      extensionPaths: Array.isArray(nextSettings.extensionPaths) ? nextSettings.extensionPaths.filter((item) => typeof item === 'string') : this.data.settings.extensionPaths
+    };
+    this.reindex();
+    this.scheduleSave(0);
+    return this.syncSnapshot();
   }
 }
 
