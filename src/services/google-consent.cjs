@@ -12,8 +12,9 @@ function isGoogleConsentUrl(raw = '') {
   }
 }
 
-function googleConsentRefusalSource() {
-  return `(() => {
+function googleConsentRefusalSource(waitMs = 0) {
+  const wait = Math.max(0, Math.min(1500, Number(waitMs) || 0));
+  return `(async () => {
     const KEY = '__gekkoGoogleConsentRejectV1';
     if (window[KEY]?.installed) {
       try { window[KEY].scan?.(); } catch {}
@@ -99,6 +100,16 @@ function googleConsentRefusalSource() {
       }, 12000);
     }
 
+    if (state.rejected || ${wait} <= 0) {
+      return { installed: true, rejected: state.rejected };
+    }
+
+    const deadline = Date.now() + ${wait};
+    while (!state.rejected && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      scan();
+    }
+
     return { installed: true, rejected: state.rejected };
   })()`;
 }
@@ -109,7 +120,9 @@ async function installGoogleConsentRefusal(webContents) {
   if (!isGoogleConsentUrl(url)) return { ok: false, reason: 'not-google' };
 
   try {
-    const result = await webContents.executeJavaScript(googleConsentRefusalSource(), true);
+    const host = (() => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } })();
+    const waitMs = host === 'consent.google.com' ? 900 : 0;
+    const result = await webContents.executeJavaScript(googleConsentRefusalSource(waitMs), true);
     return { ok: true, ...(result || {}) };
   } catch (error) {
     return { ok: false, reason: String(error?.message || error) };
