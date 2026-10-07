@@ -1,13 +1,13 @@
 {
   "name": "gekko-browser-aura-career",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "GEKKO Browser with integrated AURA Career",
   "main": "src/bootstrap.cjs",
   "author": "Quantic",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/renderer/renderer.js && node --check src/renderer/site-cache.js && node --check src/services/youtube-guard.cjs && node --check src/services/youtube-direct.cjs && node --check src/services/cookie-consent.cjs && node --check src/services/career-agent.cjs && npm test",
+    "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/renderer/renderer.js && node --check src/renderer/site-cache.js && node --check src/services/youtube-guard.cjs && node --check src/services/youtube-direct.cjs && node --check src/services/cookie-consent.cjs && node --check src/services/shields.cjs && node --check src/services/career-agent.cjs && npm test",
     "dist": "electron-builder --win --x64 --publish never",
     "test": "node --test test/*.test.cjs"
   },
@@ -22,7 +22,8 @@
     "files": [
       "src/**/*",
       "career-agent/**/*",
-      "package.json"
+      "package.json",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "win": {
       "target": [
@@ -62,6 +63,8 @@
     ]
   },
   "dependencies": {
-    "youtubei.js": "18.1.0"
+    "youtubei.js": "18.1.0",
+    "@ghostery/adblocker": "2.18.2",
+    "@ghostery/adblocker-electron": "2.18.2"
   }
 }
