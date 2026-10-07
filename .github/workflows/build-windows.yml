@@ -76,57 +76,11 @@ jobs:
           Write-Host "Installed:" $exe.FullName
           Write-Host "Uninstaller:" $uninstaller.FullName
 
-      - name: Smoke portable visible launch
-        shell: pwsh
-        run: |
-          $portable = (Resolve-Path "dist/GEKKO-Portable.exe").Path
-          $startedAt = Get-Date
-          $wrapper = Start-Process -FilePath $portable -PassThru
-
-          $visible = $false
-          $window = $null
-          for ($i = 0; $i -lt 120; $i++) {
-            Start-Sleep -Milliseconds 500
-            $window = Get-Process -ErrorAction SilentlyContinue |
-              Where-Object {
-                $_.MainWindowHandle -ne 0 -and
-                ($_.ProcessName -match "GEKKO|electron" -or $_.MainWindowTitle -match "GEKKO")
-              } |
-              Select-Object -First 1
-            if ($window) {
-              $elapsed = ((Get-Date) - $startedAt).TotalSeconds
-              Write-Host "Portable GEKKO visible after $([math]::Round($elapsed, 1)) seconds"
-              Write-Host "Process:" $window.ProcessName
-              Write-Host "Window title:" $window.MainWindowTitle
-              Write-Host "Window handle:" $window.MainWindowHandle
-              $visible = $true
-              break
-            }
-
-            if ($wrapper.HasExited -and $wrapper.ExitCode -ne 0) {
-              throw "GEKKO portable wrapper exited with code $($wrapper.ExitCode)"
-            }
-          }
-
-          if (-not $visible) {
-            Write-Host "Portable wrapper exited:" $wrapper.HasExited
-            if ($wrapper.HasExited) { Write-Host "Portable wrapper exit code:" $wrapper.ExitCode }
-            Get-Process -ErrorAction SilentlyContinue |
-              Where-Object { $_.ProcessName -match "GEKKO|electron|nsis" } |
-              Format-Table Id, ProcessName, MainWindowTitle, MainWindowHandle -AutoSize
-            throw "Portable GEKKO did not create a visible window within 60 seconds"
-          }
-
-          Get-Process -ErrorAction SilentlyContinue |
-            Where-Object { $_.ProcessName -match "GEKKO Browser|GEKKO-Portable" } |
-            Stop-Process -Force -ErrorAction SilentlyContinue
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: GEKKO-Windows
-          path: |
-            dist/GEKKO-Setup.exe
-            dist/GEKKO-Portable.exe
+          name: GEKKO-Setup
+          path: dist/GEKKO-Setup.exe
           if-no-files-found: error
           retention-days: 7
