@@ -1,0 +1,132 @@
+name: Gekko Android Runtime E2E
+
+on:
+  push:
+    branches: ["feat/gekko-native-0.9-finish"]
+    paths:
+      - "fusion/android/**"
+      - "fusion/servo-runtime/patch-servo.py"
+      - "quantic-engine/vendor/ladybird_html/**"
+      - "vendor/servo"
+      - ".gitmodules"
+      - ".github/workflows/gekko-android-runtime-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gekko-android-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+  SHELL: /bin/bash
+
+jobs:
+  android-x86-runtime:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+
+    steps:
+      - name: Free build disk
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: false
+          swap-storage: false
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Apply Gekko Servo engine patch
+        run: python fusion/servo-runtime/patch-servo.py
+
+      - name: Apply Gekko Android shell patch
+        run: python fusion/android/patch-gekko-android.py
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "20.1"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Servo Python tooling
+        run: python -m pip install --upgrade uv
+
+      - name: Bootstrap Servo dependencies
+        working-directory: vendor/servo
+        run: |
+          sudo apt-get update
+          ./mach bootstrap --yes --skip-lints --skip-nextest
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools platforms;android-34 emulator system-images;android-34;google_apis;x86_64"
+
+      - name: Install Android NDK r29
+        uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r29
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Prime Gradle
+        working-directory: vendor/servo/support/android/apk
+        run: ./gradlew --version
+
+      - name: Build native x86_64 Gekko APK
+        working-directory: vendor/servo
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          ./mach build --target x86_64-linux-android --profile release
+          test -s target/x86_64-linux-android/release/servoapp.apk
+          cp target/x86_64-linux-android/release/servoapp.apk "$GITHUB_WORKSPACE/Quantic-Gekko-Android-x86_64.apk"
+          unzip -l "$GITHUB_WORKSPACE/Quantic-Gekko-Android-x86_64.apk" | grep -q "lib/x86_64/libservoshell.so"
+
+      - name: Boot emulator and test real Gekko runtime
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -euo pipefail
+            adb logcat -c
+            adb install -r Quantic-Gekko-Android-x86_64.apk
+            adb shell am force-stop com.quantic.gekko
+            adb shell am start -W -a android.intent.action.VIEW -d https://example.com -n com.quantic.gekko/org.servo.servoshell.MainActivity
+            sleep 12
+            PID="$(adb shell pidof com.quantic.gekko | tr -d '\r')"
+            test -n "$PID"
+            adb shell dumpsys activity activities | grep -q "com.quantic.gekko"
+            adb shell dumpsys package com.quantic.gekko | grep -q "versionName=0.8.5"
+            LOGS="$(adb logcat -d -v brief)"
+            echo "$LOGS" | tail -n 300
+            if echo "$LOGS" | grep -E "FATAL EXCEPTION|Fatal signal.*(servoshell|quantic|servo)|Process: com.quantic.gekko.*has died"; then
+              echo "Gekko Android runtime crashed"
+              exit 1
+            fi
+            echo "GEKKO ANDROID REAL RUNTIME E2E PASSED"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quantic-Gekko-Android-x86_64-E2E
+          path: Quantic-Gekko-Android-x86_64.apk
+          if-no-files-found: error
+          retention-days: 14
