@@ -5,6 +5,7 @@ const { QuanticStore } = require('./services/store.cjs');
 const { QuanticVeil } = require('./services/veil.cjs');
 const { installPrivacyLayer } = require('./services/privacy.cjs');
 const { installYouTubeGuard, isYouTubeUrl } = require('./services/youtube-guard.cjs');
+const { isGoogleConsentUrl, installGoogleConsentRefusal } = require('./services/google-consent.cjs');
 const { DIRECT_SCHEME_PREFIX, extractYouTubeVideoId, parseDirectRequest, YouTubeDirectResolver, installYouTubeDirectPlayer, removeYouTubeDirectPlayer } = require('./services/youtube-direct.cjs');
 const { buildInternalState, internalTitle } = require('./core/internal-state.cjs');
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
@@ -17,7 +18,8 @@ const { GlideCareerAgent } = require('./services/career-agent.cjs');
 
 const HOME = 'quantic://newtab';
 const TOP_CHROME_H = 42;
-const BOTTOM_DOCK_H = 60;
+const BOTTOM_DOCK_H = 66;
+const MIN_NAV_TRANSITION_MS = 480;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 58;
 const SIDESTAGE_COLLAPSED_W = 22;
@@ -468,26 +470,45 @@ function internalErrorUrl(title, detail) {
 
 function showInternal(tab, url) {
   if (!tab) return;
+  clearTimeout(tab.revealTimer);
+  tab.revealTimer = null;
   tab.url = url;
   tab.title = internalTitle(url);
   tab.loading = false;
   tab.transitioning = false;
   tab.awaitingNetwork = false;
   tab.awaitingPage = false;
-  tab.transitioning = false;
   tab.view?.setVisible(false);
   chromeVisible = true;
   layout();
   emitState(true);
 }
 
-function revealTabView(tab) {
+function finishRevealTabView(tab) {
   if (!tab?.view || tab.view.webContents.isDestroyed()) return;
+  clearTimeout(tab.revealTimer);
+  tab.revealTimer = null;
   tab.awaitingNetwork = false;
   tab.awaitingPage = false;
+  tab.transitioning = false;
   if (activeId === tab.id && isExternal(tab.url)) tab.view.setVisible(true);
   layout();
   emitState(true);
+}
+
+function revealTabView(tab) {
+  if (!tab?.view || tab.view.webContents.isDestroyed()) return;
+  const startedAt = Number(tab.transitionStartedAt || 0);
+  const elapsed = startedAt ? Date.now() - startedAt : MIN_NAV_TRANSITION_MS;
+  const remaining = Math.max(0, MIN_NAV_TRANSITION_MS - elapsed);
+
+  if (remaining > 0) {
+    if (tab.revealTimer) return;
+    tab.revealTimer = setTimeout(() => finishRevealTabView(tab), remaining);
+    tab.revealTimer.unref?.();
+    return;
+  }
+  finishRevealTabView(tab);
 }
 
 async function setYouTubeDirectResult(wc, ok, error = '') {
@@ -630,6 +651,9 @@ function createView(tab) {
 
   wc.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
     if (!isMainFrame || isInPlace) return;
+    clearTimeout(tab.revealTimer);
+    tab.revealTimer = null;
+    tab.transitionStartedAt = Date.now();
     tab.transitioning = true;
     tab.awaitingPage = true;
     if (activeId === tab.id) view.setVisible(false);
@@ -643,11 +667,18 @@ function createView(tab) {
     }
   });
 
-  wc.on('dom-ready', () => {
-    // Reveal only after Chromium has a real document. This eliminates the
-    // default white WebContentsView frame between navigation and first content.
+  wc.on('dom-ready', async () => {
+    // Google consent is rejected before revealing the page when possible, so
+    // the consent interstitial does not flash in front of the user.
+    const currentUrl = wc.getURL();
+    if (isGoogleConsentUrl(currentUrl)) {
+      await installGoogleConsentRefusal(wc).catch(() => {});
+    }
+
+    // Reveal only after Chromium has a real document and the cinematic bridge
+    // has had enough time to complete. This avoids both white flashes and abrupt cuts.
     if (tab.awaitingPage) revealTabView(tab);
-    if (isYouTubeUrl(wc.getURL())) installYouTubeGuard(wc).catch(() => {});
+    if (isYouTubeUrl(currentUrl)) installYouTubeGuard(wc).catch(() => {});
   });
 
   wc.on('did-stop-loading', () => {
@@ -670,6 +701,7 @@ function createView(tab) {
     syncFromView(tab, true);
     clearYouTubeDirect(tab).catch(() => {});
     if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
+    if (isGoogleConsentUrl(url)) installGoogleConsentRefusal(wc).catch(() => {});
     emitState();
   });
 
@@ -680,6 +712,7 @@ function createView(tab) {
     const nextVideoId = extractYouTubeVideoId(url);
     if (previousDirectId && previousDirectId !== nextVideoId) clearYouTubeDirect(tab).catch(() => {});
     if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
+    if (isGoogleConsentUrl(url)) installGoogleConsentRefusal(wc).catch(() => {});
     emitState();
   });
 
@@ -754,7 +787,8 @@ function createTab(url = HOME, activate = true) {
   const now = Date.now();
   const tab = {
     id: nextId++, title: 'Nouvel onglet', url: HOME, lastExternalUrl: '', view: null,
-    loading: false, transitioning: false, awaitingNetwork: false, awaitingPage: false, boundsKey: '',
+    loading: false, transitioning: false, transitionStartedAt: 0, revealTimer: null,
+    awaitingNetwork: false, awaitingPage: false, boundsKey: '',
     createdAt: now, lastActiveAt: now, lastBackgroundAt: 0, sleeping: false,
     mediaPlaying: false, audible: false, permissionPromptOpen: false, downloadActive: false
   };
@@ -793,6 +827,8 @@ function closeTab(id) {
   if (!tab) return false;
   const wasActive = activeId === id;
   if (!isPrivateMode()) store.rememberClosed(tab);
+  clearTimeout(tab.revealTimer);
+  tab.revealTimer = null;
   if (tab.view) {
     try { win.contentView.removeChildView(tab.view); } catch {}
     try { tab.view.webContents.close(); } catch {}
@@ -899,12 +935,8 @@ function mainMenu() {
     { label: 'Téléchargements', click: () => shell.openPath(app.getPath('downloads')) },
     { type: 'separator' },
     { label: 'Moteur de recherche', submenu: [
-      { label: 'Quantic Search', type: 'radio', checked: settings.searchEngine === 'quantic', click: () => setSearchEngine('quantic') },
-      { label: 'Brave Search', type: 'radio', checked: settings.searchEngine === 'brave', click: () => setSearchEngine('brave') },
       { label: 'DuckDuckGo', type: 'radio', checked: settings.searchEngine === 'duckduckgo', click: () => setSearchEngine('duckduckgo') },
-      { label: 'Qwant', type: 'radio', checked: settings.searchEngine === 'qwant', click: () => setSearchEngine('qwant') },
-      { label: 'Startpage', type: 'radio', checked: settings.searchEngine === 'startpage', click: () => setSearchEngine('startpage') },
-      { label: 'Mojeek', type: 'radio', checked: settings.searchEngine === 'mojeek', click: () => setSearchEngine('mojeek') }
+      { label: 'Qwant', type: 'radio', checked: settings.searchEngine === 'qwant', click: () => setSearchEngine('qwant') }
     ] },
     { label: 'Réseau privé (Tor)', type: 'checkbox', checked: settings.networkMode === 'private', click: (item) => { setNetworkMode(item.checked ? 'private' : 'balanced').catch(() => {}); } },
     { label: 'Mode immersion', type: 'checkbox', checked: settings.immersiveMode !== false, click: (item) => { store.setSetting('immersiveMode', item.checked); chromeVisible = true; layout(); emitState(true); } },
