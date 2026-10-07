@@ -106,14 +106,12 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            set -euo pipefail
             adb logcat -c
             adb install -r Quantic-Gekko-Android-x86_64.apk
             adb shell am force-stop com.quantic.gekko
             adb shell am start -W -a android.intent.action.VIEW -d https://example.com -n com.quantic.gekko/org.servo.servoshell.MainActivity
             sleep 12
-            PID="$(adb shell pidof com.quantic.gekko | tr -d '\r')"
-            test -n "$PID"
+            adb shell pidof com.quantic.gekko | grep -Eq '[0-9]+'
             adb shell dumpsys activity activities | grep -q "com.quantic.gekko"
             adb shell dumpsys package com.quantic.gekko | grep -q "versionName=0.8.5"
             adb logcat -d -v brief > "$RUNNER_TEMP/gekko-runtime-logcat.txt"
