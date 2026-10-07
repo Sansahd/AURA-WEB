@@ -2,7 +2,7 @@ name: Build Quantic Gekko Android
 
 on:
   push:
-    branches: ["quantic-fusion-servo-gecko-ladybird"]
+    branches: ["quantic-fusion-servo-gecko-ladybird", "feat/gekko-native-0.9-finish"]
     paths:
       - "fusion/android/**"
       - "fusion/servo-runtime/patch-servo.py"
@@ -115,3 +115,36 @@ jobs:
           path: Quantic-Gekko-Android-arm64.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Build x86_64 smoke APK
+        working-directory: vendor/servo
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          ./mach build --target x86_64-linux-android --profile release
+          test -f target/x86_64-linux-android/release/servoapp.apk
+          cp target/x86_64-linux-android/release/servoapp.apk "$GITHUB_WORKSPACE/Quantic-Gekko-Android-x86_64-smoke.apk"
+
+      - name: Enable KVM for emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot emulator and smoke Gekko
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r Quantic-Gekko-Android-x86_64-smoke.apk
+            adb logcat -c
+            adb shell am start -W -n com.quantic.gekko/org.servo.servoshell.MainActivity
+            sleep 8
+            adb shell pidof com.quantic.gekko
+            adb shell dumpsys activity activities | grep -q "com.quantic.gekko"
+            adb logcat -d > "$RUNNER_TEMP/gekko-android-logcat.txt"
+            ! grep -E "FATAL EXCEPTION|Process: com.quantic.gekko.*has died" "$RUNNER_TEMP/gekko-android-logcat.txt"
+            echo "GEKKO ANDROID EMULATOR SMOKE PASSED"
