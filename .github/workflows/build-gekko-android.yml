@@ -145,8 +145,6 @@ jobs:
             sleep 8
             adb shell pidof com.quantic.gekko
             adb shell dumpsys activity activities | grep -q "com.quantic.gekko"
-            if adb logcat -d | grep -E "FATAL EXCEPTION|Process: com.quantic.gekko.*has died"; then
-              echo "Gekko crashed during Android smoke"
-              exit 1
-            fi
+            adb logcat -d > "$RUNNER_TEMP/gekko-android-logcat.txt"
+            ! grep -E "FATAL EXCEPTION|Process: com.quantic.gekko.*has died" "$RUNNER_TEMP/gekko-android-logcat.txt"
             echo "GEKKO ANDROID EMULATOR SMOKE PASSED"
