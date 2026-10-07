@@ -92,11 +92,25 @@ async function installQuanticUiProtocol() {
   handlerInstalled = true;
 }
 
+async function verifyQuanticUiShell() {
+  const response = await net.fetch(SHELL_URL);
+  if (!response.ok) {
+    throw new Error(`Quantic shell probe failed with HTTP ${response.status}`);
+  }
+
+  const html = await response.text();
+  if (!/<title>GEKKO<\/title>/i.test(html) || !/id=["']bottom-dock["']/i.test(html)) {
+    throw new Error('Quantic shell probe returned unexpected content');
+  }
+  return true;
+}
+
 module.exports = {
   SCHEME,
   SHELL_URL,
   registerQuanticUiScheme,
   installQuanticUiProtocol,
+  verifyQuanticUiShell,
   safeUiPath,
   uiRoot
 };
