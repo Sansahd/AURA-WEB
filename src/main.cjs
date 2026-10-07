@@ -1175,7 +1175,13 @@ app.whenReady().then(async () => {
   browserSession = currentSession();
 
   // Compatibility-first normal profile plus an isolated ephemeral private profile.
-  await applyDirectProxy(normalSession);
+  // Do not block the first visible window on normal-session proxy setup: some
+  // Windows environments can make setProxy() unexpectedly slow. Private mode
+  // remains fail-closed and is configured before its window is exposed below.
+  const normalProxyReady = isPrivateMode()
+    ? Promise.resolve()
+    : applyDirectProxy(normalSession).catch(() => false);
+
   for (const targetSession of [normalSession, privateSession]) {
     targetSession.setUserAgent(chromiumUserAgent(), 'fr-FR,fr,en-US,en');
     installPrivacyLayer(targetSession);
@@ -1219,9 +1225,13 @@ app.whenReady().then(async () => {
     await applyFailClosedProxy(privateSession);
     ensureNetwork().catch(() => {});
   }
+
   createWindow();
   startImmersionWatcher();
   startTabLifecycleWatcher();
+
+  // Finish normal networking after the shell is already visible.
+  if (!isPrivateMode()) void normalProxyReady;
 });
 
 ipcMain.handle('get-state', () => state());
