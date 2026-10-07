@@ -23,12 +23,36 @@ const reload = $('#reload');
 const navigationTransition = $('#navigation-transition');
 const appsPanel = $('#apps-panel');
 const sideStageRail = $('#sidestage-rail');
+const searchEngineButton = $('#search-engine-button');
+const searchEngineMenu = $('#search-engine-menu');
+const searchEngineMark = $('#search-engine-mark');
+const searchEngineLabel = $('#search-engine-label');
 let lastWallpaperVersion = -1;
 let lastSideStageKey = '';
 
 
 function active() { return state.tabs.find((tab) => tab.id === state.activeId); }
 function fire(promise) { Promise.resolve(promise).catch(() => {}); }
+const SEARCH_ENGINES = Object.freeze({
+  duckduckgo: { label: 'DuckDuckGo', mark: 'D' },
+  qwant: { label: 'Qwant', mark: 'Q' }
+});
+function currentSearchEngine() {
+  return SEARCH_ENGINES[state.settings?.searchEngine] ? state.settings.searchEngine : 'duckduckgo';
+}
+function renderSearchEngineControl() {
+  const key = currentSearchEngine();
+  const meta = SEARCH_ENGINES[key];
+  if (searchEngineMark) searchEngineMark.textContent = meta.mark;
+  if (searchEngineLabel) searchEngineLabel.textContent = meta.label;
+  if (searchEngineButton) {
+    searchEngineButton.classList.toggle('qwant', key === 'qwant');
+    searchEngineButton.title = `Moteur de recherche · ${meta.label}`;
+  }
+  document.querySelectorAll('[data-search-engine]').forEach((button) => {
+    button.setAttribute('aria-checked', button.dataset.searchEngine === key ? 'true' : 'false');
+  });
+}
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -427,6 +451,7 @@ function renderSideStage(){const data=state.sideStage||{enabled:false,apps:[]},k
 
 function render() {
   applyAppearance();
+  renderSearchEngineControl();
   renderSideStage();
   renderTabs();
   const tab = active();
@@ -437,10 +462,9 @@ function render() {
 
   back.disabled = !tab?.canGoBack;
   forward.disabled = !tab?.canGoForward;
-  fav.textContent = tab?.favorite ? '★' : '☆';
   fav.classList.toggle('active', Boolean(tab?.favorite));
   fav.title = tab?.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris';
-  reload.textContent = tab?.loading ? '×' : '↻';
+  reload.classList.toggle('loading', Boolean(tab?.loading));
   reload.title = tab?.loading ? 'Arrêter' : 'Actualiser';
   navigationTransition?.classList.toggle('active', Boolean(tab?.transitioning));
   navigationTransition?.setAttribute('aria-hidden', tab?.transitioning ? 'false' : 'true');
@@ -476,7 +500,6 @@ window.quantic.onState(acceptState);
 fire(window.quantic.state().then(acceptState));
 
 $('#logo').onclick = () => fire(window.quantic.home());
-$('#dock-brand').onclick = () => fire(window.quantic.home());
 $('#home-button').onclick = () => fire(window.quantic.home());
 $('#discover').onclick = () => fire(window.quantic.navigate('Découvrir le web'));
 $('#bookmarks').onclick = () => fire(window.quantic.newTab('quantic://favorites'));
@@ -496,6 +519,22 @@ $('#plus').onclick = () => fire(window.quantic.newTab());
 $('#plus').oncontextmenu = (event) => { event.preventDefault(); fire(window.quantic.plusMenu()); };
 $('#menu').onclick = () => fire(window.quantic.mainMenu());
 $('#persona').onclick = () => fire(window.quantic.newTab('quantic://settings'));
+
+searchEngineButton.onclick = () => {
+  const opening = searchEngineMenu.classList.contains('hidden');
+  searchEngineMenu.classList.toggle('hidden', !opening);
+  searchEngineButton.setAttribute('aria-expanded', opening ? 'true' : 'false');
+};
+document.querySelectorAll('[data-search-engine]').forEach((button) => {
+  button.onclick = async () => {
+    const engine = button.dataset.searchEngine;
+    if (!SEARCH_ENGINES[engine]) return;
+    searchEngineMenu.classList.add('hidden');
+    searchEngineButton.setAttribute('aria-expanded', 'false');
+    await window.quantic.setSetting('searchEngine', engine);
+    address.focus();
+  };
+});
 
 back.onclick = () => fire(window.quantic.back());
 forward.onclick = () => fire(window.quantic.forward());
@@ -592,8 +631,19 @@ aiPrompt.onkeydown = (event) => {
   }
 };
 
+document.addEventListener('pointerdown', (event) => {
+  if (!searchEngineMenu || searchEngineMenu.classList.contains('hidden')) return;
+  if (searchEngineMenu.contains(event.target) || searchEngineButton.contains(event.target)) return;
+  searchEngineMenu.classList.add('hidden');
+  searchEngineButton.setAttribute('aria-expanded', 'false');
+});
+
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && appsPanel && !appsPanel.classList.contains('hidden')) {
     appsPanel.classList.add('hidden');
+  }
+  if (event.key === 'Escape' && searchEngineMenu && !searchEngineMenu.classList.contains('hidden')) {
+    searchEngineMenu.classList.add('hidden');
+    searchEngineButton.setAttribute('aria-expanded', 'false');
   }
 });
