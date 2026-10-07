@@ -79,7 +79,7 @@ test('Google rejection runs before external page reveal', () => {
 });
 
 test('navigation transition completes instead of remaining permanently active', () => {
-  assert.match(main, /MIN_NAV_TRANSITION_MS = 260/);
+  assert.match(main, /MIN_NAV_TRANSITION_MS = 140/);
   assert.match(main, /tab\.transitionStartedAt = Date\.now\(\)/);
   assert.match(main, /tab\.transitioning = false/);
   assert.match(main, /finishRevealTabView/);
