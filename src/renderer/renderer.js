@@ -153,7 +153,7 @@ function renderSearch(data) {
   const web = el('section', 'internal-section');
   web.append(el('h2', '', 'Rechercher sur le Web'));
   const grid = el('div', 'internal-grid');
-  for (const provider of data.providers || []) grid.append(cardButton(provider.name, 'Recherche privée', () => fire(window.quantic.navigate(provider.url))));
+  for (const provider of data.providers || []) grid.append(cardButton(provider.name, provider.detail || 'Recherche privée', () => fire(window.quantic.navigate(provider.url))));
   web.append(grid);
   internalContent.append(web);
 }
