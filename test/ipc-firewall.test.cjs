@@ -33,3 +33,18 @@ test('AURA Career IPC contracts accept intended shapes and reject unsafe ones', 
     assert.equal(CHANNEL_VALIDATORS[channel](['unexpected']), false, channel);
   }
 });
+
+
+test('extension and sync IPC contracts reject malformed calls', () => {
+  assert.equal(CHANNEL_VALIDATORS['extension-install']([]), true);
+  assert.equal(CHANNEL_VALIDATORS['extension-install'](['unexpected']), false);
+
+  assert.equal(CHANNEL_VALIDATORS['extension-remove'](['abcdefghijklmnopabcdefghijklmnop']), true);
+  assert.equal(CHANNEL_VALIDATORS['extension-remove'](['']), false);
+  assert.equal(CHANNEL_VALIDATORS['extension-remove']([42]), false);
+
+  assert.equal(CHANNEL_VALIDATORS['sync-export'](['correct horse battery staple']), true);
+  assert.equal(CHANNEL_VALIDATORS['sync-import'](['correct horse battery staple']), true);
+  assert.equal(CHANNEL_VALIDATORS['sync-export'](['short']), false);
+  assert.equal(CHANNEL_VALIDATORS['sync-import']([]), false);
+});
