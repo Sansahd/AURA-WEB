@@ -47,6 +47,7 @@ function noArgs(args) { return args.length === 0; }
 const CHANNEL_VALIDATORS = Object.freeze({
   'get-state': noArgs,
   navigate: (args) => args.length === 1 && isString(args[0]),
+  'prewarm-site': (args) => args.length === 1 && isHttpUrl(args[0]),
   'new-tab': (args) => args.length <= 1 && (args.length === 0 || isString(args[0])),
   'activate-tab': (args) => args.length === 1 && isPositiveId(args[0]),
   'close-tab': (args) => args.length === 1 && isPositiveId(args[0]),
