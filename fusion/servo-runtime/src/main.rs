@@ -87,7 +87,7 @@ const DOWNLOAD_BRIDGE_SCRIPT: &str = r#"
 })();
 "#;
 
-const COOKIE_CONSENT_REJECT_SCRIPT: &str = r#"
+const COOKIE_CONSENT_REJECT_SCRIPT: &str = r##"
 (() => {
   const KEY = "__gekkoCookieRejectNativeV1";
   if (window[KEY]?.installed) {
@@ -231,7 +231,7 @@ const COOKIE_CONSENT_REJECT_SCRIPT: &str = r#"
     clearInterval(state.timer);
   }, 20000);
 })();
-"#;
+"##;
 
 const PRIVACY_HARDENING_SCRIPT: &str = r#"
 (() => {
