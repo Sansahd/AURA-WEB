@@ -297,3 +297,25 @@ test('YouTube guard recognizes Direct V2 and requests it immediately on ad detec
   assert.match(source, /directResult/);
   assert.match(source, /resetDirect/);
 });
+
+
+test('YouTube guard shields native playback before Direct resolves', () => {
+  const source = youtubeGuardSource();
+  assert.match(source, /gekko-youtube-shield/);
+  assert.match(source, /ensureDirectShield/);
+  assert.match(source, /nativeVideo\.muted = true/);
+  assert.match(source, /nativeVideo\.pause/);
+  assert.match(source, /directFailedFor/);
+  assert.match(source, /directFallbackAfter/);
+  assert.match(source, /ad-interrupting/);
+});
+
+test('YouTube guard sanitizes player responses before consumers parse them', () => {
+  const source = youtubeGuardSource();
+  assert.match(source, /function patchFetch/);
+  assert.match(source, /window\.fetch = async function gekkoFetch/);
+  assert.match(source, /function patchJsonParser/);
+  assert.match(source, /adBreakHeartbeatParams/);
+  assert.match(source, /adTrackingParams/);
+  assert.match(source, /adSignalsInfo/);
+});

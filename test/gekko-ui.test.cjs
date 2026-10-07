@@ -249,3 +249,35 @@ test('omnibox hypercache can prewarm several likely destinations on the first ke
   assert.match(renderer, /prewarmSites\?\.\(query, 3\)/);
   assert.match(renderer, /prewarmKeys = new Set/);
 });
+
+
+test('favorites use the heart-eyes control requested for bookmarking', () => {
+  const html = read('src/renderer/index.html');
+  const renderer = read('src/renderer/renderer.js');
+  const css = read('src/renderer/quantic-glide-brand.css');
+  assert.match(html, /class="favorite-heart-eyes"[^>]*>😍<\/span>/);
+  assert.doesNotMatch(html.slice(html.indexOf('id="fav"'), html.indexOf('id="sidestage"')), /icon-star/);
+  assert.match(renderer, /fav\.setAttribute\('aria-label', fav\.title\)/);
+  assert.match(css, /favorite-heart-eyes/);
+  assert.match(css, /#fav\.active/);
+});
+
+test('immersive chrome uses soft CSS and native bounds animation', () => {
+  const main = read('src/main.cjs');
+  const css = read('src/renderer/quantic-glide-brand.css');
+  assert.match(main, /CHROME_LAYOUT_ANIM_MS = 280/);
+  assert.match(main, /function setTabViewBounds/);
+  assert.match(main, /layout\(\{ animateChrome: true \}\)/);
+  assert.match(main, /setInterval\(frame, 16\)/);
+  assert.match(css, /GEKKO 2\.1 — softer immersive chrome/);
+  assert.match(css, /transform \.32s cubic-bezier\(\.16,1,\.3,1\)/);
+  assert.match(css, /filter:blur\(4px\)/);
+});
+
+test('YouTube Direct is primed before DOM-ready when navigation starts', () => {
+  const main = read('src/main.cjs');
+  assert.match(main, /function primeYouTubeDirect/);
+  assert.match(main, /primeYouTubeDirect\(_url\)/);
+  assert.match(main, /youtubeDirectResolver\.resolve\(videoId\)/);
+  assert.match(main, /scheduleYouTubeDirect\(tab, 60\)/);
+});
