@@ -319,3 +319,16 @@ test('YouTube guard sanitizes player responses before consumers parse them', () 
   assert.match(source, /adTrackingParams/);
   assert.match(source, /adSignalsInfo/);
 });
+
+
+test('ad-in-corner keeps the native ad muted while GEKKO Direct remains active', () => {
+  const source = youtubeGuardSource();
+  assert.match(source, /function showAdCorner\(\)/);
+  assert.match(source, /function hideAdCorner\(/);
+  assert.match(source, /PUB · MUET/);
+  assert.match(source, /video\.muted = true/);
+  assert.match(source, /video\.volume = 0/);
+  assert.match(source, /video\.play\?\.\(\)/);
+  assert.match(source, /if \(adShowing\) showAdCorner\(\)/);
+  assert.match(source, /if \(adIsShowing\(\)\) showAdCorner\(\)/);
+});

@@ -1,9 +1,9 @@
 name: Build Windows Installer
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/gekko-2.3-finish"]
   pull_request:
-    branches: [main]
+    branches: [main, "feat/gekko-2.3-finish"]
   workflow_dispatch:
 permissions:
   contents: read

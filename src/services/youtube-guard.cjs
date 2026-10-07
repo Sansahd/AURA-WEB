@@ -65,7 +65,9 @@ function youtubeGuardSource() {
       directFallbackAfter: 0,
       lastVideoId: '',
       shield: null,
-      shieldRestore: null
+      shieldRestore: null,
+      adCornerRestore: null,
+      adCornerBadge: null
     };
 
     function scrub(value, seen = new WeakSet()) {
@@ -340,6 +342,114 @@ function youtubeGuardSource() {
       }
     }
 
+    function nativeVideoForPlayer(player = document.querySelector('#movie_player')) {
+      if (!player) return null;
+      return player.querySelector('.html5-video-container video.html5-main-video, video.html5-main-video, .html5-video-container video, video');
+    }
+
+    function hideAdCorner(restoreNative = false) {
+      const saved = state.adCornerRestore;
+      state.adCornerRestore = null;
+      try { state.adCornerBadge?.remove?.(); } catch {}
+      state.adCornerBadge = null;
+      if (!saved) return;
+
+      const { video, container, videoStyle, containerStyle, muted, volume, playbackRate } = saved;
+      if (container?.isConnected) {
+        try {
+          if (containerStyle == null) container.removeAttribute('style');
+          else container.setAttribute('style', containerStyle);
+        } catch {}
+      }
+      if (video?.isConnected) {
+        try {
+          if (videoStyle == null) video.removeAttribute('style');
+          else video.setAttribute('style', videoStyle);
+        } catch {}
+        if (restoreNative) {
+          try { video.muted = muted; } catch {}
+          try { video.volume = volume; } catch {}
+          try { video.playbackRate = playbackRate; } catch {}
+          try { video.play?.().catch?.(() => {}); } catch {}
+        } else {
+          try { video.muted = true; } catch {}
+          try { video.pause?.(); } catch {}
+        }
+      }
+    }
+
+    function showAdCorner() {
+      const player = document.querySelector('#movie_player');
+      const video = nativeVideoForPlayer(player);
+      const container = video?.closest?.('.html5-video-container') || video?.parentElement;
+      if (!player || !video || !container) return false;
+
+      if (!state.adCornerRestore || state.adCornerRestore.video !== video) {
+        hideAdCorner(false);
+        state.adCornerRestore = {
+          video,
+          container,
+          videoStyle: video.getAttribute('style'),
+          containerStyle: container.getAttribute('style'),
+          muted: Boolean(video.muted),
+          volume: Number.isFinite(video.volume) ? video.volume : 1,
+          playbackRate: Number(video.playbackRate || 1)
+        };
+      }
+
+      for (const [name, value] of [
+        ['position', 'absolute'],
+        ['inset', 'auto 14px auto auto'],
+        ['top', '56px'],
+        ['right', '14px'],
+        ['width', 'clamp(180px, 26%, 320px)'],
+        ['height', 'auto'],
+        ['aspect-ratio', '16 / 9'],
+        ['z-index', '2147483600'],
+        ['overflow', 'hidden'],
+        ['border-radius', '14px'],
+        ['box-shadow', '0 12px 34px rgba(0,0,0,.52)'],
+        ['border', '1px solid rgba(255,255,255,.28)'],
+        ['background', '#000'],
+        ['pointer-events', 'none']
+      ]) {
+        try { container.style.setProperty(name, value, 'important'); } catch {}
+      }
+
+      for (const [name, value] of [
+        ['position', 'absolute'],
+        ['inset', '0'],
+        ['width', '100%'],
+        ['height', '100%'],
+        ['object-fit', 'cover'],
+        ['transform', 'none'],
+        ['pointer-events', 'none']
+      ]) {
+        try { video.style.setProperty(name, value, 'important'); } catch {}
+      }
+
+      try { video.muted = true; } catch {}
+      try { video.volume = 0; } catch {}
+      try { video.playbackRate = 1; } catch {}
+      try { video.play?.().catch?.(() => {}); } catch {}
+
+      if (!state.adCornerBadge?.isConnected) {
+        const badge = document.createElement('div');
+        badge.id = 'gekko-youtube-ad-corner-badge';
+        badge.textContent = 'PUB · MUET';
+        badge.style.cssText = [
+          'position:absolute','top:8px','left:8px','z-index:2147483646',
+          'padding:5px 8px','border-radius:999px',
+          'background:rgba(0,0,0,.72)','color:#fff',
+          'font:700 10px/1 system-ui,sans-serif','letter-spacing:.06em',
+          'pointer-events:none','backdrop-filter:blur(10px)'
+        ].join(';');
+        try { container.appendChild(badge); } catch {}
+        state.adCornerBadge = badge;
+      }
+      return true;
+    }
+
     function restorePlayback() {
       if (!state.restore) return;
       const { video, muted, playbackRate, volume } = state.restore;
@@ -356,6 +466,8 @@ function youtubeGuardSource() {
 
       if ((window.__gekkoDirectPlayerV2?.snapshot?.().active || window.__gekkoDirectPlayerV1?.snapshot?.().active)) {
         state.adSince = 0;
+        if (adShowing) showAdCorner();
+        else hideAdCorner(false);
         return;
       }
 
@@ -408,6 +520,7 @@ function youtubeGuardSource() {
 
       const videoId = currentVideoId();
       if (videoId !== state.lastVideoId) {
+        hideAdCorner(true);
         state.lastVideoId = videoId;
         state.directRequested = false;
         state.directFailedFor = '';
@@ -429,6 +542,8 @@ function youtubeGuardSource() {
 
       if (directActive) {
         removeDirectShield(false);
+        if (adIsShowing()) showAdCorner();
+        else hideAdCorner(false);
         bypassAdPlayback();
         return;
       }
@@ -483,6 +598,7 @@ function youtubeGuardSource() {
     window.addEventListener('pagehide', () => {
       try { clearInterval(state.interval); } catch {}
       try { state.observer?.disconnect(); } catch {}
+      hideAdCorner(true);
       restorePlayback();
     }, { once: true });
 
@@ -496,6 +612,7 @@ function youtubeGuardSource() {
           removeDirectShield(false);
         }
         if (!result.ok) {
+          hideAdCorner(true);
           state.directFailedFor = currentVideoId();
           state.directFallbackAfter = Date.now() + 1400;
           state.directCooldownUntil = Date.now() + 15000;
@@ -517,6 +634,7 @@ function youtubeGuardSource() {
         }
       },
       resetDirect(cooldownMs = 0) {
+        hideAdCorner(true);
         state.directRequested = false;
         state.adSince = 0;
         state.directFailedFor = '';

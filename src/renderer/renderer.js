@@ -345,6 +345,72 @@ function localWallpaperData(prompt){const colors=wallpaperPalette(prompt),[h1,h2
 function renderPersonaSettings(data){const appearance=data.settings?.appearance||{};const section=el('section','internal-section');section.append(el('h2','','Quantic Persona · 100 % local'),el('div','persona-note','Couleurs, verre et fond sont calculés et stockés sur cet appareil. Aucun compte ni cloud n’est requis.'));const grid=el('div','persona-grid');const accentBox=el('div','persona-control');accentBox.append(el('label','','Couleur d’accent'));const accent=document.createElement('input');accent.type='color';accent.value=appearance.accent||'#7aa2ff';accent.oninput=()=>document.documentElement.style.setProperty('--quantic-accent',accent.value);accent.onchange=()=>fire(window.quantic.setSetting('appearance',{accent:accent.value}));accentBox.append(accent);const glassBox=el('div','persona-control');glassBox.append(el('label','','Intensité du verre'));const glass=document.createElement('input');glass.type='range';glass.min='.25';glass.max='.95';glass.step='.05';glass.value=String(appearance.glassOpacity??.72);glass.onchange=()=>fire(window.quantic.setSetting('appearance',{glassOpacity:Number(glass.value)}));glassBox.append(glass);const radiusBox=el('div','persona-control');radiusBox.append(el('label','','Arrondi de la fenêtre'));const radius=document.createElement('input');radius.type='range';radius.min='6';radius.max='28';radius.value=String(appearance.radius??14);radius.onchange=()=>fire(window.quantic.setSetting('appearance',{radius:Number(radius.value)}));radiusBox.append(radius);grid.append(accentBox,glassBox,radiusBox);section.append(grid);const wallpaper=el('div','persona-control');wallpaper.style.marginTop='12px';wallpaper.append(el('label','','Fond personnalisé'));const input=document.createElement('input');input.type='text';input.maxLength=512;input.value=appearance.wallpaperPrompt||'';input.placeholder='Ex. forêt cyberpunk bleue, néons et pluie';const actions=el('div','persona-actions');const generate=el('button','pill-button','Générer localement');generate.onclick=()=>{const p=input.value.trim();if(p)fire(window.quantic.setSetting('generateWallpaper',p));};const choose=el('button','pill-button','Choisir une image du PC');choose.onclick=()=>fire(window.quantic.pickWallpaper());const reset=el('button','pill-button','Retirer le fond');reset.onclick=()=>fire(window.quantic.setSetting('resetWallpaper',true));actions.append(generate,choose,reset);wallpaper.append(input,actions,el('div','persona-note','Prompt ou image locale : rien ne quitte votre appareil. PNG, JPG, WEBP et SVG, 20 Mo max.'));section.append(wallpaper);internalContent.append(section);}
 function renderSideStageSettings(data){const s=data.settings?.sideStage||{};const section=el('section','internal-section');section.append(el('h2','','SideStage · lecteurs persistants'),el('div','persona-note','Les lecteurs restent actifs dans SideStage quand vous changez d’onglet principal.'));const toggle=el('button','pill-button '+(s.enabled!==false?'active':''),s.enabled!==false?'Activé':'Désactivé');toggle.onclick=()=>fire(window.quantic.setSetting('sideStageEnabled',s.enabled===false));section.append(toggle);const box=el('div','persona-control');box.style.marginTop='12px';box.append(el('label','','Largeur du lecteur'));const width=document.createElement('input');width.type='range';width.min='320';width.max='620';width.step='20';width.value=String(s.width||420);width.onchange=()=>fire(window.quantic.setSetting('sideStageWidth',Number(width.value)));box.append(width,el('div','persona-note','YouTube, Twitch et Spotify restent actifs pendant la navigation. Netflix nécessite Widevine pour les contenus DRM.'));section.append(box);internalContent.append(section);}
 
+function renderExtensionSettings(data) {
+  const section = el('section', 'internal-section');
+  section.append(
+    el('h2', '', 'Extensions'),
+    el('div', 'persona-note', 'GEKKO accepte des extensions locales décompressées. La compatibilité dépend des API prises en charge par Electron.')
+  );
+  const actions = el('div', 'internal-actions');
+  const install = el('button', 'pill-button', 'Installer un dossier d’extension');
+  install.disabled = data.settings?.networkMode === 'private' || data.extensions?.supported === false;
+  install.onclick = async () => {
+    const result = await window.quantic.extensionInstall();
+    if (result?.error) window.alert('Extension non chargée : ' + result.error);
+  };
+  actions.append(install);
+  section.append(actions);
+
+  const items = data.extensions?.items || [];
+  const list = el('div', 'internal-grid');
+  for (const item of items) {
+    const card = el('div', 'internal-card');
+    card.append(
+      el('strong', '', item.name || item.id),
+      el('small', '', [item.version, item.loaded ? 'active' : 'inactive'].filter(Boolean).join(' · '))
+    );
+    const remove = el('button', 'pill-button', 'Retirer');
+    remove.style.marginTop = '8px';
+    remove.onclick = () => fire(window.quantic.extensionRemove(item.id));
+    card.append(remove);
+    list.append(card);
+  }
+  if (!items.length) list.append(el('div', 'error-card muted', 'Aucune extension locale installée.'));
+  section.append(list);
+  internalContent.append(section);
+}
+
+function renderEncryptedSyncSettings() {
+  const section = el('section', 'internal-section');
+  section.append(
+    el('h2', '', 'Synchronisation chiffrée'),
+    el('div', 'persona-note', 'Export portable chiffré localement en AES-256-GCM. Aucun compte GEKKO ni serveur n’est nécessaire.')
+  );
+  const actions = el('div', 'internal-actions');
+
+  const exportButton = el('button', 'pill-button', 'Exporter');
+  exportButton.onclick = async () => {
+    const first = window.prompt('Phrase secrète GEKKO (8 caractères minimum) :');
+    if (!first) return;
+    const second = window.prompt('Confirmez la phrase secrète :');
+    if (first !== second) return window.alert('Les phrases secrètes ne correspondent pas.');
+    const result = await window.quantic.syncExport(first);
+    if (result?.error) window.alert(result.error);
+  };
+
+  const importButton = el('button', 'pill-button', 'Importer');
+  importButton.onclick = async () => {
+    const passphrase = window.prompt('Phrase secrète du fichier GEKKO :');
+    if (!passphrase) return;
+    const result = await window.quantic.syncImport(passphrase);
+    if (result?.error) window.alert(result.error);
+  };
+
+  actions.append(exportButton, importButton);
+  section.append(actions);
+  internalContent.append(section);
+}
+
 function renderSettings(data) {
   const head = el('div', 'internal-head');
   const text = el('div');
@@ -358,6 +424,8 @@ function renderSettings(data) {
 
   renderPersonaSettings(data);
   renderSideStageSettings(data);
+  renderExtensionSettings(data);
+  renderEncryptedSyncSettings();
 
   const engine = el('section', 'internal-section');
   engine.append(el('h2', '', 'Moteur de recherche'));
