@@ -12,11 +12,11 @@ class QuanticStore {
       recentlyClosed: [],
       projects: [],
       settings: {
-        searchEngine: 'duckduckgo',
+        searchEngine: 'gekko',
         immersiveMode: true,
         clearCacheOnExit: false,
         networkMode: 'balanced',
-        compatibilityPolicyVersion: 3,
+        compatibilityPolicyVersion: 4,
         appearance: { ...DEFAULT_APPEARANCE },
         sideStage: { ...DEFAULT_SIDESTAGE, pinnedApps: [...DEFAULT_SIDESTAGE.pinnedApps] }
       }
@@ -57,7 +57,12 @@ class QuanticStore {
         if (!['duckduckgo', 'qwant'].includes(existingSettings.searchEngine)) {
           this.data.settings.searchEngine = 'duckduckgo';
         }
-        this.data.settings.compatibilityPolicyVersion = 3;
+      }
+      if (Number(existing.settings?.compatibilityPolicyVersion || 0) < 4) {
+        const allowed = new Set(['gekko', 'duckduckgo', 'qwant', 'startpage', 'brave', 'searxng', 'tor']);
+        if (existingSettings.searchEngine === 'quantic') this.data.settings.searchEngine = 'gekko';
+        else if (!allowed.has(this.data.settings.searchEngine)) this.data.settings.searchEngine = 'gekko';
+        this.data.settings.compatibilityPolicyVersion = 4;
       }
     } catch {}
     this.reindex();
