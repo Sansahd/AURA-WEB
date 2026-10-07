@@ -218,7 +218,10 @@ async function ensureNetwork() {
 }
 
 function destroyTabView(tab) {
-  if (!tab?.view) return;
+  if (!tab) return;
+  clearTimeout(tab.revealTimer);
+  tab.revealTimer = null;
+  if (!tab.view) return;
   try { win?.contentView?.removeChildView(tab.view); } catch {}
   try { tab.view.webContents.close(); } catch {}
   tab.view = null;
@@ -359,6 +362,9 @@ function restoreNormalWorkspace(snapshot) {
       lastExternalUrl: item.lastExternalUrl || '',
       view: null,
       loading: false,
+      transitioning: false,
+      transitionStartedAt: 0,
+      revealTimer: null,
       awaitingNetwork: false,
       awaitingPage: false,
       boundsKey: '',
@@ -426,7 +432,7 @@ async function setNetworkMode(mode) {
 }
 
 function resolvedInput(raw) {
-  return resolveInput(raw, store?.settings().searchEngine || 'quantic');
+  return resolveInput(raw, store?.settings().searchEngine || 'duckduckgo');
 }
 
 function isBenignLoadError(error) {
