@@ -90,9 +90,66 @@
       .slice(0, Math.max(1, Math.min(8, Number(limit) || 5)));
   }
 
+  const INSTANT_ALIASES = Object.freeze({
+    goo: 'Google',
+    you: 'YouTube',
+    ins: 'Instagram',
+    twi: 'X · Twitter',
+    wha: 'WhatsApp Web',
+    tik: 'TikTok',
+    wiki: 'Wikipedia',
+    ama: 'Amazon',
+    red: 'Reddit',
+    lin: 'LinkedIn',
+    net: 'Netflix',
+    spo: 'Spotify',
+    dis: 'Discord',
+    git: 'GitHub',
+    gpt: 'ChatGPT',
+    bin: 'Bing',
+    yah: 'Yahoo',
+    pin: 'Pinterest',
+    eba: 'eBay',
+    boo: 'Booking.com',
+    zoo: 'Zoom',
+    can: 'Canva',
+    pay: 'PayPal',
+    ste: 'Steam',
+    rob: 'Roblox',
+    imd: 'IMDb',
+    gma: 'Gmail',
+    dri: 'Google Drive',
+    map: 'Google Maps',
+    dro: 'Dropbox',
+    tel: 'Telegram Web',
+    off: 'Office',
+    ope: 'OpenAI'
+  });
+
+  const siteByName = new Map(SITES.map((site) => [site.name, site]));
+
+  function instantSite(query) {
+    const q = normalize(query).replace(/[^a-z0-9]/g, '');
+    if (!q || /[\s/:?&=#]/.test(normalize(query))) return null;
+    const name = INSTANT_ALIASES[q];
+    return name ? siteByName.get(name) || null : null;
+  }
+
+  function prewarmSite(query) {
+    const q = normalize(query).replace(/[^a-z0-9]/g, '');
+    if (q.length !== 2 || /[\s/:?&=#]/.test(normalize(query))) return null;
+    const names = new Set(
+      Object.entries(INSTANT_ALIASES)
+        .filter(([alias]) => alias.startsWith(q))
+        .map(([, name]) => name)
+    );
+    if (names.size !== 1) return null;
+    return siteByName.get([...names][0]) || null;
+  }
+
   function firstSite(query) {
     return matchSites(query, 1)[0] || null;
   }
 
-  return { SITES, matchSites, firstSite };
+  return { SITES, INSTANT_ALIASES, matchSites, firstSite, instantSite, prewarmSite };
 });
