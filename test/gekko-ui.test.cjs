@@ -51,7 +51,7 @@ test('navigation transition is lifecycle driven and reduced-motion safe', () => 
   assert.match(main, /did-start-navigation/);
   assert.match(main, /tab\.transitioning\s*=\s*true/);
   assert.match(main, /tab\.transitioning\s*=\s*false/);
-  assert.match(main, /MIN_NAV_TRANSITION_MS\s*=\s*260/);
+  assert.match(main, /MIN_NAV_TRANSITION_MS\s*=\s*140/);
   assert.match(renderer, /navigation-transition/);
   assert.match(html, /id="navigation-transition"/);
   assert.match(css, /prefers-reduced-motion:reduce/);
@@ -156,15 +156,15 @@ test('bottom dock uses round vector controls instead of text bars', () => {
   assert.match(css, /\.address\s*\{[^}]*border-radius:23px/s);
 });
 
-test('cinematic page bridge uses directional curtains and light streaks', () => {
+test('navigation bridge is now a restrained pure fade', () => {
   const html = read('src/renderer/index.html');
-  const css = read('src/renderer/styles.css');
-  assert.match(html, /cinema-curtain-left/);
-  assert.match(html, /cinema-curtain-right/);
-  assert.match(html, /cinema-streaks/);
-  assert.match(css, /@keyframes cinema-left/);
-  assert.match(css, /@keyframes cinema-right/);
-  assert.match(css, /@keyframes streak-pass/);
+  const css = read('src/renderer/quantic-glide-brand.css');
+  assert.match(html, /class="fade-scene"/);
+  assert.doesNotMatch(html, /cinema-curtain-left/);
+  assert.doesNotMatch(html, /cinema-streaks/);
+  assert.match(css, /GEKKO 1\.9 — pure fade navigation/);
+  assert.match(css, /\.navigation-transition\.active\s*\{[^}]*opacity:1!important/s);
+  assert.match(css, /\.fade-scene/);
 });
 
 
@@ -196,22 +196,22 @@ test('home controls use vector icons and compact horizontal action tiles', () =>
 });
 
 
-test('cinematic bridge holds a live loading scene instead of going blank', () => {
+test('page transition fades old content out and new content in', () => {
   const html = read('src/renderer/index.html');
   const css = read('src/renderer/quantic-glide-brand.css');
   const renderer = read('src/renderer/renderer.js');
   const main = read('src/main.cjs');
 
   assert.match(html, /id="cinema-target"/);
-  assert.match(html, /class="cinema-loader"/);
   assert.match(html, /id="cinema-status"/);
-  assert.match(css, /Cinematic bridge is now stateful/);
-  assert.match(css, /cinema-hold-breathe/);
-  assert.match(css, /cinema-loader-pass/);
+  assert.doesNotMatch(html, /class="cinema-loader"/);
+  assert.match(css, /pure fade navigation/);
   assert.match(renderer, /cinematicTargetFor/);
-  assert.match(renderer, /Création du circuit privé/);
-  assert.match(main, /tab\.transitioning = true/);
-  assert.match(main, /setTimeout\(resolve, 32\)/);
+  assert.match(main, /preparePageFadeOut/);
+  assert.match(main, /installPageFadeIn/);
+  assert.match(main, /releasePageFadeIn/);
+  assert.match(main, /PAGE_FADE_OUT_MS = 120/);
+  assert.match(main, /PAGE_FADE_IN_MS = 220/);
 });
 
 test('omnibox includes a zero-network popular-site suggestion surface', () => {
@@ -244,4 +244,13 @@ test('omnibox auto-launches reserved site aliases without Enter', () => {
   assert.match(main, /normalSession\.preconnect/);
   assert.match(main, /ipcMain\.handle\('prewarm-site'/);
   assert.match(firewall, /'prewarm-site'/);
+});
+
+
+test('YouTube video pages proactively enter GEKKO Direct before ad playback', () => {
+  const main = read('src/main.cjs');
+  assert.match(main, /function scheduleYouTubeDirect/);
+  assert.match(main, /scheduleYouTubeDirect\(tab, 0\)/);
+  assert.match(main, /scheduleYouTubeDirect\(tab, 120\)/);
+  assert.match(main, /extractYouTubeVideoId/);
 });
