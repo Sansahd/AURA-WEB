@@ -51,6 +51,23 @@ jobs:
             throw "GEKKO uninstaller executable was not created"
           }
 
+          $resources = Join-Path $exe.Directory.FullName "resources"
+          $shell = Join-Path $resources "quantic-ui\renderer\index.html"
+          $shellJs = Join-Path $resources "quantic-ui\renderer\renderer.js"
+          $shellLogo = Join-Path $resources "quantic-ui\assets\quantic-glide-logo.svg"
+
+          foreach ($required in @($shell, $shellJs, $shellLogo)) {
+            if (-not (Test-Path $required)) {
+              throw "Required quantic-ui resource missing: $required"
+            }
+          }
+
+          $shellText = Get-Content -Raw $shell
+          if ($shellText -notmatch "<title>GEKKO</title>") {
+            throw "Installed quantic-ui shell content is invalid"
+          }
+          Write-Host "Shell resource validated:" $shell
+
           Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
           Start-Process -FilePath $exe.FullName
