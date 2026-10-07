@@ -81,6 +81,15 @@ function closeSiteSuggestions() {
   address?.setAttribute('aria-expanded', 'false');
 }
 
+function refreshSiteSelection() {
+  if (!siteSuggestions) return;
+  [...siteSuggestions.querySelectorAll('.site-suggestion')].forEach((button, index) => {
+    const selected = index === siteSelection;
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-selected', selected ? 'true' : 'false');
+  });
+}
+
 function renderSiteSuggestions(matches = siteMatches) {
   if (!siteSuggestions) return;
   siteSuggestions.replaceChildren();
@@ -112,7 +121,7 @@ function renderSiteSuggestions(matches = siteMatches) {
     button.onpointerdown = (event) => event.preventDefault();
     button.onmouseenter = () => {
       siteSelection = index;
-      renderSiteSuggestions(siteMatches);
+      refreshSiteSelection();
     };
     button.onclick = () => openSiteSuggestion(index);
     siteSuggestions.append(button);
@@ -634,6 +643,7 @@ $('#menu').onclick = () => fire(window.quantic.mainMenu());
 $('#persona').onclick = () => fire(window.quantic.newTab('quantic://settings'));
 
 searchEngineButton.onclick = () => {
+  closeSiteSuggestions();
   const opening = searchEngineMenu.classList.contains('hidden');
   searchEngineMenu.classList.toggle('hidden', !opening);
   searchEngineButton.setAttribute('aria-expanded', opening ? 'true' : 'false');
@@ -660,18 +670,24 @@ document.querySelectorAll('[data-win]').forEach((button) => {
   button.onclick = () => fire(window.quantic.windowControl(button.dataset.win));
 });
 
-address.oninput = () => updateSiteSuggestions();
+address.oninput = () => {
+  if (!searchEngineMenu.classList.contains('hidden')) {
+    searchEngineMenu.classList.add('hidden');
+    searchEngineButton.setAttribute('aria-expanded', 'false');
+  }
+  updateSiteSuggestions();
+};
 address.onkeydown = (event) => {
   if (event.key === 'ArrowDown' && siteMatches.length) {
     event.preventDefault();
     siteSelection = (siteSelection + 1) % siteMatches.length;
-    renderSiteSuggestions(siteMatches);
+    refreshSiteSelection();
     return;
   }
   if (event.key === 'ArrowUp' && siteMatches.length) {
     event.preventDefault();
     siteSelection = (siteSelection - 1 + siteMatches.length) % siteMatches.length;
-    renderSiteSuggestions(siteMatches);
+    refreshSiteSelection();
     return;
   }
   if (event.key === 'Escape' && siteMatches.length) {
