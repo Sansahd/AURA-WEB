@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('quantic', {
   state: () => ipcRenderer.invoke('get-state'), onState: (fn) => ipcRenderer.on('browser-state', (_e, s) => fn(s)),
-  navigate: (v) => ipcRenderer.invoke('navigate', v), newTab: (u) => u === undefined ? ipcRenderer.invoke('new-tab') : ipcRenderer.invoke('new-tab', u),
+  navigate: (v) => ipcRenderer.invoke('navigate', v), prewarmSite: (u) => ipcRenderer.invoke('prewarm-site', u), newTab: (u) => u === undefined ? ipcRenderer.invoke('new-tab') : ipcRenderer.invoke('new-tab', u),
   activateTab: (id) => ipcRenderer.invoke('activate-tab', id), closeTab: (id) => ipcRenderer.invoke('close-tab', id),
   plusMenu: () => ipcRenderer.invoke('plus-menu'), mainMenu: () => ipcRenderer.invoke('main-menu'),
   back: () => ipcRenderer.invoke('back'), forward: () => ipcRenderer.invoke('forward'), reload: () => ipcRenderer.invoke('reload'), stop: () => ipcRenderer.invoke('stop'),

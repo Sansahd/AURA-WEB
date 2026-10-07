@@ -33,6 +33,8 @@ const cinemaTarget = $('#cinema-target');
 const cinemaStatus = $('#cinema-status');
 let siteMatches = [];
 let siteSelection = 0;
+let instantAliasLock = '';
+let prewarmKey = '';
 let lastWallpaperVersion = -1;
 let lastSideStageKey = '';
 
@@ -133,6 +135,33 @@ function updateSiteSuggestions() {
   const matches = window.GekkoSiteCache?.matchSites?.(query, 5) || [];
   siteSelection = 0;
   renderSiteSuggestions(matches);
+}
+
+function maybePrewarmPopularSite(query) {
+  const site = window.GekkoSiteCache?.prewarmSite?.(query);
+  const key = site?.url || '';
+  if (!key || key === prewarmKey) return;
+  prewarmKey = key;
+  fire(window.quantic.prewarmSite(key));
+}
+
+function maybeInstantLaunch(query) {
+  const site = window.GekkoSiteCache?.instantSite?.(query);
+  const normalized = String(query || '').trim().toLowerCase();
+  if (!site) {
+    if (normalized.length < 3) instantAliasLock = '';
+    return false;
+  }
+  if (instantAliasLock === normalized) return true;
+
+  instantAliasLock = normalized;
+  closeSiteSuggestions();
+  searchEngineMenu?.classList.add('hidden');
+  searchEngineButton?.setAttribute('aria-expanded', 'false');
+  address.value = site.url;
+  address.blur();
+  fire(window.quantic.navigate(site.url));
+  return true;
 }
 
 function openSiteSuggestion(index = siteSelection) {
@@ -675,6 +704,10 @@ address.oninput = () => {
     searchEngineMenu.classList.add('hidden');
     searchEngineButton.setAttribute('aria-expanded', 'false');
   }
+
+  const value = address.value;
+  maybePrewarmPopularSite(value);
+  if (maybeInstantLaunch(value)) return;
   updateSiteSuggestions();
 };
 address.onkeydown = (event) => {
@@ -703,10 +736,13 @@ address.onkeydown = (event) => {
 $('#address-go').onclick = () => navigateAddressValue();
 address.onfocus = () => {
   fire(window.quantic.chromeLock(true));
-  updateSiteSuggestions();
+  const value = address.value;
+  maybePrewarmPopularSite(value);
+  if (!maybeInstantLaunch(value)) updateSiteSuggestions();
 };
 address.onblur = () => {
   closeSiteSuggestions();
+  prewarmKey = '';
   fire(window.quantic.chromeLock(false));
 };
 
