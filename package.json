@@ -31,12 +31,6 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ]
     },
@@ -55,9 +49,6 @@
     "directories": {
       "buildResources": "build",
       "output": "dist"
-    },
-    "portable": {
-      "artifactName": "GEKKO-Portable.${ext}"
     }
   },
   "dependencies": {
