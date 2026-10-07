@@ -145,10 +145,18 @@
       <div class="gekko-home-reflection" aria-hidden="true"></div>
 
       <div class="gekko-home-tools" aria-label="Actions GEKKO">
-        <button id="home-tool-home" type="button" title="Accueil" aria-label="Accueil">⌂</button>
-        <button id="home-tool-shield" type="button" data-quantic-suite="shield" title="Quantic Shield" aria-label="Quantic Shield">♢</button>
-        <button id="home-tool-apps" type="button" title="Apps Quantic" aria-label="Apps Quantic">▦</button>
-        <button id="home-tool-settings" type="button" title="Paramètres" aria-label="Paramètres">♙</button>
+        <button id="home-tool-home" class="home-tool-button" type="button" title="Accueil" aria-label="Accueil">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-6 8 6"/><path d="M6.5 10.5V20h11v-9.5"/><path d="M10 20v-5h4v5"/></svg>
+        </button>
+        <button id="home-tool-shield" class="home-tool-button" type="button" data-quantic-suite="shield" title="Quantic Shield" aria-label="Quantic Shield">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 19 6v5.2c0 4.5-2.8 7.8-7 9.3-4.2-1.5-7-4.8-7-9.3V6l7-2.5Z"/><path d="m9.2 12 1.8 1.8 3.9-4"/></svg>
+        </button>
+        <button id="home-tool-apps" class="home-tool-button" type="button" title="Apps Quantic" aria-label="Apps Quantic">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="5" height="5" rx="1"/><rect x="14" y="5" width="5" height="5" rx="1"/><rect x="5" y="14" width="5" height="5" rx="1"/><rect x="14" y="14" width="5" height="5" rx="1"/></svg>
+        </button>
+        <button id="home-tool-settings" class="home-tool-button" type="button" title="Paramètres" aria-label="Paramètres">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5l-.4 3.1a8 8 0 0 0-1.7 1L5 6.1 3 9.5 5 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.7 1l.4 3.1h5l.4-3.1a8 8 0 0 0 1.7-1l2.4 1 2-3.4L19 13a7 7 0 0 0 0-1Z"/></svg>
+        </button>
       </div>
 
       <div class="gekko-home-brand">
@@ -159,16 +167,24 @@
 
       <div class="gekko-home-cards" aria-label="Actions rapides GEKKO">
         <button class="gekko-home-card" data-home-action="private-search">
-          <b>▣</b><strong>Private Search</strong><span>No tracking.<br>Just results.</span>
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/><path d="M4.5 5.5 7 3l2.2 2.2"/></svg></span>
+          <span class="home-card-copy"><strong>Private Search</strong><small>No tracking. Just results.</small></span>
+          <svg class="home-card-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/><path d="m13 8 4 4-4 4"/></svg>
         </button>
         <button class="gekko-home-card" data-home-action="secure-tabs">
-          <b>◇</b><strong>Secure Tabs</strong><span>Keep your<br>browsing yours.</span>
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7.5h14v11H5z"/><path d="M8 7.5V5h8v2.5"/><path d="M12 11v3"/><circle cx="12" cy="10.5" r="1.5"/></svg></span>
+          <span class="home-card-copy"><strong>Secure Tabs</strong><small>Your browsing stays yours.</small></span>
+          <svg class="home-card-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/><path d="m13 8 4 4-4 4"/></svg>
         </button>
         <button class="gekko-home-card" data-home-action="fast-light">
-          <b>ϟ</b><strong>Fast &amp; Light</strong><span>Built for a<br>smoother web.</span>
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 3-6 10h5l-1 8 6-11h-5l1-7Z"/></svg></span>
+          <span class="home-card-copy"><strong>Fast &amp; Light</strong><small>Built for a smoother web.</small></span>
+          <svg class="home-card-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/><path d="m13 8 4 4-4 4"/></svg>
         </button>
         <button class="gekko-home-card" data-home-action="explore-more">
-          <b>◒</b><strong>Explore More</strong><span>A cleaner,<br>brighter internet.</span>
+          <span class="home-card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m14.6 9.4-2 5.2-3.2 1.2 1.2-3.2 4-3.2Z"/></svg></span>
+          <span class="home-card-copy"><strong>Explore More</strong><small>A cleaner, calmer web.</small></span>
+          <svg class="home-card-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/><path d="m13 8 4 4-4 4"/></svg>
         </button>
       </div>
 

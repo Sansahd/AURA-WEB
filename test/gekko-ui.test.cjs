@@ -155,3 +155,31 @@ test('cinematic page bridge uses directional curtains and light streaks', () => 
   assert.match(css, /@keyframes cinema-right/);
   assert.match(css, /@keyframes streak-pass/);
 });
+
+
+test('premium control pass removes the legacy v2 dock collision', () => {
+  const css = read('src/renderer/quantic-glide-brand.css');
+  assert.doesNotMatch(css, /\/\* GEKKO v2 dock composition \*\//);
+  assert.doesNotMatch(css, /\.dock-nav button\{/);
+  assert.doesNotMatch(css, /\.dock-brand\{/);
+  assert.match(css, /GEKKO premium controls/);
+  assert.match(css, /#bottom-dock \.dock-control/);
+});
+
+test('home controls use vector icons and compact horizontal action tiles', () => {
+  const html = read('src/renderer/index.html');
+  const css = read('src/renderer/quantic-glide-brand.css');
+
+  const tools = html.slice(html.indexOf('class="gekko-home-tools"'), html.indexOf('class="gekko-home-brand"'));
+  assert.match(tools, /class="home-tool-button"/);
+  assert.match(tools, /<svg viewBox=/);
+  assert.doesNotMatch(tools, />[⌂♢▦♙]</);
+
+  const cards = html.slice(html.indexOf('class="gekko-home-cards"'), html.indexOf('class="gekko-home-caption"'));
+  assert.match(cards, /class="home-card-icon"/);
+  assert.match(cards, /class="home-card-copy"/);
+  assert.match(cards, /class="home-card-arrow"/);
+  assert.match(css, /grid-template-columns:42px minmax\(0,1fr\) 22px/);
+  assert.match(css, /min-height:78px!important/);
+  assert.match(css, /border:1px solid rgba\(210,255,249,.095\)!important/);
+});
