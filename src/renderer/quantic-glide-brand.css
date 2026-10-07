@@ -1219,3 +1219,62 @@ body{
   .search-engine-menu .engine-menu-head>small{display:none!important}
   .site-suggestions{left:4px!important;right:4px!important}
 }
+
+
+/* GEKKO 2.1 — softer immersive chrome + heart-eyes favorites */
+#chrome{
+  transition:
+    transform .32s cubic-bezier(.16,1,.3,1),
+    opacity .24s ease,
+    filter .28s ease!important;
+  transform-origin:top center!important;
+}
+body.chrome-hidden #chrome{
+  transform:translate3d(0,-48px,0) scale(.992)!important;
+  opacity:0!important;
+  filter:blur(4px)!important;
+}
+#bottom-dock{
+  transition:
+    transform .34s cubic-bezier(.16,1,.3,1),
+    opacity .25s ease,
+    filter .30s ease!important;
+  transform-origin:bottom center!important;
+}
+body.chrome-hidden #bottom-dock{
+  transform:translate3d(0,72px,0) scale(.992)!important;
+  opacity:0!important;
+  filter:blur(4px)!important;
+}
+.favorite-control{
+  overflow:visible!important;
+}
+.favorite-heart-eyes{
+  display:block;
+  font-size:19px;
+  line-height:1;
+  transform:scale(.92);
+  filter:saturate(.82) brightness(.96);
+  transition:
+    transform .18s cubic-bezier(.2,.9,.25,1.2),
+    filter .18s ease!important;
+}
+#fav:hover .favorite-heart-eyes{
+  transform:scale(1.13) rotate(-4deg);
+  filter:saturate(1.18) brightness(1.04) drop-shadow(0 0 7px rgba(255,96,139,.24));
+}
+#fav.active{
+  border-color:rgba(255,126,161,.28)!important;
+  background:
+    radial-gradient(circle at 45% 35%,rgba(255,126,161,.16),rgba(255,255,255,.02))!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 0 18px rgba(255,86,133,.09)!important;
+}
+#fav.active .favorite-heart-eyes{
+  transform:scale(1.08);
+  filter:saturate(1.25) brightness(1.04) drop-shadow(0 0 8px rgba(255,93,140,.30));
+}
+@media(prefers-reduced-motion:reduce){
+  #chrome,#bottom-dock,.favorite-heart-eyes{transition:none!important}
+}

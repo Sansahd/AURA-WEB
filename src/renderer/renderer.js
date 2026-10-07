@@ -602,6 +602,7 @@ function render() {
   forward.disabled = !tab?.canGoForward;
   fav.classList.toggle('active', Boolean(tab?.favorite));
   fav.title = tab?.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris';
+  fav.setAttribute('aria-label', fav.title);
   reload.classList.toggle('loading', Boolean(tab?.loading));
   reload.title = tab?.loading ? 'Arrêter' : 'Actualiser';
   $('#home-button')?.classList.toggle('active', state.internal?.kind === 'home');
