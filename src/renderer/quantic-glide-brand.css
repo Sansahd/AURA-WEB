@@ -939,3 +939,64 @@ body{
   .navigation-transition .cinema-streaks i,
   .cinema-loader i{animation:none!important;transition:none!important}
 }
+
+
+/* GEKKO 1.9 — pure fade navigation */
+.navigation-transition{
+  background:
+    radial-gradient(circle at 50% 46%,rgba(43,112,116,.14),transparent 38%),
+    linear-gradient(180deg,#06131c,#030b11)!important;
+  opacity:0!important;
+  transition:opacity .16s ease!important;
+  overflow:hidden!important;
+}
+.navigation-transition.active{
+  opacity:1!important;
+  transition:opacity .12s ease!important;
+}
+.navigation-transition::before,
+.navigation-transition::after{
+  display:none!important;
+  content:none!important;
+}
+.fade-scene{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  opacity:0;
+  transform:scale(.985);
+  transition:opacity .16s ease,transform .18s ease;
+}
+.navigation-transition.active .fade-scene{
+  opacity:1;
+  transform:scale(1);
+}
+.fade-scene img{
+  width:46px;
+  height:46px;
+  filter:drop-shadow(0 0 16px rgba(77,235,216,.24))!important;
+}
+.fade-scene strong{
+  max-width:min(520px,72vw);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:rgba(239,255,252,.86);
+  font-size:12px;
+  font-weight:570;
+  letter-spacing:.01em;
+}
+.fade-scene small{
+  color:rgba(216,244,241,.36);
+  font-size:8.5px;
+  font-weight:540;
+  letter-spacing:.04em;
+}
+@media(prefers-reduced-motion:reduce){
+  .navigation-transition,
+  .fade-scene{transition:none!important}
+}
