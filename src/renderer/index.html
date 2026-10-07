@@ -29,40 +29,96 @@
 
   <nav id="bottom-dock" class="bottom-dock no-drag" aria-label="Navigation GEKKO">
     <div class="nav-row">
-      <div class="dock-history">
-        <button id="back" title="Précédent" aria-label="Précédent">‹</button>
-        <button id="forward" title="Suivant" aria-label="Suivant">›</button>
-        <button id="reload" title="Actualiser" aria-label="Actualiser">↻</button>
+      <div class="dock-cluster dock-history" aria-label="Historique de navigation">
+        <button id="back" class="dock-control" title="Précédent" aria-label="Précédent">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6"/></svg>
+        </button>
+        <button id="forward" class="dock-control" title="Suivant" aria-label="Suivant">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+        <button id="reload" class="dock-control" title="Actualiser" aria-label="Actualiser">
+          <svg class="icon-reload" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7v5h-5"/><path d="M18.2 12A6.5 6.5 0 1 1 16.5 7.6L19 10"/></svg>
+          <svg class="icon-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="7.5" width="9" height="9" rx="2"/></svg>
+        </button>
       </div>
-      <button id="dock-brand" class="dock-brand" title="Accueil GEKKO" aria-label="Accueil GEKKO">
-        <img src="../assets/quantic-glide-mark.svg" alt=""><span>GEKKO</span>
-      </button>
-      <div class="dock-nav">
-        <button id="home-button" title="Accueil" aria-label="Accueil"><span>⌂</span><small>Home</small></button>
-        <button id="discover" title="Découvrir" aria-label="Découvrir"><span>◎</span><small>Discover</small></button>
-        <button id="bookmarks" title="Favoris" aria-label="Favoris"><span>♡</span><small>Bookmarks</small></button>
-        <button id="apps-button" title="Apps Quantic" aria-label="Ouvrir les apps"><span>▦</span><small>Apps</small></button>
+
+      <div class="dock-separator" aria-hidden="true"></div>
+
+      <div class="dock-cluster dock-primary" aria-label="Navigation principale">
+        <button id="home-button" class="dock-control" title="Accueil" aria-label="Accueil">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-6 8 6"/><path d="M6.5 10.5V20h11v-9.5"/><path d="M10 20v-5h4v5"/></svg>
+        </button>
+        <button id="discover" class="dock-control" title="Découvrir" aria-label="Découvrir">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m14.8 9.2-2 5.6-3.6 1.4 1.4-3.6 4.2-3.4Z"/></svg>
+        </button>
+        <button id="bookmarks" class="dock-control" title="Favoris" aria-label="Favoris">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5h10v15l-5-3-5 3v-15Z"/></svg>
+        </button>
+        <button id="apps-button" class="dock-control" title="Apps Quantic" aria-label="Ouvrir les apps">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="5" height="5" rx="1"/><rect x="14" y="5" width="5" height="5" rx="1"/><rect x="5" y="14" width="5" height="5" rx="1"/><rect x="14" y="14" width="5" height="5" rx="1"/></svg>
+        </button>
       </div>
-      <div class="address glass-line">
-        <span class="address-search">⌕</span>
-        <input id="address" autocomplete="off" spellcheck="false" placeholder="Search or enter a URL…">
-        <button id="address-go" type="button" title="Ouvrir" aria-label="Ouvrir">→</button>
+
+      <div class="address-wrap">
+        <div class="address glass-line">
+          <button id="search-engine-button" class="search-engine-button" type="button" aria-haspopup="menu" aria-expanded="false" title="Moteur de recherche">
+            <span id="search-engine-mark" class="search-engine-mark">D</span>
+            <span id="search-engine-label" class="search-engine-label">DuckDuckGo</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg>
+          </button>
+          <span class="address-divider" aria-hidden="true"></span>
+          <svg class="address-search" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          <input id="address" autocomplete="off" spellcheck="false" placeholder="Rechercher ou saisir une adresse…">
+          <button id="address-go" class="address-go" type="button" title="Ouvrir" aria-label="Ouvrir">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+        <div id="search-engine-menu" class="search-engine-menu hidden" role="menu" aria-label="Choisir le moteur de recherche">
+          <button type="button" role="menuitemradio" data-search-engine="duckduckgo" aria-checked="true">
+            <span class="engine-badge duck">D</span><span><strong>DuckDuckGo</strong><small>Privé · direct</small></span><span class="engine-check">✓</span>
+          </button>
+          <button type="button" role="menuitemradio" data-search-engine="qwant" aria-checked="false">
+            <span class="engine-badge qwant">Q</span><span><strong>Qwant</strong><small>Européen · direct</small></span><span class="engine-check">✓</span>
+          </button>
+        </div>
       </div>
-      <div class="dock-actions">
-        <button id="fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">☆</button>
-        <button id="sidestage" title="SideStage · Lecteurs persistants" aria-label="Ouvrir SideStage">◫</button>
-        <button id="ai" title="AURA" aria-label="AURA">✦</button>
-        <button id="downloads" title="Téléchargements GEKKO" aria-label="Téléchargements">⇩</button>
-        <button id="persona" title="Paramètres" aria-label="Paramètres">⚙</button>
-        <button id="menu" title="Menu" aria-label="Menu">⋮</button>
+
+      <div class="dock-separator" aria-hidden="true"></div>
+
+      <div class="dock-cluster dock-actions">
+        <button id="fav" class="dock-control" title="Ajouter aux favoris" aria-label="Ajouter aux favoris">
+          <svg class="icon-star-outline" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.4 7.2 19l.9-5.5-3.9-3.8 5.4-.8L12 4Z"/></svg>
+          <svg class="icon-star-fill" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 4 2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.4 7.2 19l.9-5.5-3.9-3.8 5.4-.8L12 4Z"/></svg>
+        </button>
+        <button id="sidestage" class="dock-control" title="SideStage" aria-label="Ouvrir SideStage">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M15 5v14"/></svg>
+        </button>
+        <button id="ai" class="dock-control aura-control" title="AURA" aria-label="AURA">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 13.6 9l5.4 1.6-5.4 1.6L12 18l-1.6-5.8L5 10.6 10.4 9 12 3.5Z"/><path d="m18.2 15 .8 2.3 2.3.7-2.3.7-.8 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3Z"/></svg>
+        </button>
+        <button id="downloads" class="dock-control" title="Téléchargements GEKKO" aria-label="Téléchargements">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 19h14"/></svg>
+        </button>
+        <button id="persona" class="dock-control" title="Paramètres" aria-label="Paramètres">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5l-.4 3.1a8 8 0 0 0-1.7 1L5 6.1 3 9.5 5 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.7 1l.4 3.1h5l.4-3.1a8 8 0 0 0 1.7-1l2.4 1 2-3.4L19 13a7 7 0 0 0 0-1Z"/></svg>
+        </button>
+        <button id="menu" class="dock-control" title="Menu" aria-label="Menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg>
+        </button>
       </div>
     </div>
   </nav>
 
   <div id="navigation-transition" class="navigation-transition" aria-hidden="true">
-    <div class="transition-aura"></div>
-    <img src="../assets/quantic-glide-mark.svg" alt="">
-    <strong>GEKKO</strong>
+    <div class="cinema-curtain cinema-curtain-left" aria-hidden="true"></div>
+    <div class="cinema-curtain cinema-curtain-right" aria-hidden="true"></div>
+    <div class="cinema-light cinema-light-a" aria-hidden="true"></div>
+    <div class="cinema-light cinema-light-b" aria-hidden="true"></div>
+    <div class="cinema-streaks" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="cinema-focus">
+      <img src="../assets/quantic-glide-mark.svg" alt="">
+      <span>GEKKO</span>
+    </div>
   </div>
 
   <aside id="apps-panel" class="apps-panel hidden" aria-label="Applications Quantic">
