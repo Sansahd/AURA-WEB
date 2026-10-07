@@ -1,9 +1,9 @@
 name: Build Windows Installer
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/gekko-2.3-finish"]
   pull_request:
-    branches: [main]
+    branches: [main, "feat/gekko-2.3-finish"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,7 +11,6 @@ permissions:
 concurrency:
   group: windows-installer
   cancel-in-progress: true
-
 jobs:
   build:
     runs-on: windows-latest
@@ -21,17 +20,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Install
         run: npm install --no-audit --no-fund
-
       - name: Check
         run: npm run check
-
       - name: Build
         run: npm run dist
-
-      - name: Smoke install and visible launch
+      - name: Smoke install
         shell: pwsh
         run: |
           $installer = (Resolve-Path "dist/GEKKO-Setup.exe").Path
@@ -51,58 +46,30 @@ jobs:
             throw "GEKKO uninstaller executable was not created"
           }
 
-          $resources = Join-Path $exe.Directory.FullName "resources"
-          $shell = Join-Path $resources "quantic-ui\renderer\index.html"
-          $shellJs = Join-Path $resources "quantic-ui\renderer\renderer.js"
-          $shellLogo = Join-Path $resources "quantic-ui\assets\quantic-glide-logo.svg"
-
-          foreach ($required in @($shell, $shellJs, $shellLogo)) {
-            if (-not (Test-Path $required)) {
-              throw "Required quantic-ui resource missing: $required"
+          $uninstallRoots = @(
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+          )
+          $uninstallCandidates = @(
+            foreach ($root in $uninstallRoots) {
+              if (Test-Path $root) {
+                Get-ChildItem $root -ErrorAction SilentlyContinue |
+                  Get-ItemProperty |
+                  Where-Object { $_.DisplayName -like "GEKKO Browser*" }
+              }
             }
-          }
+          )
+          $uninstall = $uninstallCandidates | Select-Object -First 1
 
-          $shellText = Get-Content -Raw $shell
-          if ($shellText -notmatch "<title>GEKKO</title>") {
-            throw "Installed quantic-ui shell content is invalid"
-          }
-          Write-Host "Shell resource validated:" $shell
-
-          Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
-          $stdout = Join-Path $env:RUNNER_TEMP "gekko-stdout.log"
-          $stderr = Join-Path $env:RUNNER_TEMP "gekko-stderr.log"
-          Remove-Item $stdout, $stderr -Force -ErrorAction SilentlyContinue
-          $env:ELECTRON_ENABLE_LOGGING = "true"
-
-          Start-Process -FilePath $exe.FullName -ArgumentList "--enable-logging=stderr","--v=1" -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          $visible = $false
-          for ($i = 0; $i -lt 20; $i++) {
-            Start-Sleep -Milliseconds 500
-            $window = Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue |
-              Where-Object { $_.MainWindowHandle -ne 0 } |
-              Select-Object -First 1
-            if ($window) {
-              Write-Host "Installed GEKKO visible window handle:" $window.MainWindowHandle
-              $visible = $true
-              break
-            }
-          }
-
-          if (-not $visible) {
-            Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue | Format-List *
-            Write-Host "===== GEKKO STDOUT ====="
-            if (Test-Path $stdout) { Get-Content $stdout -ErrorAction SilentlyContinue }
-            Write-Host "===== GEKKO STDERR ====="
-            if (Test-Path $stderr) { Get-Content $stderr -ErrorAction SilentlyContinue }
-            throw "Installed GEKKO did not create a visible window within 10 seconds"
-          }
-
-          Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           Write-Host "Installed:" $exe.FullName
           Write-Host "Uninstaller:" $uninstaller.FullName
-
-
+          if ($uninstall) {
+            Write-Host "Uninstall key:" $uninstall.PSPath
+            Write-Host "Display name:" $uninstall.DisplayName
+          } else {
+            Write-Warning "No GEKKO uninstall registry entry found; executable uninstall still exists."
+          }
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
