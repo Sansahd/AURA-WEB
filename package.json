@@ -1,6 +1,6 @@
 {
   "name": "gekko-browser-aura-career",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "GEKKO Browser with integrated AURA Career",
   "main": "src/bootstrap.cjs",
   "author": "Quantic",
