@@ -6,6 +6,8 @@ const { QuanticVeil } = require('./services/veil.cjs');
 const { installPrivacyLayer } = require('./services/privacy.cjs');
 const { installYouTubeGuard, isYouTubeUrl } = require('./services/youtube-guard.cjs');
 const { isGoogleConsentUrl, installGoogleConsentRefusal } = require('./services/google-consent.cjs');
+const { installCookieConsentRefusal } = require('./services/cookie-consent.cjs');
+const { SITES: POPULAR_SITES } = require('./renderer/site-cache.js');
 const { DIRECT_SCHEME_PREFIX, extractYouTubeVideoId, parseDirectRequest, YouTubeDirectResolver, installYouTubeDirectPlayer, removeYouTubeDirectPlayer } = require('./services/youtube-direct.cjs');
 const { buildInternalState, internalTitle } = require('./core/internal-state.cjs');
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
@@ -32,17 +34,11 @@ const TAB_LIFECYCLE_SWEEP_MS = 45_000;
 const TAB_IDLE_SLEEP_MS = 12 * 60_000;
 const TAB_PRESSURE_IDLE_MS = 3 * 60_000;
 const MAX_LIVE_BACKGROUND_TABS = 6;
-const PREWARM_HOSTS = new Set([
-  'google.com','www.google.com','youtube.com','www.youtube.com','instagram.com','www.instagram.com',
-  'x.com','web.whatsapp.com','tiktok.com','www.tiktok.com','wikipedia.org','www.wikipedia.org',
-  'amazon.com','www.amazon.com','reddit.com','www.reddit.com','linkedin.com','www.linkedin.com',
-  'netflix.com','www.netflix.com','open.spotify.com','discord.com','github.com','chatgpt.com',
-  'bing.com','www.bing.com','yahoo.com','www.yahoo.com','pinterest.com','www.pinterest.com',
-  'ebay.com','www.ebay.com','booking.com','www.booking.com','zoom.us','canva.com','www.canva.com',
-  'paypal.com','www.paypal.com','store.steampowered.com','roblox.com','www.roblox.com',
-  'imdb.com','www.imdb.com','mail.google.com','drive.google.com','maps.google.com',
-  'dropbox.com','www.dropbox.com','web.telegram.org','office.com','www.office.com','openai.com'
-]);
+const PREWARM_HOSTS = new Set(
+  POPULAR_SITES.map((site) => {
+    try { return new URL(site.url).hostname.toLowerCase(); } catch { return ''; }
+  }).filter(Boolean)
+);
 const prewarmCache = new Map();
 
 // Privacy switches that do not falsify Chromium identity.
@@ -100,6 +96,7 @@ let aiRuntime = {
   lastError: ''
 };
 let chromeVisible = true;
+let chromeOverlayHeight = 0;
 let revealUntil = 0;
 let immersiveTimer = null;
 let tabLifecycleTimer = null;
@@ -712,6 +709,7 @@ function createView(tab) {
 
   wc.on('dom-ready', async () => {
     const currentUrl = wc.getURL();
+    await installCookieConsentRefusal(wc).catch(() => {});
     if (isGoogleConsentUrl(currentUrl)) {
       await installGoogleConsentRefusal(wc).catch(() => {});
     }
@@ -746,6 +744,8 @@ function createView(tab) {
     syncFromView(tab, true);
     clearYouTubeDirect(tab).catch(() => {});
     if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
+    installCookieConsentRefusal(wc).catch(() => {});
+    installCookieConsentRefusal(wc).catch(() => {});
     if (isGoogleConsentUrl(url)) installGoogleConsentRefusal(wc).catch(() => {});
     emitState();
   });
@@ -922,7 +922,7 @@ function layout() {
   const [width, height] = win.getContentSize();
   const chromeHidden = isImmersive() && !chromeVisible;
   const top = chromeHidden ? 0 : TOP_CHROME_H;
-  const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H;
+  const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H + chromeOverlayHeight;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
   const rail = stageState.enabled && !isPrivateMode() ? (stageState.collapsed ? SIDESTAGE_COLLAPSED_W : SIDESTAGE_RAIL_W) : 0;
   const stageWidth = stageState.open && !stageState.collapsed ? Number(stageState.width || 420) : 0;
@@ -1336,6 +1336,11 @@ app.whenReady().then(async () => {
 ipcMain.handle('get-state', () => state());
 ipcMain.handle('navigate', async (_event, value) => loadTab(activeTab(), value));
 ipcMain.handle('prewarm-site', (_event, url) => prewarmPopularSite(url));
+ipcMain.handle('chrome-overlay-height', (_event, height) => {
+  chromeOverlayHeight = Math.max(0, Math.min(360, Math.round(Number(height) || 0)));
+  layout();
+  return chromeOverlayHeight;
+});
 ipcMain.handle('new-tab', (_event, url = HOME) => createTab(url, true));
 ipcMain.handle('activate-tab', (_event, id) => activateTab(Number(id)));
 ipcMain.handle('close-tab', (_event, id) => closeTab(Number(id)));

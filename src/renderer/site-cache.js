@@ -1,155 +1,210 @@
-(function (root, factory) {
-  const api = factory();
-  if (typeof module === 'object' && module.exports) module.exports = api;
-  if (root) root.GekkoSiteCache = api;
-})(typeof window !== 'undefined' ? window : null, function () {
-  'use strict';
-
-  const SITES = Object.freeze([
-    { name: 'Google', url: 'https://www.google.com/', aliases: ['google','goo'], tag: 'Recherche', rank: 100 },
-    { name: 'YouTube', url: 'https://www.youtube.com/', aliases: ['youtube','you','yt'], tag: 'Vidéo', rank: 99 },
-    { name: 'Facebook', url: 'https://www.facebook.com/', aliases: ['facebook','face','fb'], tag: 'Social', rank: 97 },
-    { name: 'Instagram', url: 'https://www.instagram.com/', aliases: ['instagram','insta','ins'], tag: 'Social', rank: 96 },
-    { name: 'X · Twitter', url: 'https://x.com/', aliases: ['twitter','twi','xcom'], tag: 'Social', rank: 94 },
-    { name: 'WhatsApp Web', url: 'https://web.whatsapp.com/', aliases: ['whatsapp','what','wha'], tag: 'Messages', rank: 93 },
-    { name: 'TikTok', url: 'https://www.tiktok.com/', aliases: ['tiktok','tik'], tag: 'Vidéo', rank: 92 },
-    { name: 'Wikipedia', url: 'https://www.wikipedia.org/', aliases: ['wikipedia','wiki','wik'], tag: 'Encyclopédie', rank: 91 },
-    { name: 'Amazon', url: 'https://www.amazon.com/', aliases: ['amazon','ama'], tag: 'Shopping', rank: 90 },
-    { name: 'Reddit', url: 'https://www.reddit.com/', aliases: ['reddit','red'], tag: 'Communautés', rank: 89 },
-    { name: 'LinkedIn', url: 'https://www.linkedin.com/', aliases: ['linkedin','link','lin'], tag: 'Professionnel', rank: 88 },
-    { name: 'Netflix', url: 'https://www.netflix.com/', aliases: ['netflix','net'], tag: 'Streaming', rank: 87 },
-    { name: 'Twitch', url: 'https://www.twitch.tv/', aliases: ['twitch','twt','twitchtv'], tag: 'Live', rank: 86 },
-    { name: 'Spotify', url: 'https://open.spotify.com/', aliases: ['spotify','spo'], tag: 'Musique', rank: 85 },
-    { name: 'Discord', url: 'https://discord.com/app', aliases: ['discord','dis'], tag: 'Communautés', rank: 84 },
-    { name: 'GitHub', url: 'https://github.com/', aliases: ['github','git'], tag: 'Code', rank: 83 },
-    { name: 'ChatGPT', url: 'https://chatgpt.com/', aliases: ['chatgpt','chat','gpt'], tag: 'IA', rank: 82 },
-    { name: 'Bing', url: 'https://www.bing.com/', aliases: ['bing','bin'], tag: 'Recherche', rank: 81 },
-    { name: 'Yahoo', url: 'https://www.yahoo.com/', aliases: ['yahoo','yah'], tag: 'Portail', rank: 80 },
-    { name: 'Microsoft', url: 'https://www.microsoft.com/', aliases: ['microsoft','mic'], tag: 'Tech', rank: 79 },
-    { name: 'Apple', url: 'https://www.apple.com/', aliases: ['apple','app'], tag: 'Tech', rank: 78 },
-    { name: 'Pinterest', url: 'https://www.pinterest.com/', aliases: ['pinterest','pin'], tag: 'Images', rank: 77 },
-    { name: 'eBay', url: 'https://www.ebay.com/', aliases: ['ebay','eba'], tag: 'Shopping', rank: 76 },
-    { name: 'Booking.com', url: 'https://www.booking.com/', aliases: ['booking','boo'], tag: 'Voyage', rank: 75 },
-    { name: 'Zoom', url: 'https://zoom.us/', aliases: ['zoom','zoo'], tag: 'Visio', rank: 74 },
-    { name: 'Canva', url: 'https://www.canva.com/', aliases: ['canva','can'], tag: 'Création', rank: 73 },
-    { name: 'PayPal', url: 'https://www.paypal.com/', aliases: ['paypal','pay'], tag: 'Paiement', rank: 72 },
-    { name: 'Stack Overflow', url: 'https://stackoverflow.com/', aliases: ['stackoverflow','stack','sta'], tag: 'Développement', rank: 71 },
-    { name: 'Steam', url: 'https://store.steampowered.com/', aliases: ['steam','ste'], tag: 'Jeux', rank: 70 },
-    { name: 'Roblox', url: 'https://www.roblox.com/', aliases: ['roblox','rob'], tag: 'Jeux', rank: 69 },
-    { name: 'IMDb', url: 'https://www.imdb.com/', aliases: ['imdb','imd'], tag: 'Cinéma', rank: 68 },
-    { name: 'BBC', url: 'https://www.bbc.com/', aliases: ['bbc'], tag: 'Actualités', rank: 67 },
-    { name: 'CNN', url: 'https://www.cnn.com/', aliases: ['cnn'], tag: 'Actualités', rank: 66 },
-    { name: 'Gmail', url: 'https://mail.google.com/', aliases: ['gmail','gma'], tag: 'Mail', rank: 65 },
-    { name: 'Google Drive', url: 'https://drive.google.com/', aliases: ['drive','dri','gdrive'], tag: 'Cloud', rank: 64 },
-    { name: 'Google Maps', url: 'https://maps.google.com/', aliases: ['maps','map','gmaps'], tag: 'Cartes', rank: 63 },
-    { name: 'Dropbox', url: 'https://www.dropbox.com/', aliases: ['dropbox','drop','dro'], tag: 'Cloud', rank: 62 },
-    { name: 'Telegram Web', url: 'https://web.telegram.org/', aliases: ['telegram','tele','tel'], tag: 'Messages', rank: 61 },
-    { name: 'Office', url: 'https://www.office.com/', aliases: ['office','off'], tag: 'Bureautique', rank: 60 },
-    { name: 'OpenAI', url: 'https://openai.com/', aliases: ['openai','ope'], tag: 'IA', rank: 59 }
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.GekkoSiteCache=api;})(typeof window!=='undefined'?window:null,function(){'use strict';
+  const SITES=Object.freeze([
+    { name:"Google", url:"https://www.google.com/", aliases:["google","goo"], tag:"Recherche", rank:300 },
+    { name:"YouTube", url:"https://www.youtube.com/", aliases:["youtube","you","yt"], tag:"Vidéo", rank:299 },
+    { name:"Facebook", url:"https://www.facebook.com/", aliases:["facebook","face","fb"], tag:"Social", rank:298 },
+    { name:"Instagram", url:"https://www.instagram.com/", aliases:["instagram","insta","ins"], tag:"Social", rank:297 },
+    { name:"X · Twitter", url:"https://x.com/", aliases:["twitter","twi","xcom"], tag:"Social", rank:296 },
+    { name:"WhatsApp Web", url:"https://web.whatsapp.com/", aliases:["whatsapp","what","wha"], tag:"Messages", rank:295 },
+    { name:"TikTok", url:"https://www.tiktok.com/", aliases:["tiktok","tik"], tag:"Vidéo", rank:294 },
+    { name:"Wikipedia", url:"https://www.wikipedia.org/", aliases:["wikipedia","wiki","wik"], tag:"Encyclopédie", rank:293 },
+    { name:"Amazon France", url:"https://www.amazon.fr/", aliases:["amazon","ama"], tag:"Shopping", rank:292 },
+    { name:"Reddit", url:"https://www.reddit.com/", aliases:["reddit","red"], tag:"Communautés", rank:291 },
+    { name:"LinkedIn", url:"https://www.linkedin.com/", aliases:["linkedin","link","lin"], tag:"Professionnel", rank:290 },
+    { name:"Netflix", url:"https://www.netflix.com/", aliases:["netflix","net"], tag:"Streaming", rank:289 },
+    { name:"Twitch", url:"https://www.twitch.tv/", aliases:["twitch","twt"], tag:"Live", rank:288 },
+    { name:"Spotify", url:"https://open.spotify.com/", aliases:["spotify","spo"], tag:"Musique", rank:287 },
+    { name:"Discord", url:"https://discord.com/app", aliases:["discord","dis"], tag:"Communautés", rank:286 },
+    { name:"GitHub", url:"https://github.com/", aliases:["github","git"], tag:"Code", rank:285 },
+    { name:"ChatGPT", url:"https://chatgpt.com/", aliases:["chatgpt","chat","gpt"], tag:"IA", rank:284 },
+    { name:"Bing", url:"https://www.bing.com/", aliases:["bing","bin"], tag:"Recherche", rank:283 },
+    { name:"Yahoo", url:"https://www.yahoo.com/", aliases:["yahoo","yah"], tag:"Portail", rank:282 },
+    { name:"Microsoft", url:"https://www.microsoft.com/", aliases:["microsoft","mic"], tag:"Tech", rank:281 },
+    { name:"Apple", url:"https://www.apple.com/fr/", aliases:["apple","app"], tag:"Tech", rank:280 },
+    { name:"Pinterest", url:"https://www.pinterest.fr/", aliases:["pinterest","pin"], tag:"Images", rank:279 },
+    { name:"eBay France", url:"https://www.ebay.fr/", aliases:["ebay","eba"], tag:"Shopping", rank:278 },
+    { name:"Booking.com", url:"https://www.booking.com/", aliases:["booking","boo"], tag:"Voyage", rank:277 },
+    { name:"Zoom", url:"https://zoom.us/", aliases:["zoom","zoo"], tag:"Visio", rank:276 },
+    { name:"Canva", url:"https://www.canva.com/", aliases:["canva","can"], tag:"Création", rank:275 },
+    { name:"PayPal", url:"https://www.paypal.com/fr/home", aliases:["paypal","pay"], tag:"Paiement", rank:274 },
+    { name:"Stack Overflow", url:"https://stackoverflow.com/", aliases:["stackoverflow","stack","sta"], tag:"Développement", rank:273 },
+    { name:"Steam", url:"https://store.steampowered.com/", aliases:["steam","ste"], tag:"Jeux", rank:272 },
+    { name:"Roblox", url:"https://www.roblox.com/", aliases:["roblox","rob"], tag:"Jeux", rank:271 },
+    { name:"IMDb", url:"https://www.imdb.com/", aliases:["imdb","imd"], tag:"Cinéma", rank:270 },
+    { name:"Gmail", url:"https://mail.google.com/", aliases:["gmail","gma"], tag:"Mail", rank:269 },
+    { name:"Google Drive", url:"https://drive.google.com/", aliases:["drive","dri","gdrive"], tag:"Cloud", rank:268 },
+    { name:"Google Maps", url:"https://maps.google.com/", aliases:["maps","map","gmaps"], tag:"Cartes", rank:267 },
+    { name:"Dropbox", url:"https://www.dropbox.com/", aliases:["dropbox","drop","dro"], tag:"Cloud", rank:266 },
+    { name:"Telegram Web", url:"https://web.telegram.org/", aliases:["telegram","tele","tel"], tag:"Messages", rank:265 },
+    { name:"Microsoft 365", url:"https://www.office.com/", aliases:["office","off","m365"], tag:"Bureautique", rank:264 },
+    { name:"OpenAI", url:"https://openai.com/", aliases:["openai","ope"], tag:"IA", rank:263 },
+    { name:"Snapchat", url:"https://www.snapchat.com/", aliases:["snapchat","snap","sna"], tag:"Social", rank:262 },
+    { name:"Threads", url:"https://www.threads.net/", aliases:["threads","thr"], tag:"Social", rank:261 },
+    { name:"Messenger", url:"https://www.messenger.com/", aliases:["messenger","mes"], tag:"Messages", rank:260 },
+    { name:"Proton Mail", url:"https://mail.proton.me/", aliases:["proton","pro"], tag:"Mail", rank:259 },
+    { name:"Outlook", url:"https://outlook.live.com/", aliases:["outlook","out"], tag:"Mail", rank:258 },
+    { name:"Notion", url:"https://www.notion.so/", aliases:["notion","not"], tag:"Productivité", rank:257 },
+    { name:"Figma", url:"https://www.figma.com/", aliases:["figma","fig"], tag:"Design", rank:256 },
+    { name:"Slack", url:"https://slack.com/", aliases:["slack","sla"], tag:"Travail", rank:255 },
+    { name:"Microsoft Teams", url:"https://teams.microsoft.com/", aliases:["teams","tea"], tag:"Travail", rank:254 },
+    { name:"OneDrive", url:"https://onedrive.live.com/", aliases:["onedrive","one"], tag:"Cloud", rank:253 },
+    { name:"GitLab", url:"https://gitlab.com/", aliases:["gitlab","gla"], tag:"Code", rank:252 },
+    { name:"Cloudflare", url:"https://www.cloudflare.com/", aliases:["cloudflare","clo"], tag:"Web", rank:251 },
+    { name:"Vercel", url:"https://vercel.com/", aliases:["vercel","ver"], tag:"Cloud", rank:250 },
+    { name:"Render", url:"https://render.com/", aliases:["render","ren"], tag:"Cloud", rank:249 },
+    { name:"Hostinger", url:"https://www.hostinger.fr/", aliases:["hostinger","hos"], tag:"Hébergement", rank:248 },
+    { name:"Medium", url:"https://medium.com/", aliases:["medium","med"], tag:"Publication", rank:247 },
+    { name:"Quora", url:"https://www.quora.com/", aliases:["quora","quo"], tag:"Communautés", rank:246 },
+    { name:"Service-Public.fr", url:"https://www.service-public.fr/", aliases:["servicepublic","service","ser"], tag:"Service public", rank:245 },
+    { name:"Impots.gouv.fr", url:"https://www.impots.gouv.fr/", aliases:["impots","imp"], tag:"Service public", rank:244 },
+    { name:"Ameli", url:"https://www.ameli.fr/", aliases:["ameli","ame"], tag:"Santé publique", rank:243 },
+    { name:"CAF", url:"https://www.caf.fr/", aliases:["caf"], tag:"Service public", rank:242 },
+    { name:"France Travail", url:"https://www.francetravail.fr/", aliases:["francetravail","ftr","emploi"], tag:"Emploi public", rank:241 },
+    { name:"Assurance Retraite", url:"https://www.lassuranceretraite.fr/", aliases:["assuranceretraite","retraite","ret"], tag:"Service public", rank:240 },
+    { name:"Info Retraite", url:"https://www.info-retraite.fr/", aliases:["inforetraite","ire"], tag:"Service public", rank:239 },
+    { name:"ANTS", url:"https://ants.gouv.fr/", aliases:["ants","ant"], tag:"Service public", rank:238 },
+    { name:"FranceConnect", url:"https://franceconnect.gouv.fr/", aliases:["franceconnect","frc"], tag:"Identité publique", rank:237 },
+    { name:"Mon Compte Formation", url:"https://www.moncompteformation.gouv.fr/", aliases:["moncompteformation","cpf"], tag:"Formation", rank:236 },
+    { name:"Mes droits sociaux", url:"https://www.mesdroitssociaux.gouv.fr/", aliases:["mesdroitssociaux","mds"], tag:"Service public", rank:235 },
+    { name:"URSSAF", url:"https://www.urssaf.fr/", aliases:["urssaf","urs"], tag:"Service public", rank:234 },
+    { name:"Mon espace santé", url:"https://www.monespacesante.fr/", aliases:["monespacesante","mesante"], tag:"Santé publique", rank:233 },
+    { name:"Santé.fr", url:"https://www.sante.fr/", aliases:["sante","san"], tag:"Santé publique", rank:232 },
+    { name:"Education nationale", url:"https://www.education.gouv.fr/", aliases:["education","edu"], tag:"Service public", rank:231 },
+    { name:"Parcoursup", url:"https://www.parcoursup.gouv.fr/", aliases:["parcoursup","par"], tag:"Education", rank:230 },
+    { name:"Diplomatie française", url:"https://www.diplomatie.gouv.fr/", aliases:["diplomatie","dip"], tag:"Service public", rank:229 },
+    { name:"Ministère de l’Intérieur", url:"https://www.interieur.gouv.fr/", aliases:["interieur","int"], tag:"Service public", rank:228 },
+    { name:"Justice.fr", url:"https://www.justice.fr/", aliases:["justice","jus"], tag:"Service public", rank:227 },
+    { name:"Légifrance", url:"https://www.legifrance.gouv.fr/", aliases:["legifrance","legi","leg"], tag:"Droit", rank:226 },
+    { name:"data.gouv.fr", url:"https://www.data.gouv.fr/", aliases:["datagouv","data"], tag:"Données publiques", rank:225 },
+    { name:"Vie-publique.fr", url:"https://www.vie-publique.fr/", aliases:["viepublique","vie"], tag:"Service public", rank:224 },
+    { name:"La Poste", url:"https://www.laposte.fr/", aliases:["laposte","poste","lap"], tag:"Service public", rank:223 },
+    { name:"La Banque Postale", url:"https://www.labanquepostale.fr/", aliases:["labanquepostale","lbp"], tag:"Banque", rank:222 },
+    { name:"CESU", url:"https://www.cesu.urssaf.fr/", aliases:["cesu"], tag:"Service public", rank:221 },
+    { name:"Indeed France", url:"https://fr.indeed.com/", aliases:["indeed","ind"], tag:"Emploi", rank:220 },
+    { name:"APEC", url:"https://www.apec.fr/", aliases:["apec","ape"], tag:"Emploi", rank:219 },
+    { name:"HelloWork", url:"https://www.hellowork.com/", aliases:["hellowork","hel"], tag:"Emploi", rank:218 },
+    { name:"Welcome to the Jungle", url:"https://www.welcometothejungle.com/fr", aliases:["welcometothejungle","wttj","wel"], tag:"Emploi", rank:217 },
+    { name:"Meteojob", url:"https://www.meteojob.com/", aliases:["meteojob","met"], tag:"Emploi", rank:216 },
+    { name:"Cadremploi", url:"https://www.cadremploi.fr/", aliases:["cadremploi","cad"], tag:"Emploi", rank:215 },
+    { name:"SNCF Connect", url:"https://www.sncf-connect.com/", aliases:["sncf","snc"], tag:"Transport", rank:214 },
+    { name:"RATP", url:"https://www.ratp.fr/", aliases:["ratp","rat"], tag:"Transport", rank:213 },
+    { name:"Île-de-France Mobilités", url:"https://www.iledefrance-mobilites.fr/", aliases:["iledefrancemobilites","idfm","idf"], tag:"Transport", rank:212 },
+    { name:"Transilien", url:"https://www.transilien.com/", aliases:["transilien","tra"], tag:"Transport", rank:211 },
+    { name:"BlaBlaCar", url:"https://www.blablacar.fr/", aliases:["blablacar","bla"], tag:"Transport", rank:210 },
+    { name:"Uber", url:"https://www.uber.com/fr/fr/", aliases:["uber","ube"], tag:"Transport", rank:209 },
+    { name:"Bolt", url:"https://bolt.eu/fr-fr/", aliases:["bolt","bol"], tag:"Transport", rank:208 },
+    { name:"Air France", url:"https://wwws.airfrance.fr/", aliases:["airfrance","air"], tag:"Voyage", rank:207 },
+    { name:"easyJet", url:"https://www.easyjet.com/fr", aliases:["easyjet","eas"], tag:"Voyage", rank:206 },
+    { name:"Ryanair", url:"https://www.ryanair.com/fr/fr", aliases:["ryanair","rya"], tag:"Voyage", rank:205 },
+    { name:"Trainline", url:"https://www.thetrainline.com/fr", aliases:["trainline","trn"], tag:"Transport", rank:204 },
+    { name:"Airbnb", url:"https://www.airbnb.fr/", aliases:["airbnb","arb"], tag:"Voyage", rank:203 },
+    { name:"Tripadvisor", url:"https://www.tripadvisor.fr/", aliases:["tripadvisor","trip","tri"], tag:"Voyage", rank:202 },
+    { name:"Expedia", url:"https://www.expedia.fr/", aliases:["expedia","exp"], tag:"Voyage", rank:201 },
+    { name:"Hotels.com", url:"https://fr.hotels.com/", aliases:["hotels","hot"], tag:"Voyage", rank:200 },
+    { name:"Leboncoin", url:"https://www.leboncoin.fr/", aliases:["leboncoin","leb"], tag:"Petites annonces", rank:199 },
+    { name:"Vinted", url:"https://www.vinted.fr/", aliases:["vinted","vin"], tag:"Shopping", rank:198 },
+    { name:"Cdiscount", url:"https://www.cdiscount.com/", aliases:["cdiscount","cdi"], tag:"Shopping", rank:197 },
+    { name:"Rakuten France", url:"https://fr.shopping.rakuten.com/", aliases:["rakuten","rak"], tag:"Shopping", rank:196 },
+    { name:"Fnac", url:"https://www.fnac.com/", aliases:["fnac","fna"], tag:"Magasin", rank:195 },
+    { name:"Darty", url:"https://www.darty.com/", aliases:["darty","dar"], tag:"Magasin", rank:194 },
+    { name:"Boulanger", url:"https://www.boulanger.com/", aliases:["boulanger","bou"], tag:"Magasin", rank:193 },
+    { name:"Carrefour", url:"https://www.carrefour.fr/", aliases:["carrefour","car"], tag:"Courses", rank:192 },
+    { name:"E.Leclerc", url:"https://www.e.leclerc/", aliases:["leclerc","lec"], tag:"Courses", rank:191 },
+    { name:"Auchan", url:"https://www.auchan.fr/", aliases:["auchan","auc"], tag:"Courses", rank:190 },
+    { name:"Intermarché", url:"https://www.intermarche.com/", aliases:["intermarche","inter","itm"], tag:"Courses", rank:189 },
+    { name:"Lidl", url:"https://www.lidl.fr/", aliases:["lidl","lid"], tag:"Courses", rank:188 },
+    { name:"Aldi", url:"https://www.aldi.fr/", aliases:["aldi","ald"], tag:"Courses", rank:187 },
+    { name:"Monoprix", url:"https://www.monoprix.fr/", aliases:["monoprix","mono","mon"], tag:"Courses", rank:186 },
+    { name:"Franprix", url:"https://www.franprix.fr/", aliases:["franprix","fra"], tag:"Courses", rank:185 },
+    { name:"Action", url:"https://www.action.com/fr-fr/", aliases:["action","act"], tag:"Magasin", rank:184 },
+    { name:"IKEA France", url:"https://www.ikea.com/fr/fr/", aliases:["ikea","ike"], tag:"Maison", rank:183 },
+    { name:"Leroy Merlin", url:"https://www.leroymerlin.fr/", aliases:["leroymerlin","ler"], tag:"Maison", rank:182 },
+    { name:"Castorama", url:"https://www.castorama.fr/", aliases:["castorama","cas"], tag:"Maison", rank:181 },
+    { name:"Brico Dépôt", url:"https://www.bricodepot.fr/", aliases:["bricodepot","bri"], tag:"Maison", rank:180 },
+    { name:"BUT", url:"https://www.but.fr/", aliases:["but"], tag:"Maison", rank:179 },
+    { name:"Conforama", url:"https://www.conforama.fr/", aliases:["conforama","conf","con"], tag:"Maison", rank:178 },
+    { name:"Decathlon", url:"https://www.decathlon.fr/", aliases:["decathlon","dec"], tag:"Sport", rank:177 },
+    { name:"Nike France", url:"https://www.nike.com/fr/", aliases:["nike","nik"], tag:"Mode", rank:176 },
+    { name:"Adidas France", url:"https://www.adidas.fr/", aliases:["adidas","adi"], tag:"Mode", rank:175 },
+    { name:"Zara", url:"https://www.zara.com/fr/", aliases:["zara","zar"], tag:"Mode", rank:174 },
+    { name:"H&M France", url:"https://www2.hm.com/fr_fr/index.html", aliases:["hm","h&m"], tag:"Mode", rank:173 },
+    { name:"Uniqlo France", url:"https://www.uniqlo.com/fr/fr/", aliases:["uniqlo","uni"], tag:"Mode", rank:172 },
+    { name:"Zalando", url:"https://www.zalando.fr/", aliases:["zalando","zal"], tag:"Mode", rank:171 },
+    { name:"SHEIN France", url:"https://fr.shein.com/", aliases:["shein","she"], tag:"Mode", rank:170 },
+    { name:"Temu France", url:"https://www.temu.com/fr", aliases:["temu","tem"], tag:"Shopping", rank:169 },
+    { name:"Sephora France", url:"https://www.sephora.fr/", aliases:["sephora","sep"], tag:"Beauté", rank:168 },
+    { name:"Nocibé", url:"https://www.nocibe.fr/", aliases:["nocibe","noc"], tag:"Beauté", rank:167 },
+    { name:"BoursoBank", url:"https://www.boursobank.com/", aliases:["boursobank","bourso","bor"], tag:"Banque", rank:166 },
+    { name:"Crédit Agricole", url:"https://www.credit-agricole.fr/", aliases:["creditagricole","ca","cag"], tag:"Banque", rank:165 },
+    { name:"BNP Paribas", url:"https://mabanque.bnpparibas/", aliases:["bnpparibas","bnp"], tag:"Banque", rank:164 },
+    { name:"Société Générale", url:"https://particuliers.sg.fr/", aliases:["societegenerale","sg"], tag:"Banque", rank:163 },
+    { name:"LCL", url:"https://www.lcl.fr/", aliases:["lcl"], tag:"Banque", rank:162 },
+    { name:"Caisse d'Épargne", url:"https://www.caisse-epargne.fr/", aliases:["caisseepargne","caisse","cde"], tag:"Banque", rank:161 },
+    { name:"Banque Populaire", url:"https://www.banquepopulaire.fr/", aliases:["banquepopulaire","bpop"], tag:"Banque", rank:160 },
+    { name:"Revolut", url:"https://www.revolut.com/fr-FR/", aliases:["revolut","rev"], tag:"Banque", rank:159 },
+    { name:"N26", url:"https://n26.com/fr-fr", aliases:["n26"], tag:"Banque", rank:158 },
+    { name:"Wise", url:"https://wise.com/fr/", aliases:["wise","wis"], tag:"Paiement", rank:157 },
+    { name:"MAIF", url:"https://www.maif.fr/", aliases:["maif"], tag:"Assurance", rank:156 },
+    { name:"MACIF", url:"https://www.macif.fr/", aliases:["macif"], tag:"Assurance", rank:155 },
+    { name:"Matmut", url:"https://www.matmut.fr/", aliases:["matmut","mat"], tag:"Assurance", rank:154 },
+    { name:"AXA France", url:"https://www.axa.fr/", aliases:["axa"], tag:"Assurance", rank:153 },
+    { name:"Allianz France", url:"https://www.allianz.fr/", aliases:["allianz","all"], tag:"Assurance", rank:152 },
+    { name:"Orange", url:"https://www.orange.fr/", aliases:["orange","ora"], tag:"Télécom", rank:151 },
+    { name:"Free", url:"https://www.free.fr/", aliases:["free","fre"], tag:"Télécom", rank:150 },
+    { name:"SFR", url:"https://www.sfr.fr/", aliases:["sfr"], tag:"Télécom", rank:149 },
+    { name:"Bouygues Telecom", url:"https://www.bouyguestelecom.fr/", aliases:["bouyguestelecom","btel","bte"], tag:"Télécom", rank:148 },
+    { name:"EDF", url:"https://www.edf.fr/", aliases:["edf"], tag:"Énergie", rank:147 },
+    { name:"ENGIE", url:"https://particuliers.engie.fr/", aliases:["engie","eng"], tag:"Énergie", rank:146 },
+    { name:"TotalEnergies", url:"https://www.totalenergies.fr/", aliases:["totalenergies","tot"], tag:"Énergie", rank:145 },
+    { name:"Doctolib", url:"https://www.doctolib.fr/", aliases:["doctolib","doc"], tag:"Santé", rank:144 },
+    { name:"Maiia", url:"https://www.maiia.com/", aliases:["maiia","mai"], tag:"Santé", rank:143 },
+    { name:"Qare", url:"https://www.qare.fr/", aliases:["qare","qar"], tag:"Santé", rank:142 },
+    { name:"Uber Eats", url:"https://www.ubereats.com/fr", aliases:["ubereats","uea"], tag:"Livraison", rank:141 },
+    { name:"Deliveroo", url:"https://deliveroo.fr/", aliases:["deliveroo","del"], tag:"Livraison", rank:140 },
+    { name:"Just Eat", url:"https://www.just-eat.fr/", aliases:["justeat","jue"], tag:"Livraison", rank:139 },
+    { name:"McDonald's France", url:"https://www.mcdonalds.fr/", aliases:["mcdonalds","mcd"], tag:"Restauration", rank:138 },
+    { name:"Burger King France", url:"https://www.burgerking.fr/", aliases:["burgerking","bkg"], tag:"Restauration", rank:137 },
+    { name:"Domino's Pizza France", url:"https://www.dominos.fr/", aliases:["dominos","dom"], tag:"Restauration", rank:136 },
+    { name:"Le Monde", url:"https://www.lemonde.fr/", aliases:["lemonde","lmo"], tag:"Actualités", rank:135 },
+    { name:"Le Figaro", url:"https://www.lefigaro.fr/", aliases:["lefigaro","lfi"], tag:"Actualités", rank:134 },
+    { name:"Franceinfo", url:"https://www.franceinfo.fr/", aliases:["franceinfo","fni"], tag:"Actualités", rank:133 },
+    { name:"BFMTV", url:"https://www.bfmtv.com/", aliases:["bfmtv","bfm"], tag:"Actualités", rank:132 },
+    { name:"France 24", url:"https://www.france24.com/fr/", aliases:["france24","f24"], tag:"Actualités", rank:131 },
+    { name:"20 Minutes", url:"https://www.20minutes.fr/", aliases:["20minutes","20m"], tag:"Actualités", rank:130 },
+    { name:"Libération", url:"https://www.liberation.fr/", aliases:["liberation","lib"], tag:"Actualités", rank:129 },
+    { name:"Les Echos", url:"https://www.lesechos.fr/", aliases:["lesechos","eco"], tag:"Actualités", rank:128 },
+    { name:"Mediapart", url:"https://www.mediapart.fr/", aliases:["mediapart","mdi"], tag:"Actualités", rank:127 },
+    { name:"Ouest-France", url:"https://www.ouest-france.fr/", aliases:["ouestfrance","ouf"], tag:"Actualités", rank:126 },
+    { name:"France.tv", url:"https://www.france.tv/", aliases:["francetv","ftv"], tag:"Streaming", rank:125 },
+    { name:"ARTE", url:"https://www.arte.tv/fr/", aliases:["arte","art"], tag:"Streaming", rank:124 },
+    { name:"TF1+", url:"https://www.tf1.fr/", aliases:["tf1","tf1plus"], tag:"Streaming", rank:123 },
+    { name:"M6+", url:"https://www.m6.fr/", aliases:["m6","m6plus"], tag:"Streaming", rank:122 },
+    { name:"CANAL+", url:"https://www.canalplus.com/", aliases:["canalplus","canal","cpl"], tag:"Streaming", rank:121 },
+    { name:"Disney+", url:"https://www.disneyplus.com/fr-fr", aliases:["disneyplus","disney","dpl"], tag:"Streaming", rank:120 },
+    { name:"Prime Video", url:"https://www.primevideo.com/", aliases:["primevideo","prime","prv"], tag:"Streaming", rank:119 },
+    { name:"Max", url:"https://www.max.com/fr/fr", aliases:["max","hbomax"], tag:"Streaming", rank:118 },
+    { name:"Météo-France", url:"https://meteofrance.com/", aliases:["meteofrance","meteo","mfr"], tag:"Météo", rank:117 },
+    { name:"Allociné", url:"https://www.allocine.fr/", aliases:["allocine","alo"], tag:"Cinéma", rank:116 },
+    { name:"Deezer", url:"https://www.deezer.com/fr/", aliases:["deezer","dee"], tag:"Musique", rank:115 },
+    { name:"SoundCloud", url:"https://soundcloud.com/", aliases:["soundcloud","sou"], tag:"Musique", rank:114 },
+    { name:"Dailymotion", url:"https://www.dailymotion.com/fr", aliases:["dailymotion","dai"], tag:"Vidéo", rank:113 },
+    { name:"Chess.com", url:"https://www.chess.com/", aliases:["chess","che"], tag:"Jeux", rank:112 },
+    { name:"Lichess", url:"https://lichess.org/", aliases:["lichess","lic"], tag:"Jeux", rank:111 },
+    { name:"Epic Games", url:"https://store.epicgames.com/fr/", aliases:["epicgames","epic","epi"], tag:"Jeux", rank:110 },
+    { name:"PlayStation", url:"https://www.playstation.com/fr-fr/", aliases:["playstation","psn","pla"], tag:"Jeux", rank:109 },
+    { name:"Xbox", url:"https://www.xbox.com/fr-FR/", aliases:["xbox","xbo"], tag:"Jeux", rank:108 },
+    { name:"Nintendo", url:"https://www.nintendo.fr/", aliases:["nintendo","nin"], tag:"Jeux", rank:107 }
   ]);
-
-  const normalize = (value) => String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/^www\./, '');
-
-  function scoreSite(site, query) {
-    const q = normalize(query);
-    if (q.length < 3 || /[\s/:?&=#]/.test(q)) return -1;
-
-    const name = normalize(site.name).replace(/[^a-z0-9]/g, '');
-    const host = normalize(new URL(site.url).hostname).replace(/^www\./, '').replace(/[^a-z0-9]/g, '');
-    let best = -1;
-
-    for (const aliasRaw of site.aliases || []) {
-      const alias = normalize(aliasRaw).replace(/[^a-z0-9]/g, '');
-      if (!alias) continue;
-      if (alias === q) best = Math.max(best, 1500);
-      else if (alias.startsWith(q)) best = Math.max(best, 1200 - Math.min(120, alias.length - q.length));
-      else if (q.length >= 4 && alias.includes(q)) best = Math.max(best, 760);
-    }
-
-    if (name === q) best = Math.max(best, 1450);
-    else if (name.startsWith(q)) best = Math.max(best, 1120 - Math.min(100, name.length - q.length));
-
-    if (host.startsWith(q)) best = Math.max(best, 1060 - Math.min(100, host.length - q.length));
-    else if (q.length >= 4 && host.includes(q)) best = Math.max(best, 720);
-
-    return best < 0 ? -1 : best + Number(site.rank || 0) / 100;
-  }
-
-  function matchSites(query, limit = 5) {
-    const q = normalize(query);
-    if (q.length < 3) return [];
-    return SITES
-      .map((site) => ({ ...site, score: scoreSite(site, q) }))
-      .filter((site) => site.score >= 0)
-      .sort((a, b) => b.score - a.score || b.rank - a.rank || a.name.localeCompare(b.name))
-      .slice(0, Math.max(1, Math.min(8, Number(limit) || 5)));
-  }
-
-  const INSTANT_ALIASES = Object.freeze({
-    goo: 'Google',
-    you: 'YouTube',
-    ins: 'Instagram',
-    twi: 'X · Twitter',
-    wha: 'WhatsApp Web',
-    tik: 'TikTok',
-    wiki: 'Wikipedia',
-    ama: 'Amazon',
-    red: 'Reddit',
-    lin: 'LinkedIn',
-    net: 'Netflix',
-    spo: 'Spotify',
-    dis: 'Discord',
-    git: 'GitHub',
-    gpt: 'ChatGPT',
-    bin: 'Bing',
-    yah: 'Yahoo',
-    pin: 'Pinterest',
-    eba: 'eBay',
-    boo: 'Booking.com',
-    zoo: 'Zoom',
-    can: 'Canva',
-    pay: 'PayPal',
-    ste: 'Steam',
-    rob: 'Roblox',
-    imd: 'IMDb',
-    gma: 'Gmail',
-    dri: 'Google Drive',
-    map: 'Google Maps',
-    dro: 'Dropbox',
-    tel: 'Telegram Web',
-    off: 'Office',
-    ope: 'OpenAI'
-  });
-
-  const siteByName = new Map(SITES.map((site) => [site.name, site]));
-
-  function instantSite(query) {
-    const q = normalize(query).replace(/[^a-z0-9]/g, '');
-    if (!q || /[\s/:?&=#]/.test(normalize(query))) return null;
-    const name = INSTANT_ALIASES[q];
-    return name ? siteByName.get(name) || null : null;
-  }
-
-  function prewarmSite(query) {
-    const q = normalize(query).replace(/[^a-z0-9]/g, '');
-    if (q.length !== 2 || /[\s/:?&=#]/.test(normalize(query))) return null;
-    const names = new Set(
-      Object.entries(INSTANT_ALIASES)
-        .filter(([alias]) => alias.startsWith(q))
-        .map(([, name]) => name)
-    );
-    if (names.size !== 1) return null;
-    return siteByName.get([...names][0]) || null;
-  }
-
-  function firstSite(query) {
-    return matchSites(query, 1)[0] || null;
-  }
-
-  return { SITES, INSTANT_ALIASES, matchSites, firstSite, instantSite, prewarmSite };
+  const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/^www\./,'');
+  const clean=v=>normalize(v).replace(/[^a-z0-9]/g,'');
+  const tokens=site=>{let host='';try{host=new URL(site.url).hostname.replace(/^www\./,'')}catch{}return [...new Set([site.name,host,...(site.aliases||[])].map(clean).filter(Boolean))]};
+  const score=(site,q)=>{let best=-1;for(const t of tokens(site)){if(t===q)best=Math.max(best,1800);else if(t.startsWith(q))best=Math.max(best,1300-Math.min(180,t.length-q.length));else if(q.length>=4&&t.includes(q))best=Math.max(best,760)}return best<0?-1:best+Number(site.rank||0)/1000};
+  function matchSites(query,limit=6){const raw=normalize(query);if(raw.length<2||/[\s/:?&=#.]/.test(raw))return[];const q=clean(raw);return SITES.map(s=>({...s,score:score(s,q)})).filter(s=>s.score>=0).sort((a,b)=>b.score-a.score||b.rank-a.rank||a.name.localeCompare(b.name)).slice(0,Math.max(1,Math.min(10,Number(limit)||6)))}
+  const INSTANT_ALIASES=Object.freeze({"goo":"Google","you":"YouTube","ins":"Instagram","twi":"X · Twitter","wha":"WhatsApp Web","tik":"TikTok","wiki":"Wikipedia","ama":"Amazon France","red":"Reddit","lin":"LinkedIn","net":"Netflix","spo":"Spotify","dis":"Discord","git":"GitHub","gpt":"ChatGPT","bin":"Bing","yah":"Yahoo","pin":"Pinterest","eba":"eBay France","boo":"Booking.com","zoo":"Zoom","can":"Canva","pay":"PayPal","ste":"Steam","rob":"Roblox","imd":"IMDb","gma":"Gmail","dri":"Google Drive","map":"Google Maps","dro":"Dropbox","tel":"Telegram Web","off":"Microsoft 365","ope":"OpenAI","ser":"Service-Public.fr","imp":"Impots.gouv.fr","ame":"Ameli","caf":"CAF","ftr":"France Travail","ant":"ANTS","frc":"FranceConnect","cpf":"Mon Compte Formation","urs":"URSSAF","snc":"SNCF Connect","rat":"RATP","idf":"Île-de-France Mobilités","doc":"Doctolib","leb":"Leboncoin","vin":"Vinted","cdi":"Cdiscount","fna":"Fnac","dar":"Darty","car":"Carrefour","lec":"E.Leclerc","auc":"Auchan","lid":"Lidl","dec":"Decathlon","bou":"Boulanger","ler":"Leroy Merlin","ike":"IKEA France","air":"Air France","bla":"BlaBlaCar","ube":"Uber","ora":"Orange","fre":"Free","sfr":"SFR","edf":"EDF","eng":"ENGIE","bnp":"BNP Paribas","rev":"Revolut","bfm":"BFMTV","ftv":"France.tv","art":"ARTE","dee":"Deezer","meteo":"Météo-France"});
+  const siteByName=new Map(SITES.map(s=>[s.name,s]));
+  function instantSite(query){const raw=normalize(query);if(!raw||/[\s/:?&=#.]/.test(raw))return null;const name=INSTANT_ALIASES[clean(raw)];return name?siteByName.get(name)||null:null}
+  function prewarmSites(query,limit=3){const raw=normalize(query);if(!raw||/[\s/:?&=#.]/.test(raw))return[];const q=clean(raw);if(!q)return[];const count=q.length===1?Math.min(3,limit):q.length===2?Math.min(2,limit):1;return SITES.map(site=>{let best=-1;for(const t of tokens(site)){if(t===q)best=Math.max(best,2200);else if(t.startsWith(q))best=Math.max(best,1450+Math.max(0,260-(t.length-q.length)*9))}return{...site,_score:best<0?-1:best+Number(site.rank||0)/1000}}).filter(s=>s._score>=0).sort((a,b)=>b._score-a._score||b.rank-a.rank).slice(0,count).map(({_score,...s})=>s)}
+  const prewarmSite=q=>prewarmSites(q,1)[0]||null;
+  const firstSite=q=>matchSites(q,1)[0]||null;
+  return{SITES,INSTANT_ALIASES,matchSites,firstSite,instantSite,prewarmSite,prewarmSites};
 });

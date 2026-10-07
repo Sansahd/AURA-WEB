@@ -85,3 +85,14 @@ test('normal navigation never hides the WebContentsView behind a transition', ()
   assert.doesNotMatch(main, /tab\.transitioning = true/);
   assert.doesNotMatch(main, /view\.setVisible\(false\);\s*\n\s*const ok = await ensureNetwork/);
 });
+
+
+test('generic cookie refusal complements Google-specific consent handling', () => {
+  assert.match(main, /installCookieConsentRefusal/);
+  assert.match(main, /installGoogleConsentRefusal/);
+  const domReady = main.slice(
+    main.indexOf("wc.on('dom-ready'"),
+    main.indexOf("wc.on('did-stop-loading'")
+  );
+  assert.match(domReady, /await installCookieConsentRefusal\(wc\)/);
+});

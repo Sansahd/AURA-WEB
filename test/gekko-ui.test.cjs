@@ -223,12 +223,29 @@ test('YouTube video pages proactively enter GEKKO Direct before ad playback', ()
 });
 
 
-test('engine picker stays inside the reserved bottom dock', () => {
-  const html = read('src/renderer/index.html');
+
+
+
+test('search engine picker keeps original two-column geometry while reserving WebContents space', () => {
   const css = read('src/renderer/quantic-glide-brand.css');
   const renderer = read('src/renderer/renderer.js');
-  assert.match(html, /id="engine-menu-close"/);
-  assert.match(css, /search-engine-menu\{[\s\S]*bottom:5px!important[\s\S]*height:56px!important/);
-  assert.match(css, /site-suggestions\{[\s\S]*bottom:5px!important[\s\S]*height:56px!important/);
-  assert.match(renderer, /function closeSearchEngineMenu/);
+  const main = read('src/main.cjs');
+  const preload = read('src/preload.cjs');
+  const firewall = read('src/security/ipc-firewall.cjs');
+
+  assert.match(css, /original engine palette geometry restored/);
+  assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+  assert.match(css, /bottom:56px!important/);
+  assert.match(renderer, /syncChromeOverlay/);
+  assert.match(renderer, /engineOpen \? 326/);
+  assert.match(main, /chromeOverlayHeight/);
+  assert.match(main, /BOTTOM_DOCK_H \+ chromeOverlayHeight/);
+  assert.match(preload, /chromeOverlay: \(h\) => ipcRenderer\.invoke\('chrome-overlay-height', h\)/);
+  assert.match(firewall, /'chrome-overlay-height'/);
+});
+
+test('omnibox hypercache can prewarm several likely destinations on the first keystroke', () => {
+  const renderer = read('src/renderer/renderer.js');
+  assert.match(renderer, /prewarmSites\?\.\(query, 3\)/);
+  assert.match(renderer, /prewarmKeys = new Set/);
 });

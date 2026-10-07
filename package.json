@@ -1,13 +1,13 @@
 {
   "name": "gekko-browser-aura-career",
-  "version": "1.9.1",
+  "version": "2.0.0",
   "description": "GEKKO Browser with integrated AURA Career",
   "main": "src/bootstrap.cjs",
   "author": "Quantic",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/renderer/renderer.js && node --check src/renderer/site-cache.js && node --check src/services/youtube-guard.cjs && node --check src/services/youtube-direct.cjs && node --check src/services/career-agent.cjs && npm test",
+    "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/renderer/renderer.js && node --check src/renderer/site-cache.js && node --check src/services/youtube-guard.cjs && node --check src/services/youtube-direct.cjs && node --check src/services/cookie-consent.cjs && node --check src/services/career-agent.cjs && npm test",
     "dist": "electron-builder --win --x64 --publish never",
     "test": "node --test test/*.test.cjs"
   },
