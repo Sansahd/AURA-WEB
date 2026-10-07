@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const { QuanticStore } = require('./services/store.cjs');
 const { QuanticVeil } = require('./services/veil.cjs');
 const { installPrivacyLayer } = require('./services/privacy.cjs');
+const { GekkoShields } = require('./services/shields.cjs');
 const { installYouTubeGuard, isYouTubeUrl } = require('./services/youtube-guard.cjs');
 const { isGoogleConsentUrl, installGoogleConsentRefusal } = require('./services/google-consent.cjs');
 const { installCookieConsentRefusal } = require('./services/cookie-consent.cjs');
@@ -31,10 +32,10 @@ const NORMAL_PARTITION = 'persist:quantic';
 const PRIVATE_PARTITION = 'quantic-private';
 const FAIL_CLOSED_PROXY = 'socks5://127.0.0.1:9';
 const DIRECT_PROXY = 'direct';
-const TAB_LIFECYCLE_SWEEP_MS = 45_000;
-const TAB_IDLE_SLEEP_MS = 12 * 60_000;
-const TAB_PRESSURE_IDLE_MS = 3 * 60_000;
-const MAX_LIVE_BACKGROUND_TABS = 6;
+const TAB_LIFECYCLE_SWEEP_MS = 30_000;
+const TAB_IDLE_SLEEP_MS = 8 * 60_000;
+const TAB_PRESSURE_IDLE_MS = 2 * 60_000;
+const MAX_LIVE_BACKGROUND_TABS = 4;
 const PREWARM_HOSTS = new Set(
   POPULAR_SITES.map((site) => {
     try { return new URL(site.url).hostname.toLowerCase(); } catch { return ''; }
@@ -79,6 +80,7 @@ let auraPresence;
 let careerAgent;
 let careerTimer;
 let youtubeDirectResolver;
+let shields;
 let browserSession;
 let normalSession;
 let privateSession;
@@ -143,6 +145,7 @@ function state() {
     settings: store?.settings() || {},
     sideStage: sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, apps: [] },
     veil: veil?.snapshot() || {},
+    shields: shields?.snapshot?.() || { status: 'idle', engine: 'fallback' },
     career: careerAgent?.snapshot?.() || null,
     internal: (tab?.awaitingNetwork || tab?.awaitingPage) ? {
       kind: 'connecting',
@@ -760,7 +763,6 @@ function createView(tab) {
       scheduleYouTubeDirect(tab, 0);
     }
     installCookieConsentRefusal(wc).catch(() => {});
-    installCookieConsentRefusal(wc).catch(() => {});
     if (isGoogleConsentUrl(url)) installGoogleConsentRefusal(wc).catch(() => {});
     emitState();
   });
@@ -1345,10 +1347,23 @@ app.whenReady().then(async () => {
 
   for (const targetSession of [normalSession, privateSession]) {
     targetSession.setUserAgent(chromiumUserAgent(), 'fr-FR,fr,en-US,en');
+    // Keep the lightweight GEKKO rules active immediately. On the normal
+    // profile, GEKKO Shields takes over the request pipeline once its cached
+    // EasyList/uBO-compatible engine is ready. Private/Tor stays on the local
+    // fallback to avoid the current upstream multi-session Electron IPC bug.
     installPrivacyLayer(targetSession);
     setupPermissions(targetSession);
     installDownloadTracking(targetSession);
   }
+
+  shields = new GekkoShields(app, { onState: () => emitState(true) });
+  shields.install(normalSession).then((ok) => {
+    if (!ok) console.warn('[gekko-shields] full engine unavailable; local fallback remains active');
+    emitState(true);
+  }).catch((error) => {
+    console.warn('[gekko-shields] startup failed', error?.message || error);
+    emitState(true);
+  });
 
   veil = new QuanticVeil(app);
   auraClient = new QuanticAuraClient();
