@@ -87,6 +87,152 @@ const DOWNLOAD_BRIDGE_SCRIPT: &str = r#"
 })();
 "#;
 
+const COOKIE_CONSENT_REJECT_SCRIPT: &str = r#"
+(() => {
+  const KEY = "__gekkoCookieRejectNativeV1";
+  if (window[KEY]?.installed) {
+    try { window[KEY].scan?.(); } catch (_) {}
+    return;
+  }
+
+  const rejectLabels = [
+    "tout refuser","refuser tout","refuser","je refuse","continuer sans accepter",
+    "reject all","reject everything","decline all","decline","only necessary",
+    "necessary only","essential only","use necessary cookies only",
+    "alle ablehnen","alles ablehnen","nur notwendige","nur erforderliche",
+    "rechazar todo","rechazar todos","solo necesarias","sólo necesarias",
+    "rifiuta tutto","rifiuta tutti","solo necessari",
+    "rejeitar tudo","recusar tudo","apenas necessários",
+    "alles weigeren","weigeren","alleen noodzakelijke",
+    "odrzuć wszystko","odmów wszystkiego","tylko niezbędne"
+  ];
+  const manageLabels = [
+    "gérer mes choix","gerer mes choix","paramétrer","parametrer","personnaliser",
+    "manage choices","manage options","cookie settings","customize",
+    "einstellungen","auswahl verwalten","configurar","gestionar opciones",
+    "impostazioni","gestisci preferenze","gerir preferências","beheer voorkeuren"
+  ];
+  const directSelectors = [
+    "#onetrust-reject-all-handler",
+    "#CybotCookiebotDialogBodyButtonDecline",
+    "#didomi-notice-disagree-button",
+    "[data-testid='uc-deny-all-button']",
+    "[data-testid='uc-deny-all']",
+    "[data-testid='consent-reject-all']",
+    "[data-cookiefirst-action='reject']",
+    ".cky-btn-reject",
+    ".cmplz-deny",
+    "button[aria-label*='Refuser']",
+    "button[aria-label*='Reject']"
+  ];
+
+  const norm = value => String(value || "").replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  const labelOf = node => norm([
+    node?.innerText, node?.textContent, node?.getAttribute?.("aria-label"),
+    node?.getAttribute?.("title"), node?.getAttribute?.("value")
+  ].filter(Boolean).join(" "));
+  const visible = node => {
+    try {
+      const style = getComputedStyle(node), rect = node.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" &&
+        Number(style.opacity || 1) > 0 && rect.width > 1 && rect.height > 1;
+    } catch (_) { return true; }
+  };
+  const matches = (label, list) => list.some(item =>
+    label === item || label.startsWith(item + " ") ||
+    label.endsWith(" " + item) || label.includes(" " + item + " ")
+  );
+  const click = node => {
+    if (!node || !visible(node)) return false;
+    try { node.click(); return true; } catch (_) {
+      try {
+        node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+        return true;
+      } catch (_) { return false; }
+    }
+  };
+
+  const roots = () => {
+    const out = [document], queue = [document.documentElement].filter(Boolean), seen = new Set(queue);
+    while (queue.length) {
+      const node = queue.shift();
+      try {
+        if (node.shadowRoot && !seen.has(node.shadowRoot)) {
+          seen.add(node.shadowRoot); out.push(node.shadowRoot);
+          queue.push(...node.shadowRoot.querySelectorAll("*"));
+        }
+        for (const child of node.querySelectorAll?.("*") || []) {
+          if (!seen.has(child)) { seen.add(child); queue.push(child); }
+        }
+      } catch (_) {}
+    }
+    for (const frame of document.querySelectorAll("iframe")) {
+      try { if (frame.contentDocument) out.push(frame.contentDocument); } catch (_) {}
+    }
+    return out;
+  };
+
+  const state = { installed: true, rejected: false, openedSettings: false, attempts: 0, observer: null, timer: null };
+  const scan = () => {
+    if (state.rejected) return true;
+    state.attempts += 1;
+
+    for (const root of roots()) {
+      for (const selector of directSelectors) {
+        let node = null;
+        try { node = root.querySelector(selector); } catch (_) {}
+        if (node && click(node)) { state.rejected = true; break; }
+      }
+      if (state.rejected) break;
+
+      let nodes = [];
+      try { nodes = [...root.querySelectorAll("button,[role='button'],a,input[type='button'],input[type='submit']")]; } catch (_) {}
+      for (const node of nodes) {
+        const label = labelOf(node);
+        if (label && matches(label, rejectLabels) && click(node)) { state.rejected = true; break; }
+      }
+      if (state.rejected) break;
+    }
+
+    if (state.rejected) {
+      try { state.observer?.disconnect(); } catch (_) {}
+      clearInterval(state.timer);
+      return true;
+    }
+
+    if (!state.openedSettings && state.attempts >= 2) {
+      for (const root of roots()) {
+        let nodes = [];
+        try { nodes = [...root.querySelectorAll("button,[role='button'],a")]; } catch (_) {}
+        const opener = nodes.find(node => matches(labelOf(node), manageLabels) && visible(node));
+        if (opener && click(opener)) {
+          state.openedSettings = true;
+          setTimeout(scan, 80);
+          break;
+        }
+      }
+    }
+    return false;
+  };
+
+  state.scan = scan;
+  window[KEY] = state;
+  scan();
+  try {
+    state.observer = new MutationObserver(scan);
+    state.observer.observe(document.documentElement || document, {
+      subtree: true, childList: true, attributes: true,
+      attributeFilter: ["aria-label","title","value","class","style"]
+    });
+  } catch (_) {}
+  state.timer = setInterval(scan, 350);
+  setTimeout(() => {
+    try { state.observer?.disconnect(); } catch (_) {}
+    clearInterval(state.timer);
+  }, 20000);
+})();
+"#;
+
 const PRIVACY_HARDENING_SCRIPT: &str = r#"
 (() => {
   if (window.__gekkoPrivacyV3) return;
@@ -2504,8 +2650,8 @@ impl ApplicationHandler<WakeEvent> for App {
         preferences.dom_webrtc_enabled = false;
         preferences.dom_webrtc_transceiver_enabled = false;
         preferences.dom_bluetooth_enabled = false;
-        preferences.dom_geolocation_enabled = true;
-        preferences.dom_notification_enabled = true;
+        preferences.dom_geolocation_enabled = false;
+        preferences.dom_notification_enabled = false;
         preferences.dom_permissions_enabled = true;
 
         let servo = ServoBuilder::default()
@@ -2517,6 +2663,7 @@ impl ApplicationHandler<WakeEvent> for App {
         let delegate = Rc::new(FusionDelegate::new());
         let user_content_manager = Rc::new(UserContentManager::new(&servo));
         user_content_manager.add_script(Rc::new(UserScript::from(DOWNLOAD_BRIDGE_SCRIPT)));
+        user_content_manager.add_script(Rc::new(UserScript::from(COOKIE_CONSENT_REJECT_SCRIPT)));
         user_content_manager.add_script(Rc::new(UserScript::from(PRIVACY_HARDENING_SCRIPT)));
         user_content_manager.add_script(Rc::new(UserScript::from(YOUTUBE_CLEAN_PLAYBACK_SCRIPT)));
 
@@ -2923,6 +3070,21 @@ mod privacy_v3_tests {
         assert!(PRIVACY_HARDENING_SCRIPT.contains("RTCPeerConnection"));
         assert!(PRIVACY_HARDENING_SCRIPT.contains("hardwareConcurrency"));
         assert!(PRIVACY_HARDENING_SCRIPT.contains("performance"));
+    }
+
+    #[test]
+    fn privacy_v3_exposes_gpc_dnt_and_webgl_standardization() {
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("globalPrivacyControl"));
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("doNotTrack"));
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("ANGLE (Generic GPU)"));
+    }
+
+    #[test]
+    fn cookie_refusal_script_prefers_rejection() {
+        assert!(COOKIE_CONSENT_REJECT_SCRIPT.contains("tout refuser"));
+        assert!(COOKIE_CONSENT_REJECT_SCRIPT.contains("reject all"));
+        assert!(COOKIE_CONSENT_REJECT_SCRIPT.contains("onetrust-reject-all-handler"));
+        assert!(!COOKIE_CONSENT_REJECT_SCRIPT.contains("accept all"));
     }
 
     #[test]
