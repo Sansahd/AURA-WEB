@@ -1,28 +1,20 @@
 'use strict';
 
-const { protocol } = require('electron');
+const { app, protocol, net } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { pathToFileURL } = require('node:url');
 
 const SCHEME = 'quantic-ui';
 const SHELL_URL = `${SCHEME}://app/renderer/index.html`;
-const UI_ROOT = path.resolve(__dirname, '..');
 let schemeRegistered = false;
 let handlerInstalled = false;
 
-const MIME = Object.freeze({
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.cjs': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
-});
+function uiRoot() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'quantic-ui')
+    : path.resolve(__dirname, '..');
+}
 
 function registerQuanticUiScheme() {
   if (schemeRegistered) return;
@@ -33,7 +25,7 @@ function registerQuanticUiScheme() {
       secure: true,
       bypassCSP: false,
       allowServiceWorkers: false,
-      supportFetchAPI: false,
+      supportFetchAPI: true,
       corsEnabled: false,
       stream: true
     }
@@ -42,45 +34,56 @@ function registerQuanticUiScheme() {
 }
 
 function safeUiPath(requestUrl) {
-  const url = new URL(requestUrl);
-  if (url.protocol !== `${SCHEME}:` || url.hostname !== 'app') return '';
-  const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '');
-  const candidate = path.resolve(UI_ROOT, relative || 'renderer/index.html');
-  const rootPrefix = `${UI_ROOT}${path.sep}`.toLowerCase();
-  const normalized = candidate.toLowerCase();
-  if (candidate !== UI_ROOT && !normalized.startsWith(rootPrefix)) return '';
-  return candidate;
+  try {
+    const url = new URL(requestUrl);
+    if (url.protocol !== `${SCHEME}:` || url.hostname !== 'app') return '';
+    const root = uiRoot();
+    const relativeUrlPath = decodeURIComponent(url.pathname).replace(/^\/+/, '') || 'renderer/index.html';
+    const candidate = path.resolve(root, relativeUrlPath);
+    const relative = path.relative(root, candidate);
+    if (!relative || relative === '.') return '';
+    if (relative.startsWith('..') || path.isAbsolute(relative)) return '';
+    return candidate;
+  } catch {
+    return '';
+  }
 }
 
-function installQuanticUiProtocol() {
+async function installQuanticUiProtocol() {
   if (handlerInstalled) return;
-  protocol.handle(SCHEME, (request) => {
+  protocol.handle(SCHEME, async (request) => {
     const filePath = safeUiPath(request.url);
     if (!filePath) return new Response('Forbidden', { status: 403 });
+
     try {
-      const body = fs.readFileSync(filePath);
-      const type = MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
-      return new Response(body, {
-        status: 200,
-        headers: {
-          'content-type': type,
-          'cache-control': 'no-store',
-          'x-content-type-options': 'nosniff'
-        }
-      });
+      if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        return new Response('Not found', { status: 404 });
+      }
+      return net.fetch(pathToFileURL(filePath).toString());
     } catch (error) {
-      console.error('[quantic-ui] resource load failed', filePath, error?.code || error?.message || error);
-      return new Response('Not found', { status: 404 });
+      console.error('[quantic-ui] resource load failed', filePath, error?.stack || error?.message || error);
+      return new Response('Internal shell error', { status: 500 });
     }
   });
   handlerInstalled = true;
 }
 
+async function verifyQuanticUiShell() {
+  const response = await net.fetch(SHELL_URL);
+  if (!response.ok) throw new Error(`Quantic shell probe failed with HTTP ${response.status}`);
+  const html = await response.text();
+  if (!/<title>GEKKO<\/title>/i.test(html) || !/id=["']bottom-dock["']/i.test(html)) {
+    throw new Error('Quantic shell probe returned unexpected content');
+  }
+  return true;
+}
+
 module.exports = {
   SCHEME,
   SHELL_URL,
-  UI_ROOT,
   registerQuanticUiScheme,
   installQuanticUiProtocol,
-  safeUiPath
+  verifyQuanticUiShell,
+  safeUiPath,
+  uiRoot
 };

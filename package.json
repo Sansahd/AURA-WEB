@@ -1,6 +1,6 @@
 {
   "name": "gekko-browser-aura-career",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "GEKKO Browser with integrated AURA Career",
   "main": "src/bootstrap.cjs",
   "author": "Quantic",
@@ -49,7 +49,17 @@
     "directories": {
       "buildResources": "build",
       "output": "dist"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "src",
+        "to": "quantic-ui",
+        "filter": [
+          "renderer/**/*",
+          "assets/**/*"
+        ]
+      }
+    ]
   },
   "dependencies": {
     "youtubei.js": "18.1.0"

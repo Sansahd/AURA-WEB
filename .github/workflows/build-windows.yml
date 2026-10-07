@@ -51,9 +51,31 @@ jobs:
             throw "GEKKO uninstaller executable was not created"
           }
 
+          $resources = Join-Path $exe.Directory.FullName "resources"
+          $shell = Join-Path $resources "quantic-ui\renderer\index.html"
+          $shellJs = Join-Path $resources "quantic-ui\renderer\renderer.js"
+          $shellLogo = Join-Path $resources "quantic-ui\assets\quantic-glide-logo.svg"
+
+          foreach ($required in @($shell, $shellJs, $shellLogo)) {
+            if (-not (Test-Path $required)) {
+              throw "Required quantic-ui resource missing: $required"
+            }
+          }
+
+          $shellText = Get-Content -Raw $shell
+          if ($shellText -notmatch "<title>GEKKO</title>") {
+            throw "Installed quantic-ui shell content is invalid"
+          }
+          Write-Host "Shell resource validated:" $shell
+
           Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
-          Start-Process -FilePath $exe.FullName
+          $stdout = Join-Path $env:RUNNER_TEMP "gekko-stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "gekko-stderr.log"
+          Remove-Item $stdout, $stderr -Force -ErrorAction SilentlyContinue
+          $env:ELECTRON_ENABLE_LOGGING = "true"
+
+          Start-Process -FilePath $exe.FullName -ArgumentList "--enable-logging=stderr","--v=1" -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           $visible = $false
           for ($i = 0; $i -lt 20; $i++) {
             Start-Sleep -Milliseconds 500
@@ -69,6 +91,10 @@ jobs:
 
           if (-not $visible) {
             Get-Process -Name "GEKKO Browser" -ErrorAction SilentlyContinue | Format-List *
+            Write-Host "===== GEKKO STDOUT ====="
+            if (Test-Path $stdout) { Get-Content $stdout -ErrorAction SilentlyContinue }
+            Write-Host "===== GEKKO STDERR ====="
+            if (Test-Path $stderr) { Get-Content $stderr -ErrorAction SilentlyContinue }
             throw "Installed GEKKO did not create a visible window within 10 seconds"
           }
 

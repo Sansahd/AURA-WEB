@@ -10,7 +10,7 @@ const { buildInternalState, internalTitle } = require('./core/internal-state.cjs
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
-const { installQuanticUiProtocol, SHELL_URL: QUANTIC_UI_URL } = require('./services/ui-protocol.cjs');
+const { installQuanticUiProtocol, verifyQuanticUiShell, SHELL_URL: QUANTIC_UI_URL } = require('./services/ui-protocol.cjs');
 const { QuanticAuraClient } = require('./services/aura-client.cjs');
 const { AuraEverywherePresence } = require('./services/aura-everywhere.cjs');
 const { GlideCareerAgent } = require('./services/career-agent.cjs');
@@ -1166,7 +1166,8 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   if (process.platform === 'win32') app.setAppUserModelId('com.quantic.browser');
-  installQuanticUiProtocol();
+  await installQuanticUiProtocol();
+  await verifyQuanticUiShell();
 
   store = new QuanticStore(app);
   normalSession = session.fromPartition(NORMAL_PARTITION, { cache: true });
