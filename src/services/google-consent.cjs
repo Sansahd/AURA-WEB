@@ -6,7 +6,7 @@ function isGoogleConsentUrl(raw = '') {
     return host === 'consent.google.com'
       || host === 'google.com'
       || host.endsWith('.google.com')
-      || /^([a-z0-9-]+\.)?google\.[a-z.]{2,}$/i.test(host);
+      || /(^|\.)google\.(?:[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/i.test(host);
   } catch {
     return false;
   }
