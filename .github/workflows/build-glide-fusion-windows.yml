@@ -107,6 +107,8 @@ jobs:
               throw "Required Web APIs missing in native runtime"
             }
             if (-not $payload.webrtcBlocked) { throw "Privacy smoke expected WebRTC to be blocked" }
+            if (-not $payload.gpc) { throw "Privacy smoke expected Global Privacy Control" }
+            if (-not $payload.dnt) { throw "Privacy smoke expected Do Not Track" }
 
             $process.WaitForExit(10000) | Out-Null
             if (-not $process.HasExited) {
