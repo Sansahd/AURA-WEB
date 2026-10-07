@@ -19,7 +19,7 @@ const { GlideCareerAgent } = require('./services/career-agent.cjs');
 const HOME = 'quantic://newtab';
 const TOP_CHROME_H = 42;
 const BOTTOM_DOCK_H = 66;
-const MIN_NAV_TRANSITION_MS = 480;
+const MIN_NAV_TRANSITION_MS = 260;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 58;
 const SIDESTAGE_COLLAPSED_W = 22;
@@ -768,17 +768,22 @@ async function loadTab(tab, raw) {
     return { ok: false, error: 'unsupported-url' };
   }
 
-  // Load real sites behind the Quantic shell. The view stays hidden until DOM
-  // readiness, preventing the white pre-paint frame that WebContentsView uses by default.
+  // Start the cinematic bridge before the WebContentsView disappears. The shell
+  // gets one short paint opportunity, so navigation never falls through to an
+  // empty frame while the new document is being created.
   const view = createView(tab);
-  view.setVisible(false);
   tab.lastExternalUrl = target.value;
   tab.url = target.value;
   tab.title = isPrivateMode() ? 'Connexion privée…' : 'Chargement…';
   tab.loading = true;
+  tab.transitioning = true;
+  tab.transitionStartedAt = Date.now();
   tab.awaitingNetwork = isPrivateMode();
   tab.awaitingPage = !isPrivateMode();
   emitState(true);
+  await new Promise((resolve) => setTimeout(resolve, 32));
+  if (!tabs.has(tab.id)) return { ok: false, error: 'tab-closed' };
+  view.setVisible(false);
 
   const ok = await ensureNetwork();
   if (!ok || !tabs.has(tab.id)) {
