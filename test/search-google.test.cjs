@@ -67,16 +67,15 @@ test('Google consent guard targets Google only and contains explicit reject acti
   assert.match(source, /Date\.now\(\) \+ 900/);
 });
 
-test('Google rejection runs before external page reveal', () => {
+test('Google consent rejection still runs on dom-ready without hiding normal pages', () => {
   const domReady = main.slice(
     main.indexOf("wc.on('dom-ready'"),
     main.indexOf("wc.on('did-stop-loading'")
   );
-  const rejectIndex = domReady.indexOf('await installGoogleConsentRefusal(wc)');
-  const revealIndex = domReady.indexOf('revealTabView(tab)');
-  assert.ok(rejectIndex >= 0, 'Google consent rejection must run on dom-ready');
-  assert.ok(revealIndex > rejectIndex, 'Google rejection must run before page reveal');
+  assert.match(domReady, /await installGoogleConsentRefusal\(wc\)/);
+  assert.doesNotMatch(domReady, /installPageFadeIn|revealTabView/);
 });
+
 
 
 
