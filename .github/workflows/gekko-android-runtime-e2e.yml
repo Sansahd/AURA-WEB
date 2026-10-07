@@ -116,12 +116,9 @@ jobs:
             test -n "$PID"
             adb shell dumpsys activity activities | grep -q "com.quantic.gekko"
             adb shell dumpsys package com.quantic.gekko | grep -q "versionName=0.8.5"
-            LOGS="$(adb logcat -d -v brief)"
-            echo "$LOGS" | tail -n 300
-            if echo "$LOGS" | grep -E "FATAL EXCEPTION|Fatal signal.*(servoshell|quantic|servo)|Process: com.quantic.gekko.*has died"; then
-              echo "Gekko Android runtime crashed"
-              exit 1
-            fi
+            adb logcat -d -v brief > "$RUNNER_TEMP/gekko-runtime-logcat.txt"
+            tail -n 300 "$RUNNER_TEMP/gekko-runtime-logcat.txt"
+            ! grep -E "FATAL EXCEPTION|Fatal signal.*(servoshell|quantic|servo)|Process: com.quantic.gekko.*has died" "$RUNNER_TEMP/gekko-runtime-logcat.txt"
             echo "GEKKO ANDROID REAL RUNTIME E2E PASSED"
 
       - uses: actions/upload-artifact@v4
