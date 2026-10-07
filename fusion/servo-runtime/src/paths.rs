@@ -23,6 +23,10 @@ pub fn browser_data_file() -> Option<PathBuf> {
     data_root().map(|root| root.join("browser-data.json"))
 }
 
+pub fn encrypted_sync_file() -> Option<PathBuf> {
+    data_root().map(|root| root.join("GEKKO-Sync.gekko-sync"))
+}
+
 pub fn legacy_browser_data_file() -> Option<PathBuf> {
     dirs::data_local_dir().map(|root| {
         root.join("Quantic")
