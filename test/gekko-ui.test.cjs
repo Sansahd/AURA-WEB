@@ -218,7 +218,7 @@ test('YouTube video pages proactively enter GEKKO Direct before ad playback', ()
   const main = read('src/main.cjs');
   assert.match(main, /function scheduleYouTubeDirect/);
   assert.match(main, /scheduleYouTubeDirect\(tab, 0\)/);
-  assert.match(main, /scheduleYouTubeDirect\(tab, 120\)/);
+  assert.match(main, /scheduleYouTubeDirect\(tab, 60\)/);
   assert.match(main, /extractYouTubeVideoId/);
 });
 
