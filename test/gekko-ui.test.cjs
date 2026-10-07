@@ -119,21 +119,32 @@ test('Discover actions navigate immediately', () => {
 });
 
 
-test('omnibox exposes persistent DuckDuckGo and Qwant selection without per-search chooser', () => {
+test('omnibox search palette exposes GEKKO, privacy engines and Tor', () => {
   const html = read('src/renderer/index.html');
   const renderer = read('src/renderer/renderer.js');
   const navigation = read('src/core/navigation.cjs');
   const store = read('src/services/store.cjs');
 
-  assert.match(html, /id="search-engine-button"/);
-  assert.match(html, /data-search-engine="duckduckgo"/);
-  assert.match(html, /data-search-engine="qwant"/);
-  assert.doesNotMatch(html, /data-search-engine="brave"/);
+  for (const engine of ['gekko','duckduckgo','qwant','startpage','brave','searxng','tor']) {
+    assert.match(html, new RegExp('data-search-engine="' + engine + '"'));
+  }
+  assert.match(html, /GEKKO Search/);
+  assert.match(html, /Tor · Veil/);
+  assert.match(html, /engine-menu-grid/);
+  assert.match(html, /engine-route-pill/);
+  assert.match(renderer, /SEARCH_ENGINES = Object\.freeze/);
   assert.match(renderer, /setSetting\('searchEngine', engine\)/);
-  assert.match(renderer, /currentSearchEngine/);
-  assert.match(navigation, /VALID_ENGINES = new Set\(\['duckduckgo', 'qwant'\]\)/);
-  assert.doesNotMatch(navigation, /quantic:\/\/search\?q=/);
-  assert.match(store, /searchEngine: 'duckduckgo'/);
+  assert.match(navigation, /requiresTor: selected === 'tor'/);
+  assert.match(store, /searchEngine: 'gekko'/);
+});
+
+test('search palette uses premium two-column engine cards', () => {
+  const css = read('src/renderer/styles.css');
+  assert.match(css, /\.search-engine-menu\{[^}]*width:492px/s);
+  assert.match(css, /\.engine-menu-grid\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.engine-option\.featured\{grid-column:1\/-1/);
+  assert.match(css, /\.engine-option\.tor-option\{grid-column:1\/-1/);
+  assert.match(css, /search-engine-button\[data-engine="gekko"\]/);
 });
 
 test('bottom dock uses round vector controls instead of text bars', () => {
