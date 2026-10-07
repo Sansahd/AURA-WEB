@@ -30,5 +30,5 @@ test('ambiguous prefixes remain ranked suggestions instead of a network lookup',
   assert.ok(matches.length >= 2);
   assert.ok(matches.some((site) => site.name === 'X · Twitter'));
   assert.ok(matches.some((site) => site.name === 'Twitch'));
-  assert.ok(matches.every((site) => /^https:///.test(site.url)));
+  assert.ok(matches.every((site) => site.url.startsWith('https://')));
 });
