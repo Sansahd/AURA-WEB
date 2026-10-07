@@ -6,6 +6,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const bootstrap = fs.readFileSync(path.join(root, 'src', 'bootstrap.cjs'), 'utf8');
+const main = fs.readFileSync(path.join(root, 'src', 'main.cjs'), 'utf8');
 
 test('GEKKO installer has its own Windows identity', () => {
   assert.equal(pkg.build.appId, 'com.quantic.gekko.browser');
@@ -29,4 +30,13 @@ test('GEKKO does not wait for Widevine before creating the browser', () => {
   assert.ok(mainIndex >= 0, 'main.cjs must be loaded');
   assert.ok(mediaIndex > mainIndex, 'protected-media init must run after browser startup');
   assert.doesNotMatch(bootstrap, /await\s+prepareProtectedMedia\(\)/);
+});
+
+
+test('GEKKO normal startup does not await proxy initialization before createWindow', () => {
+  assert.doesNotMatch(main, /await\s+applyDirectProxy\(normalSession\)/);
+  const proxyIndex = main.indexOf('const normalProxyReady');
+  const windowIndex = main.indexOf('createWindow();', proxyIndex);
+  assert.ok(proxyIndex >= 0 && windowIndex > proxyIndex);
+  assert.match(main, /if \(isPrivateMode\(\)\) \{\s*await applyFailClosedProxy\(privateSession\)/s);
 });
