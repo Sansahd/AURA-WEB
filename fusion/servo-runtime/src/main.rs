@@ -101,8 +101,43 @@ const PRIVACY_HARDENING_SCRIPT: &str = r#"
   try {
     define(Navigator.prototype, "hardwareConcurrency", 4);
     if ("deviceMemory" in navigator) define(Navigator.prototype, "deviceMemory", 8);
+    define(Navigator.prototype, "doNotTrack", "1");
+    define(Navigator.prototype, "globalPrivacyControl", true);
+    define(Navigator.prototype, "webdriver", false);
     define(Screen.prototype, "colorDepth", 24);
     define(Screen.prototype, "pixelDepth", 24);
+  } catch (_) {}
+
+  try {
+    const patchWebGL = (proto) => {
+      if (!proto || typeof proto.getParameter !== "function") return;
+      const realGetParameter = proto.getParameter;
+      Object.defineProperty(proto, "getParameter", {
+        configurable: true,
+        value(parameter) {
+          if (parameter === 37445) return "GEKKO";
+          if (parameter === 37446) return "ANGLE (Generic GPU)";
+          return realGetParameter.call(this, parameter);
+        }
+      });
+    };
+    patchWebGL(window.WebGLRenderingContext?.prototype);
+    patchWebGL(window.WebGL2RenderingContext?.prototype);
+  } catch (_) {}
+
+  try {
+    const uaData = navigator.userAgentData;
+    if (uaData && typeof uaData.getHighEntropyValues === "function") {
+      const realHighEntropy = uaData.getHighEntropyValues.bind(uaData);
+      uaData.getHighEntropyValues = async (hints) => {
+        const result = await realHighEntropy(hints);
+        if ("platformVersion" in result) result.platformVersion = "15.0.0";
+        if ("architecture" in result) result.architecture = "x86";
+        if ("bitness" in result) result.bitness = "64";
+        if ("model" in result) result.model = "";
+        return result;
+      };
+    }
   } catch (_) {}
 
   try {
@@ -2215,7 +2250,9 @@ impl FusionState {
                 urlApi: typeof URL === "function",
                 promiseApi: typeof Promise === "function",
                 textEncoderApi: typeof TextEncoder === "function",
-                webrtcBlocked: typeof RTCPeerConnection === "undefined"
+                webrtcBlocked: typeof RTCPeerConnection === "undefined",
+                gpc: navigator.globalPrivacyControl === true,
+                dnt: navigator.doNotTrack === "1"
             })"##,
             move |result| {
                 let payload = match result {
