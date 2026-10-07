@@ -78,9 +78,11 @@ test('Google rejection runs before external page reveal', () => {
   assert.ok(revealIndex > rejectIndex, 'Google rejection must run before page reveal');
 });
 
-test('navigation transition completes instead of remaining permanently active', () => {
-  assert.match(main, /MIN_NAV_TRANSITION_MS = 140/);
-  assert.match(main, /tab\.transitionStartedAt = Date\.now\(\)/);
-  assert.match(main, /tab\.transitioning = false/);
-  assert.match(main, /finishRevealTabView/);
+
+
+
+test('normal navigation never hides the WebContentsView behind a transition', () => {
+  assert.doesNotMatch(main, /preparePageFadeOut|installPageFadeIn|releasePageFadeIn/);
+  assert.doesNotMatch(main, /tab\.transitioning = true/);
+  assert.doesNotMatch(main, /view\.setVisible\(false\);\s*\n\s*const ok = await ensureNetwork/);
 });

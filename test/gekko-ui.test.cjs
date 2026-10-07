@@ -42,19 +42,16 @@ test('external web content reserves top tabs and bottom dock', () => {
   assert.match(main, /height\s*-\s*top\s*-\s*bottom/);
 });
 
-test('navigation transition is lifecycle driven and reduced-motion safe', () => {
+test('navigation has no cinematic or fade overlay', () => {
   const main = read('src/main.cjs');
   const renderer = read('src/renderer/renderer.js');
   const html = read('src/renderer/index.html');
-  const css = read('src/renderer/styles.css');
-  assert.match(main, /transitioning:\s*Boolean\(tab\.transitioning\)/);
+  assert.doesNotMatch(html, /id="navigation-transition"/);
+  assert.doesNotMatch(renderer, /navigationTransition/);
+  assert.doesNotMatch(main, /preparePageFadeOut|installPageFadeIn|releasePageFadeIn/);
+  assert.doesNotMatch(main, /MIN_NAV_TRANSITION_MS|PAGE_FADE_OUT_MS|PAGE_FADE_IN_MS/);
   assert.match(main, /did-start-navigation/);
-  assert.match(main, /tab\.transitioning\s*=\s*true/);
-  assert.match(main, /tab\.transitioning\s*=\s*false/);
-  assert.match(main, /MIN_NAV_TRANSITION_MS\s*=\s*140/);
-  assert.match(renderer, /navigation-transition/);
-  assert.match(html, /id="navigation-transition"/);
-  assert.match(css, /prefers-reduced-motion:reduce/);
+  assert.match(main, /view\.setVisible\(true\)/);
 });
 
 
@@ -156,18 +153,6 @@ test('bottom dock uses round vector controls instead of text bars', () => {
   assert.match(css, /\.address\s*\{[^}]*border-radius:23px/s);
 });
 
-test('navigation bridge is now a restrained pure fade', () => {
-  const html = read('src/renderer/index.html');
-  const css = read('src/renderer/quantic-glide-brand.css');
-  assert.match(html, /class="fade-scene"/);
-  assert.doesNotMatch(html, /cinema-curtain-left/);
-  assert.doesNotMatch(html, /cinema-streaks/);
-  assert.match(css, /GEKKO 1\.9 — pure fade navigation/);
-  assert.match(css, /\.navigation-transition\.active\s*\{[^}]*opacity:1!important/s);
-  assert.match(css, /\.fade-scene/);
-});
-
-
 test('premium control pass removes the legacy v2 dock collision', () => {
   const css = read('src/renderer/quantic-glide-brand.css');
   assert.doesNotMatch(css, /\/\* GEKKO v2 dock composition \*\//);
@@ -195,24 +180,6 @@ test('home controls use vector icons and compact horizontal action tiles', () =>
   assert.match(css, /border:1px solid rgba\(210,255,249,.095\)!important/);
 });
 
-
-test('page transition fades old content out and new content in', () => {
-  const html = read('src/renderer/index.html');
-  const css = read('src/renderer/quantic-glide-brand.css');
-  const renderer = read('src/renderer/renderer.js');
-  const main = read('src/main.cjs');
-
-  assert.match(html, /id="cinema-target"/);
-  assert.match(html, /id="cinema-status"/);
-  assert.doesNotMatch(html, /class="cinema-loader"/);
-  assert.match(css, /pure fade navigation/);
-  assert.match(renderer, /cinematicTargetFor/);
-  assert.match(main, /preparePageFadeOut/);
-  assert.match(main, /installPageFadeIn/);
-  assert.match(main, /releasePageFadeIn/);
-  assert.match(main, /PAGE_FADE_OUT_MS = 120/);
-  assert.match(main, /PAGE_FADE_IN_MS = 220/);
-});
 
 test('omnibox includes a zero-network popular-site suggestion surface', () => {
   const html = read('src/renderer/index.html');
@@ -253,4 +220,15 @@ test('YouTube video pages proactively enter GEKKO Direct before ad playback', ()
   assert.match(main, /scheduleYouTubeDirect\(tab, 0\)/);
   assert.match(main, /scheduleYouTubeDirect\(tab, 120\)/);
   assert.match(main, /extractYouTubeVideoId/);
+});
+
+
+test('engine picker stays inside the reserved bottom dock', () => {
+  const html = read('src/renderer/index.html');
+  const css = read('src/renderer/quantic-glide-brand.css');
+  const renderer = read('src/renderer/renderer.js');
+  assert.match(html, /id="engine-menu-close"/);
+  assert.match(css, /search-engine-menu\{[\s\S]*bottom:5px!important[\s\S]*height:56px!important/);
+  assert.match(css, /site-suggestions\{[\s\S]*bottom:5px!important[\s\S]*height:56px!important/);
+  assert.match(renderer, /function closeSearchEngineMenu/);
 });

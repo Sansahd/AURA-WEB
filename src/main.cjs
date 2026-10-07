@@ -19,9 +19,6 @@ const { GlideCareerAgent } = require('./services/career-agent.cjs');
 const HOME = 'quantic://newtab';
 const TOP_CHROME_H = 42;
 const BOTTOM_DOCK_H = 66;
-const MIN_NAV_TRANSITION_MS = 140;
-const PAGE_FADE_OUT_MS = 120;
-const PAGE_FADE_IN_MS = 220;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 58;
 const SIDESTAGE_COLLAPSED_W = 22;
@@ -509,61 +506,6 @@ function internalErrorUrl(title, detail) {
   return `quantic://error?title=${encodeURIComponent(title)}&detail=${encodeURIComponent(detail || '')}`;
 }
 
-async function preparePageFadeOut(wc) {
-  if (!wc || wc.isDestroyed?.()) return;
-  await wc.executeJavaScript(`(() => {
-    try {
-      let veil = document.getElementById('__gekko-page-fade');
-      if (!veil) {
-        veil = document.createElement('div');
-        veil.id = '__gekko-page-fade';
-        veil.style.cssText = [
-          'position:fixed','inset:0','z-index:2147483647','pointer-events:none',
-          'background:#06131c','opacity:0','transition:opacity ${PAGE_FADE_OUT_MS}ms ease'
-        ].join(';');
-        (document.documentElement || document.body).appendChild(veil);
-      }
-      requestAnimationFrame(() => requestAnimationFrame(() => { veil.style.opacity = '1'; }));
-    } catch {}
-  })()`, true).catch(() => {});
-}
-
-async function installPageFadeIn(wc) {
-  if (!wc || wc.isDestroyed?.()) return;
-  await wc.executeJavaScript(`(() => {
-    try {
-      let veil = document.getElementById('__gekko-page-fade');
-      if (!veil) {
-        veil = document.createElement('div');
-        veil.id = '__gekko-page-fade';
-        veil.style.cssText = [
-          'position:fixed','inset:0','z-index:2147483647','pointer-events:none',
-          'background:#06131c','opacity:1','transition:opacity ${PAGE_FADE_IN_MS}ms ease'
-        ].join(';');
-        (document.documentElement || document.body).appendChild(veil);
-      } else {
-        veil.style.transition = 'none';
-        veil.style.opacity = '1';
-      }
-    } catch {}
-  })()`, true).catch(() => {});
-}
-
-async function releasePageFadeIn(wc) {
-  if (!wc || wc.isDestroyed?.()) return;
-  await wc.executeJavaScript(`(() => {
-    try {
-      const veil = document.getElementById('__gekko-page-fade');
-      if (!veil) return;
-      veil.style.transition = 'opacity ${PAGE_FADE_IN_MS}ms ease';
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        veil.style.opacity = '0';
-        setTimeout(() => veil.remove(), ${PAGE_FADE_IN_MS + 60});
-      }));
-    } catch {}
-  })()`, true).catch(() => {});
-}
-
 function showInternal(tab, url) {
   if (!tab) return;
   clearTimeout(tab.revealTimer);
@@ -580,34 +522,17 @@ function showInternal(tab, url) {
   emitState(true);
 }
 
-function finishRevealTabView(tab) {
+function revealTabView(tab) {
   if (!tab?.view || tab.view.webContents.isDestroyed()) return;
   clearTimeout(tab.revealTimer);
   tab.revealTimer = null;
-  tab.awaitingNetwork = false;
   tab.awaitingPage = false;
   tab.transitioning = false;
-  if (activeId === tab.id && isExternal(tab.url)) {
+  if (activeId === tab.id && isExternal(tab.url) && !tab.awaitingNetwork) {
     tab.view.setVisible(true);
-    releasePageFadeIn(tab.view.webContents).catch(() => {});
   }
   layout();
   emitState(true);
-}
-
-function revealTabView(tab) {
-  if (!tab?.view || tab.view.webContents.isDestroyed()) return;
-  const startedAt = Number(tab.transitionStartedAt || 0);
-  const elapsed = startedAt ? Date.now() - startedAt : MIN_NAV_TRANSITION_MS;
-  const remaining = Math.max(0, MIN_NAV_TRANSITION_MS - elapsed);
-
-  if (remaining > 0) {
-    if (tab.revealTimer) return;
-    tab.revealTimer = setTimeout(() => finishRevealTabView(tab), remaining);
-    tab.revealTimer.unref?.();
-    return;
-  }
-  finishRevealTabView(tab);
 }
 
 async function setYouTubeDirectResult(wc, ok, error = '') {
@@ -772,11 +697,10 @@ function createView(tab) {
     if (!isMainFrame || isInPlace) return;
     clearTimeout(tab.revealTimer);
     tab.revealTimer = null;
-    tab.transitionStartedAt = Date.now();
-    tab.transitioning = true;
-    tab.awaitingPage = true;
-    if (activeId === tab.id) view.setVisible(false);
-    emitState(true);
+    tab.transitioning = false;
+    tab.awaitingPage = false;
+    if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
+    emitState();
   });
 
   wc.on('did-start-loading', () => {
@@ -792,20 +716,20 @@ function createView(tab) {
       await installGoogleConsentRefusal(wc).catch(() => {});
     }
 
-    await installPageFadeIn(wc).catch(() => {});
-
     if (isYouTubeUrl(currentUrl)) {
       await installYouTubeGuard(wc).catch(() => {});
       scheduleYouTubeDirect(tab, 0);
     }
 
-    if (tab.awaitingPage) revealTabView(tab);
+    if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
   });
 
   wc.on('did-stop-loading', () => {
     tab.loading = false;
+    tab.transitioning = false;
+    tab.awaitingPage = false;
     syncFromView(tab, true);
-    if (tab.awaitingPage) revealTabView(tab); // fallback for unusual documents
+    if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
     emitState();
   });
 
@@ -866,12 +790,6 @@ async function loadTab(tab, raw) {
   if (!tab) return { ok: false, error: 'Aucun onglet actif' };
   const target = resolvedInput(raw);
 
-  const existingWc = tab.view?.webContents;
-  if (existingWc && !existingWc.isDestroyed() && isExternal(tab.url)) {
-    await preparePageFadeOut(existingWc);
-    await new Promise((resolve) => setTimeout(resolve, PAGE_FADE_OUT_MS));
-  }
-
   // "Tor" in the search palette is a real route, not a fake search engine.
   // For search queries only, move into the isolated private workspace first,
   // then run DuckDuckGo through Quantic Veil/Tor.
@@ -892,22 +810,17 @@ async function loadTab(tab, raw) {
     return { ok: false, error: 'unsupported-url' };
   }
 
-  // Start the cinematic bridge before the WebContentsView disappears. The shell
-  // gets one short paint opportunity, so navigation never falls through to an
-  // empty frame while the new document is being created.
   const view = createView(tab);
   tab.lastExternalUrl = target.value;
   tab.url = target.value;
   tab.title = isPrivateMode() ? 'Connexion privée…' : 'Chargement…';
   tab.loading = true;
-  tab.transitioning = true;
-  tab.transitionStartedAt = Date.now();
+  tab.transitioning = false;
   tab.awaitingNetwork = isPrivateMode();
-  tab.awaitingPage = !isPrivateMode();
+  tab.awaitingPage = false;
+  if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
+  layout();
   emitState(true);
-  await new Promise((resolve) => setTimeout(resolve, 32));
-  if (!tabs.has(tab.id)) return { ok: false, error: 'tab-closed' };
-  view.setVisible(false);
 
   const ok = await ensureNetwork();
   if (!ok || !tabs.has(tab.id)) {
@@ -916,7 +829,8 @@ async function loadTab(tab, raw) {
   }
 
   tab.awaitingNetwork = false;
-  tab.awaitingPage = true;
+  tab.awaitingPage = false;
+  if (activeId === tab.id) view.setVisible(true);
   layout();
   emitState();
   const result = await safeLoadURL(tab, target.value);

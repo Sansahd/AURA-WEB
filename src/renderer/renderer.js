@@ -20,7 +20,6 @@ const back = $('#back');
 const forward = $('#forward');
 const fav = $('#fav');
 const reload = $('#reload');
-const navigationTransition = $('#navigation-transition');
 const appsPanel = $('#apps-panel');
 const sideStageRail = $('#sidestage-rail');
 const searchEngineButton = $('#search-engine-button');
@@ -29,8 +28,6 @@ const searchEngineMark = $('#search-engine-mark');
 const searchEngineMarkText = $('#search-engine-mark-text');
 const searchEngineLabel = $('#search-engine-label');
 const siteSuggestions = $('#site-suggestions');
-const cinemaTarget = $('#cinema-target');
-const cinemaStatus = $('#cinema-status');
 let siteMatches = [];
 let siteSelection = 0;
 let instantAliasLock = '';
@@ -181,19 +178,6 @@ function navigateAddressValue() {
   closeSiteSuggestions();
   address.blur();
   fire(window.quantic.navigate(value));
-}
-
-function cinematicTargetFor(tab) {
-  const raw = tab?.url || '';
-  if (!raw) return 'Ouverture…';
-  try {
-    const url = new URL(raw);
-    if (url.protocol === 'http:' || url.protocol === 'https:') {
-      return url.hostname.replace(/^www\./, '');
-    }
-    if (url.protocol === 'quantic:') return 'GEKKO';
-  } catch {}
-  return 'Ouverture…';
 }
 
 function createTabNode(tab) {
@@ -610,15 +594,6 @@ function render() {
   fav.title = tab?.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris';
   reload.classList.toggle('loading', Boolean(tab?.loading));
   reload.title = tab?.loading ? 'Arrêter' : 'Actualiser';
-  const cinematicActive = Boolean(tab?.transitioning);
-  navigationTransition?.classList.toggle('active', cinematicActive);
-  navigationTransition?.setAttribute('aria-hidden', cinematicActive ? 'false' : 'true');
-  if (cinematicActive) {
-    if (cinemaTarget) cinemaTarget.textContent = cinematicTargetFor(tab);
-    if (cinemaStatus) cinemaStatus.textContent = tab?.awaitingNetwork
-      ? 'Création du circuit privé…'
-      : (tab?.loading ? 'Chargement de la page…' : 'Préparation de la page…');
-  }
   $('#home-button')?.classList.toggle('active', state.internal?.kind === 'home');
 
   setInternalVisibility();
@@ -671,18 +646,23 @@ $('#plus').oncontextmenu = (event) => { event.preventDefault(); fire(window.quan
 $('#menu').onclick = () => fire(window.quantic.mainMenu());
 $('#persona').onclick = () => fire(window.quantic.newTab('quantic://settings'));
 
+function closeSearchEngineMenu() {
+  searchEngineMenu.classList.add('hidden');
+  searchEngineButton.setAttribute('aria-expanded', 'false');
+}
+
 searchEngineButton.onclick = () => {
   closeSiteSuggestions();
   const opening = searchEngineMenu.classList.contains('hidden');
   searchEngineMenu.classList.toggle('hidden', !opening);
   searchEngineButton.setAttribute('aria-expanded', opening ? 'true' : 'false');
 };
+$('#engine-menu-close').onclick = closeSearchEngineMenu;
 document.querySelectorAll('[data-search-engine]').forEach((button) => {
   button.onclick = async () => {
     const engine = button.dataset.searchEngine;
     if (!SEARCH_ENGINES[engine]) return;
-    searchEngineMenu.classList.add('hidden');
-    searchEngineButton.setAttribute('aria-expanded', 'false');
+    closeSearchEngineMenu();
     await window.quantic.setSetting('searchEngine', engine);
     address.focus();
   };
@@ -701,8 +681,7 @@ document.querySelectorAll('[data-win]').forEach((button) => {
 
 address.oninput = () => {
   if (!searchEngineMenu.classList.contains('hidden')) {
-    searchEngineMenu.classList.add('hidden');
-    searchEngineButton.setAttribute('aria-expanded', 'false');
+    closeSearchEngineMenu();
   }
 
   const value = address.value;
