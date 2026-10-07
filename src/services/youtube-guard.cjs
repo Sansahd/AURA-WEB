@@ -278,7 +278,7 @@ function youtubeGuardSource() {
 
       try { video.play?.().catch?.(() => {}); } catch {}
 
-      if (!state.directRequested && Date.now() - state.adSince >= 1800) {
+      if (!state.directRequested) {
         requestDirect();
       }
     }
@@ -312,7 +312,7 @@ function youtubeGuardSource() {
       });
     } catch {}
 
-    state.interval = setInterval(refresh, 500);
+    state.interval = setInterval(refresh, 250);
     window.addEventListener('pagehide', () => {
       try { clearInterval(state.interval); } catch {}
       try { state.observer?.disconnect(); } catch {}
