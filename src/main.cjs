@@ -33,6 +33,18 @@ const TAB_LIFECYCLE_SWEEP_MS = 45_000;
 const TAB_IDLE_SLEEP_MS = 12 * 60_000;
 const TAB_PRESSURE_IDLE_MS = 3 * 60_000;
 const MAX_LIVE_BACKGROUND_TABS = 6;
+const PREWARM_HOSTS = new Set([
+  'google.com','www.google.com','youtube.com','www.youtube.com','instagram.com','www.instagram.com',
+  'x.com','web.whatsapp.com','tiktok.com','www.tiktok.com','wikipedia.org','www.wikipedia.org',
+  'amazon.com','www.amazon.com','reddit.com','www.reddit.com','linkedin.com','www.linkedin.com',
+  'netflix.com','www.netflix.com','open.spotify.com','discord.com','github.com','chatgpt.com',
+  'bing.com','www.bing.com','yahoo.com','www.yahoo.com','pinterest.com','www.pinterest.com',
+  'ebay.com','www.ebay.com','booking.com','www.booking.com','zoom.us','canva.com','www.canva.com',
+  'paypal.com','www.paypal.com','store.steampowered.com','roblox.com','www.roblox.com',
+  'imdb.com','www.imdb.com','mail.google.com','drive.google.com','maps.google.com',
+  'dropbox.com','www.dropbox.com','web.telegram.org','office.com','www.office.com','openai.com'
+]);
+const prewarmCache = new Map();
 
 // Privacy switches that do not falsify Chromium identity.
 app.commandLine.appendSwitch('force-webrtc-ip-handling-policy', 'disable_non_proxied_udp');
@@ -172,6 +184,27 @@ function isPrivateMode() {
 
 function currentSession() {
   return isPrivateMode() ? privateSession : normalSession;
+}
+
+function prewarmPopularSite(rawUrl) {
+  if (!normalSession || isPrivateMode()) return { ok: false, reason: 'private-mode' };
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== 'https:' || !PREWARM_HOSTS.has(url.hostname.toLowerCase())) {
+      return { ok: false, reason: 'not-allowed' };
+    }
+
+    const origin = url.origin;
+    const now = Date.now();
+    const last = prewarmCache.get(origin) || 0;
+    if (now - last < 15_000) return { ok: true, reused: true, origin };
+
+    prewarmCache.set(origin, now);
+    normalSession.preconnect({ url: origin, numSockets: 2 });
+    return { ok: true, reused: false, origin };
+  } catch {
+    return { ok: false, reason: 'invalid-url' };
+  }
 }
 
 async function setBrowserProxy(proxyRules, targetSession = browserSession) {
@@ -1297,6 +1330,7 @@ app.whenReady().then(async () => {
 
 ipcMain.handle('get-state', () => state());
 ipcMain.handle('navigate', async (_event, value) => loadTab(activeTab(), value));
+ipcMain.handle('prewarm-site', (_event, url) => prewarmPopularSite(url));
 ipcMain.handle('new-tab', (_event, url = HOME) => createTab(url, true));
 ipcMain.handle('activate-tab', (_event, id) => activateTab(Number(id)));
 ipcMain.handle('close-tab', (_event, id) => closeTab(Number(id)));
