@@ -17,5 +17,9 @@ contextBridge.exposeInMainWorld('quantic', {
   windowControl: (a) => ipcRenderer.invoke('window-control', a), chromeLock: (v) => ipcRenderer.invoke('set-chrome-lock', v),
   setSetting: (k,v) => ipcRenderer.invoke('set-setting', k, v), pickWallpaper: () => ipcRenderer.invoke('pick-wallpaper'), wallpaperData: () => ipcRenderer.invoke('wallpaper-data'), removeFavorite: (u) => ipcRenderer.invoke('remove-favorite', u),
   renameFavorite: (u,t) => ipcRenderer.invoke('rename-favorite', u,t), openDownloads: () => ipcRenderer.invoke('open-downloads'), retryVeil: () => ipcRenderer.invoke('retry-veil'), retryCurrent: () => ipcRenderer.invoke('retry-current'),
+  extensionInstall: () => ipcRenderer.invoke('extension-install'),
+  extensionRemove: (id) => ipcRenderer.invoke('extension-remove', id),
+  syncExport: (passphrase) => ipcRenderer.invoke('sync-export', passphrase),
+  syncImport: (passphrase) => ipcRenderer.invoke('sync-import', passphrase),
   onFocusAddress: (fn) => ipcRenderer.on('focus-address', fn), onFocusHomeSearch: (fn) => ipcRenderer.on('focus-home-search', fn)
 });
