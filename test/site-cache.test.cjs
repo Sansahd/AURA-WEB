@@ -51,5 +51,5 @@ test('two-letter unique prefixes prewarm before the instant alias completes', ()
   assert.equal(prewarmSite('wi')?.name, 'Wikipedia');
   assert.equal(prewarmSite('ne')?.name, 'Netflix');
   assert.equal(prewarmSite('am')?.name, 'Amazon');
-  assert.equal(prewarmSite('st'), null);
+  assert.equal(prewarmSite('st')?.name, 'Steam');
 });
