@@ -34,9 +34,13 @@ test('GEKKO does not wait for Widevine before creating the browser', () => {
 
 
 test('GEKKO normal startup does not await proxy initialization before createWindow', () => {
-  assert.doesNotMatch(main, /await\s+applyDirectProxy\(normalSession\)/);
-  const proxyIndex = main.indexOf('const normalProxyReady');
+  const readyIndex = main.indexOf('app.whenReady().then');
+  const proxyIndex = main.indexOf('const normalProxyReady', readyIndex);
   const windowIndex = main.indexOf('createWindow();', proxyIndex);
-  assert.ok(proxyIndex >= 0 && windowIndex > proxyIndex);
+  const startupSlice = main.slice(readyIndex, windowIndex);
+
+  assert.ok(readyIndex >= 0 && proxyIndex > readyIndex && windowIndex > proxyIndex);
+  assert.doesNotMatch(startupSlice, /await\s+applyDirectProxy\(normalSession\)/);
+  assert.match(startupSlice, /applyDirectProxy\(normalSession\)\.catch/);
   assert.match(main, /if \(isPrivateMode\(\)\) \{\s*await applyFailClosedProxy\(privateSession\)/s);
 });
