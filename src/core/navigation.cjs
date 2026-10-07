@@ -24,7 +24,7 @@ const COMMON_SITES = {
   drive: 'https://drive.google.com/'
 };
 
-const VALID_ENGINES = new Set(Object.keys(ENGINES));
+const VALID_ENGINES = new Set(['duckduckgo', 'qwant']);
 
 function normalizeEngine(value) {
   return VALID_ENGINES.has(String(value || '').toLowerCase()) ? String(value).toLowerCase() : 'duckduckgo';
