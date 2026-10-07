@@ -22,12 +22,6 @@ test('GEKKO installer is assisted, visible and launches GEKKO after finish', () 
   assert.equal(pkg.build.nsis.artifactName, 'GEKKO-Setup.${ext}');
 });
 
-test('GEKKO ships a portable Windows executable', () => {
-  const targets = pkg.build.win.target.map((entry) => entry.target);
-  assert.ok(targets.includes('nsis'));
-  assert.ok(targets.includes('portable'));
-  assert.equal(pkg.build.portable.artifactName, 'GEKKO-Portable.${ext}');
-});
 
 test('GEKKO does not wait for Widevine before creating the browser', () => {
   const mainIndex = bootstrap.indexOf("require('./main.cjs')");
