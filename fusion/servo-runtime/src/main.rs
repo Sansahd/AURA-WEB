@@ -4,6 +4,7 @@ mod aura;
 mod downloads;
 mod privacy;
 mod paths;
+mod sync_vault;
 mod youtube;
 
 use std::cell::{Cell, RefCell};
@@ -400,6 +401,7 @@ struct FusionState {
     h3_probe_inflight: Mutex<std::collections::HashSet<String>>,
     h3_successes: Cell<u64>,
     h3_fallbacks: Cell<u64>,
+    sync_secret: RefCell<String>,
 }
 
 struct FusionDelegate {
@@ -905,6 +907,76 @@ impl FusionState {
             .collect();
         data.active_tab = self.active_tab.get().min(data.session_tabs.len().saturating_sub(1));
         save_browser_data(&data);
+    }
+
+    fn export_encrypted_sync(&self) {
+        let secret = self.sync_secret.borrow().clone();
+        if secret.chars().count() < 8 {
+            *self.status.borrow_mut() = "Sync chiffrée · phrase secrète de 8 caractères minimum".into();
+            return;
+        }
+
+        self.persist_session();
+        let payload = {
+            let data = self.browser_data.borrow();
+            match serde_json::to_vec(&*data) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    *self.status.borrow_mut() = format!("Sync chiffrée · sérialisation impossible: {error}");
+                    return;
+                }
+            }
+        };
+
+        let Some(path) = paths::encrypted_sync_file() else {
+            *self.status.borrow_mut() = "Sync chiffrée · dossier GEKKO indisponible".into();
+            return;
+        };
+
+        match sync_vault::write_file(&path, &payload, &secret) {
+            Ok(()) => {
+                self.sync_secret.borrow_mut().clear();
+                *self.status.borrow_mut() = format!("Sync chiffrée exportée · {}", path.display());
+            }
+            Err(error) => {
+                *self.status.borrow_mut() = format!("Sync chiffrée · {error}");
+            }
+        }
+        self.window.request_redraw();
+    }
+
+    fn import_encrypted_sync(&self) {
+        let secret = self.sync_secret.borrow().clone();
+        if secret.chars().count() < 8 {
+            *self.status.borrow_mut() = "Sync chiffrée · phrase secrète de 8 caractères minimum".into();
+            return;
+        }
+
+        let Some(path) = paths::encrypted_sync_file() else {
+            *self.status.borrow_mut() = "Sync chiffrée · dossier GEKKO indisponible".into();
+            return;
+        };
+
+        let imported = sync_vault::read_file(&path, &secret)
+            .and_then(|payload| serde_json::from_slice::<BrowserData>(&payload)
+                .map_err(|_| "Contenu GEKKO invalide".to_string()));
+
+        match imported {
+            Ok(data) => {
+                *self.browser_data.borrow_mut() = data;
+                {
+                    let data = self.browser_data.borrow();
+                    save_browser_data(&data);
+                }
+                self.sync_secret.borrow_mut().clear();
+                *self.status.borrow_mut() =
+                    "Sync chiffrée importée · favoris/historique actifs, session au prochain démarrage".into();
+            }
+            Err(error) => {
+                *self.status.borrow_mut() = format!("Sync chiffrée · {error}");
+            }
+        }
+        self.window.request_redraw();
     }
 
     fn new_tab(&self, url: Url) {
@@ -1648,6 +1720,39 @@ impl FusionState {
                         ).clicked() {
                             self.downloads_panel_open.set(true);
                         }
+
+                        ui.add_space(10.0);
+                        ui.label(egui::RichText::new("SYNC CHIFFRÉE").strong().size(9.0).color(ACCENT));
+                        ui.label(
+                            egui::RichText::new("AES-256-GCM + scrypt · aucun compte, aucun cloud")
+                                .size(8.5)
+                                .color(MUTED)
+                        );
+                        {
+                            let mut secret = self.sync_secret.borrow_mut();
+                            ui.add(
+                                egui::TextEdit::singleline(&mut *secret)
+                                    .password(true)
+                                    .hint_text("Phrase secrète · 8 caractères minimum")
+                                    .desired_width(ui.available_width())
+                            );
+                        }
+                        ui.horizontal(|ui| {
+                            if ui.add(
+                                egui::Button::new("Exporter")
+                                    .fill(PANEL_SOFT)
+                                    .corner_radius(14.0)
+                            ).clicked() {
+                                self.export_encrypted_sync();
+                            }
+                            if ui.add(
+                                egui::Button::new("Importer")
+                                    .fill(PANEL_SOFT)
+                                    .corner_radius(14.0)
+                            ).clicked() {
+                                self.import_encrypted_sync();
+                            }
+                        });
 
                         if self.history_open.get() {
                             ui.add_space(6.0);
@@ -2461,6 +2566,7 @@ impl ApplicationHandler<WakeEvent> for App {
             h3_probe_inflight: Mutex::new(std::collections::HashSet::new()),
             h3_successes: Cell::new(0),
             h3_fallbacks: Cell::new(0),
+            sync_secret: RefCell::new(String::new()),
         });
         delegate.bind(&state);
         state.active_webview().load(configured_start.clone());
