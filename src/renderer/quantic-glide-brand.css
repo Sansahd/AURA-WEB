@@ -687,3 +687,81 @@ body{
   .home-card-copy small{display:none}
   .gekko-home-caption{display:none!important}
 }
+
+
+/* GEKKO 1.6 — refined interactive finish */
+.logo{
+  width:34px!important;height:34px!important;padding:5px!important;border-radius:12px!important;
+  border:1px solid rgba(193,255,247,.10)!important;
+  background:
+    radial-gradient(circle at 30% 20%,rgba(120,255,236,.11),transparent 50%),
+    linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.012))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 5px 14px rgba(0,0,0,.16)!important;
+  transition:transform .16s cubic-bezier(.2,.8,.2,1),border-color .16s ease,box-shadow .16s ease!important;
+}
+.logo:hover{
+  transform:translateY(-1px);
+  border-color:rgba(111,245,228,.24)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 7px 18px rgba(0,0,0,.19),0 0 18px rgba(63,230,211,.07)!important;
+}
+.logo img{width:24px!important;height:24px!important;filter:drop-shadow(0 0 7px rgba(71,238,216,.16))}
+.plus{
+  width:30px!important;height:30px!important;flex-basis:30px!important;border-radius:50%!important;
+  border:1px solid rgba(210,255,250,.075)!important;
+  background:rgba(255,255,255,.024)!important;
+  color:rgba(238,255,252,.72)!important;
+  font-size:18px!important;font-weight:300!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045)!important;
+}
+.plus:hover{
+  color:#f4fffd!important;background:rgba(108,241,225,.075)!important;border-color:rgba(116,244,227,.17)!important;
+}
+.window-controls button{
+  border-radius:9px!important;
+  color:rgba(237,253,251,.68)!important;
+  transition:background .13s ease,color .13s ease!important;
+}
+.window-controls button:hover{background:rgba(255,255,255,.055)!important;color:#fff!important}
+.window-controls button:last-child:hover{background:rgba(196,43,28,.82)!important}
+
+#bottom-dock .dock-control{position:relative!important;isolation:isolate}
+#bottom-dock .dock-control::before{
+  content:"";position:absolute;inset:2px;border-radius:50%;pointer-events:none;z-index:-1;
+  background:linear-gradient(145deg,rgba(255,255,255,.075),transparent 44%,rgba(75,231,215,.025));
+  opacity:.48;transition:opacity .16s ease,transform .16s ease;
+}
+#bottom-dock .dock-control:hover::before{opacity:.9;transform:scale(1.03)}
+#bottom-dock .dock-control::after{
+  content:"";position:absolute;left:50%;bottom:-5px;width:4px;height:4px;border-radius:50%;
+  background:#75f4e4;box-shadow:0 0 9px rgba(84,238,220,.55);
+  transform:translateX(-50%) scale(.3);opacity:0;transition:opacity .16s ease,transform .16s ease;
+}
+#bottom-dock .dock-control.active::after{opacity:.82;transform:translateX(-50%) scale(1)}
+#bottom-dock .dock-control svg{transition:transform .16s cubic-bezier(.2,.8,.2,1),opacity .16s ease}
+#bottom-dock .dock-control:hover svg{transform:scale(1.06)}
+#bottom-dock .dock-control:active svg{transform:scale(.92)}
+
+.tab{
+  border-color:rgba(255,255,255,.055)!important;
+  background:rgba(255,255,255,.012)!important;
+  border-radius:12px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025)!important;
+}
+.tab:hover{background:rgba(255,255,255,.038)!important;border-color:rgba(255,255,255,.075)!important}
+.tab.active{
+  background:
+    linear-gradient(145deg,rgba(90,236,220,.075),rgba(255,255,255,.025))!important;
+  border-color:rgba(113,241,226,.13)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 4px 14px rgba(0,0,0,.11)!important;
+}
+
+.gekko-home-card{
+  outline:0!important;
+}
+.gekko-home-card:focus-visible,
+.home-tool-button:focus-visible,
+#bottom-dock .dock-control:focus-visible,
+.search-engine-button:focus-visible{
+  outline:2px solid rgba(112,245,228,.52)!important;
+  outline-offset:2px!important;
+}
