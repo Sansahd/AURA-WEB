@@ -520,3 +520,15 @@ body.chrome-hidden #bottom-dock{transform:translate3d(0,68px,0);opacity:0;pointe
   .navigation-transition.active .cinema-curtain-right{transform:translateX(118%)}
   .navigation-transition.active{background:rgba(3,16,24,.92)}
 }
+
+
+/* 1.5 geometry corrections */
+.home,.internal-page{inset:42px 0 66px}
+.ai-panel{bottom:78px}
+#bottom-dock #sidestage{
+  width:38px;
+  height:38px;
+  flex-basis:38px;
+  font-size:inherit;
+  letter-spacing:0;
+}
