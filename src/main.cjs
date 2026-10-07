@@ -18,6 +18,8 @@ const { installQuanticUiProtocol, verifyQuanticUiShell, SHELL_URL: QUANTIC_UI_UR
 const { QuanticAuraClient } = require('./services/aura-client.cjs');
 const { AuraEverywherePresence } = require('./services/aura-everywhere.cjs');
 const { GlideCareerAgent } = require('./services/career-agent.cjs');
+const { GekkoExtensionManager } = require('./services/extensions.cjs');
+const { writeEncryptedFile, readEncryptedFile } = require('./services/sync-vault.cjs');
 
 const HOME = 'quantic://newtab';
 const TOP_CHROME_H = 42;
@@ -81,6 +83,7 @@ let careerAgent;
 let careerTimer;
 let youtubeDirectResolver;
 let shields;
+let extensionManager;
 let browserSession;
 let normalSession;
 let privateSession;
@@ -146,6 +149,7 @@ function state() {
     sideStage: sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, apps: [] },
     veil: veil?.snapshot() || {},
     shields: shields?.snapshot?.() || { status: 'idle', engine: 'fallback' },
+    extensions: extensionManager?.snapshot?.() || { supported: false, compatibility: 'none', items: [], errors: [] },
     career: careerAgent?.snapshot?.() || null,
     internal: (tab?.awaitingNetwork || tab?.awaitingPage) ? {
       kind: 'connecting',
@@ -1357,6 +1361,11 @@ app.whenReady().then(async () => {
     installDownloadTracking(targetSession);
   }
 
+  extensionManager = new GekkoExtensionManager({ session: normalSession, store });
+  await extensionManager.restore().catch((error) => {
+    console.warn('[gekko-extensions] restore failed', error?.message || error);
+  });
+
   shields = new GekkoShields(app, { onState: () => emitState(true) });
   shields.install(normalSession).then((ok) => {
     if (!ok) console.warn('[gekko-shields] full engine unavailable; local fallback remains active');
@@ -1424,6 +1433,62 @@ ipcMain.handle('activate-tab', (_event, id) => activateTab(Number(id)));
 ipcMain.handle('close-tab', (_event, id) => closeTab(Number(id)));
 ipcMain.handle('plus-menu', () => menuForPlus());
 ipcMain.handle('main-menu', () => mainMenu());
+ipcMain.handle('extension-install', async () => {
+  if (!extensionManager || isPrivateMode()) return { ok: false, error: 'extensions_unavailable_in_private_mode' };
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Installer une extension GEKKO locale',
+    properties: ['openDirectory']
+  });
+  if (result.canceled || !result.filePaths?.[0]) return { ok: false, canceled: true };
+  try {
+    const snapshot = await extensionManager.loadPath(result.filePaths[0]);
+    emitState(true);
+    return { ok: true, snapshot };
+  } catch (error) {
+    return { ok: false, error: error?.message || String(error) };
+  }
+});
+ipcMain.handle('extension-remove', async (_event, extensionId) => {
+  if (!extensionManager) return { ok: false, error: 'extensions_unavailable' };
+  try {
+    const snapshot = await extensionManager.remove(extensionId);
+    emitState(true);
+    return { ok: true, snapshot };
+  } catch (error) {
+    return { ok: false, error: error?.message || String(error) };
+  }
+});
+ipcMain.handle('sync-export', async (_event, passphrase) => {
+  const result = await dialog.showSaveDialog(win, {
+    title: 'Exporter la synchronisation chiffrée GEKKO',
+    defaultPath: path.join(app.getPath('documents'), 'GEKKO-Sync.gekko-sync'),
+    filters: [{ name: 'GEKKO Sync', extensions: ['gekko-sync'] }]
+  });
+  if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+  try {
+    writeEncryptedFile(result.filePath, store.syncSnapshot(), passphrase);
+    return { ok: true, filePath: result.filePath };
+  } catch (error) {
+    return { ok: false, error: error?.message || String(error) };
+  }
+});
+ipcMain.handle('sync-import', async (_event, passphrase) => {
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Importer une synchronisation chiffrée GEKKO',
+    properties: ['openFile'],
+    filters: [{ name: 'GEKKO Sync', extensions: ['gekko-sync'] }]
+  });
+  if (result.canceled || !result.filePaths?.[0]) return { ok: false, canceled: true };
+  try {
+    const snapshot = readEncryptedFile(result.filePaths[0], passphrase);
+    store.applySyncSnapshot(snapshot);
+    await extensionManager?.restore?.().catch(() => {});
+    emitState(true);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: 'Phrase secrète incorrecte ou fichier invalide' };
+  }
+});
 ipcMain.handle('back', () => { const tab = activeTab(); if (tab && isExternal(tab.url)) tab.view?.webContents.navigationHistory.goBack(); });
 ipcMain.handle('forward', () => { const tab = activeTab(); if (tab && isExternal(tab.url)) tab.view?.webContents.navigationHistory.goForward(); });
 ipcMain.handle('reload', () => { const tab = activeTab(); if (tab && isExternal(tab.url)) tab.view?.webContents.reload(); else emitState(true); });
