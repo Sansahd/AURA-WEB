@@ -54,7 +54,7 @@ class QuanticStore {
         this.data.settings.networkMode = 'balanced';
       }
       if (Number(existing.settings?.compatibilityPolicyVersion || 0) < 3) {
-        if (!existingSettings.searchEngine || existingSettings.searchEngine === 'quantic') {
+        if (!['duckduckgo', 'qwant'].includes(existingSettings.searchEngine)) {
           this.data.settings.searchEngine = 'duckduckgo';
         }
         this.data.settings.compatibilityPolicyVersion = 3;
