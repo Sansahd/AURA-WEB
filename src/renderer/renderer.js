@@ -232,7 +232,7 @@ function renderSettings(data) {
   const engine = el('section', 'internal-section');
   engine.append(el('h2', '', 'Moteur de recherche'));
   const row = el('div', 'engine-row');
-  const engines = [['quantic','Quantic Search'],['brave','Brave Search'],['duckduckgo','DuckDuckGo'],['qwant','Qwant'],['startpage','Startpage'],['mojeek','Mojeek']];
+  const engines = [['duckduckgo','DuckDuckGo'],['qwant','Qwant']];
   for (const [id, label] of engines) {
     const button = el('button', `pill-button ${data.settings?.searchEngine === id ? 'active' : ''}`, label);
     button.onclick = () => fire(window.quantic.setSetting('searchEngine', id));
