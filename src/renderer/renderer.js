@@ -26,6 +26,7 @@ const sideStageRail = $('#sidestage-rail');
 const searchEngineButton = $('#search-engine-button');
 const searchEngineMenu = $('#search-engine-menu');
 const searchEngineMark = $('#search-engine-mark');
+const searchEngineMarkText = $('#search-engine-mark-text');
 const searchEngineLabel = $('#search-engine-label');
 let lastWallpaperVersion = -1;
 let lastSideStageKey = '';
@@ -34,23 +35,30 @@ let lastSideStageKey = '';
 function active() { return state.tabs.find((tab) => tab.id === state.activeId); }
 function fire(promise) { Promise.resolve(promise).catch(() => {}); }
 const SEARCH_ENGINES = Object.freeze({
-  duckduckgo: { label: 'DuckDuckGo', mark: 'D' },
-  qwant: { label: 'Qwant', mark: 'Q' }
+  gekko: { label: 'GEKKO', mark: 'G', detail: 'Recherche interne' },
+  duckduckgo: { label: 'DuckDuckGo', mark: 'D', detail: 'Privé · direct' },
+  qwant: { label: 'Qwant', mark: 'Q', detail: 'Européen · direct' },
+  startpage: { label: 'Startpage', mark: 'S', detail: 'Google sans profilage' },
+  brave: { label: 'Brave', mark: 'B', detail: 'Index indépendant' },
+  searxng: { label: 'SearXNG', mark: 'Sx', detail: 'Métamoteur open source' },
+  tor: { label: 'Tor', mark: 'T', detail: 'DuckDuckGo via Veil' }
 });
 function currentSearchEngine() {
-  return SEARCH_ENGINES[state.settings?.searchEngine] ? state.settings.searchEngine : 'duckduckgo';
+  return SEARCH_ENGINES[state.settings?.searchEngine] ? state.settings.searchEngine : 'gekko';
 }
 function renderSearchEngineControl() {
   const key = currentSearchEngine();
   const meta = SEARCH_ENGINES[key];
-  if (searchEngineMark) searchEngineMark.textContent = meta.mark;
+  if (searchEngineMarkText) searchEngineMarkText.textContent = meta.mark;
   if (searchEngineLabel) searchEngineLabel.textContent = meta.label;
   if (searchEngineButton) {
-    searchEngineButton.classList.toggle('qwant', key === 'qwant');
-    searchEngineButton.title = `Moteur de recherche · ${meta.label}`;
+    searchEngineButton.dataset.engine = key;
+    searchEngineButton.title = `Moteur de recherche · ${meta.label} · ${meta.detail}`;
   }
   document.querySelectorAll('[data-search-engine]').forEach((button) => {
-    button.setAttribute('aria-checked', button.dataset.searchEngine === key ? 'true' : 'false');
+    const active = button.dataset.searchEngine === key;
+    button.setAttribute('aria-checked', active ? 'true' : 'false');
+    button.classList.toggle('selected', active);
   });
 }
 function el(tag, className = '', text = '') {
@@ -135,7 +143,7 @@ function renderSearch(data) {
 
   if (data.intent?.sites?.length) {
     const section = el('section', 'internal-section');
-    section.append(el('h2', '', 'Suggestions Quantic'));
+    section.append(el('h2', '', 'Suggestions GEKKO'));
     const grid = el('div', 'internal-grid');
     for (const site of data.intent.sites) grid.append(cardButton(site.name, 'Ouvrir le site', () => fire(window.quantic.navigate(site.url))));
     section.append(grid);
@@ -232,7 +240,15 @@ function renderSettings(data) {
   const engine = el('section', 'internal-section');
   engine.append(el('h2', '', 'Moteur de recherche'));
   const row = el('div', 'engine-row');
-  const engines = [['duckduckgo','DuckDuckGo'],['qwant','Qwant']];
+  const engines = [
+    ['gekko','GEKKO Search'],
+    ['duckduckgo','DuckDuckGo'],
+    ['qwant','Qwant'],
+    ['startpage','Startpage'],
+    ['brave','Brave Search'],
+    ['searxng','SearXNG'],
+    ['tor','Tor · Veil']
+  ];
   for (const [id, label] of engines) {
     const button = el('button', `pill-button ${data.settings?.searchEngine === id ? 'active' : ''}`, label);
     button.onclick = () => fire(window.quantic.setSetting('searchEngine', id));
