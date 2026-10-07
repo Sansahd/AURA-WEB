@@ -12,11 +12,11 @@ class QuanticStore {
       recentlyClosed: [],
       projects: [],
       settings: {
-        searchEngine: 'quantic',
+        searchEngine: 'duckduckgo',
         immersiveMode: true,
         clearCacheOnExit: false,
         networkMode: 'balanced',
-        compatibilityPolicyVersion: 2,
+        compatibilityPolicyVersion: 3,
         appearance: { ...DEFAULT_APPEARANCE },
         sideStage: { ...DEFAULT_SIDESTAGE, pinnedApps: [...DEFAULT_SIDESTAGE.pinnedApps] }
       }
@@ -52,7 +52,12 @@ class QuanticStore {
       if (Number(existing.settings?.compatibilityPolicyVersion || 0) < 2) {
         this.data.settings.clearCacheOnExit = false;
         this.data.settings.networkMode = 'balanced';
-        this.data.settings.compatibilityPolicyVersion = 2;
+      }
+      if (Number(existing.settings?.compatibilityPolicyVersion || 0) < 3) {
+        if (!['duckduckgo', 'qwant'].includes(existingSettings.searchEngine)) {
+          this.data.settings.searchEngine = 'duckduckgo';
+        }
+        this.data.settings.compatibilityPolicyVersion = 3;
       }
     } catch {}
     this.reindex();

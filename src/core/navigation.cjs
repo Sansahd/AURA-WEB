@@ -24,13 +24,13 @@ const COMMON_SITES = {
   drive: 'https://drive.google.com/'
 };
 
-const VALID_ENGINES = new Set(['quantic', ...Object.keys(ENGINES)]);
+const VALID_ENGINES = new Set(['duckduckgo', 'qwant']);
 
 function normalizeEngine(value) {
-  return VALID_ENGINES.has(String(value || '').toLowerCase()) ? String(value).toLowerCase() : 'quantic';
+  return VALID_ENGINES.has(String(value || '').toLowerCase()) ? String(value).toLowerCase() : 'duckduckgo';
 }
 
-function resolveInput(raw, searchEngine = 'quantic') {
+function resolveInput(raw, searchEngine = 'duckduckgo') {
   const value = String(raw || '').trim();
   if (!value) return { type: 'home', value: 'quantic://newtab' };
 
@@ -41,7 +41,6 @@ function resolveInput(raw, searchEngine = 'quantic') {
   if (/^[^\s]+\.[a-z]{2,}(?::\d+)?(?:\/.*)?$/i.test(value)) return { type: 'url', value: `https://${value}` };
 
   const selected = normalizeEngine(searchEngine);
-  if (selected === 'quantic') return { type: 'search', value: `quantic://search?q=${encodeURIComponent(value)}` };
   return { type: 'search', value: ENGINES[selected](value) };
 }
 

@@ -38,7 +38,7 @@ test('GEKKO icon keeps a recognizable Earth gripped by the gecko', () => {
 test('external web content reserves top tabs and bottom dock', () => {
   const main = read('src/main.cjs');
   assert.match(main, /TOP_CHROME_H\s*=\s*42/);
-  assert.match(main, /BOTTOM_DOCK_H\s*=\s*60/);
+  assert.match(main, /BOTTOM_DOCK_H\s*=\s*66/);
   assert.match(main, /height\s*-\s*top\s*-\s*bottom/);
 });
 
@@ -50,6 +50,8 @@ test('navigation transition is lifecycle driven and reduced-motion safe', () => 
   assert.match(main, /transitioning:\s*Boolean\(tab\.transitioning\)/);
   assert.match(main, /did-start-navigation/);
   assert.match(main, /tab\.transitioning\s*=\s*true/);
+  assert.match(main, /tab\.transitioning\s*=\s*false/);
+  assert.match(main, /MIN_NAV_TRANSITION_MS\s*=\s*480/);
   assert.match(renderer, /navigation-transition/);
   assert.match(html, /id="navigation-transition"/);
   assert.match(css, /prefers-reduced-motion:reduce/);
@@ -114,4 +116,42 @@ test('Discover actions navigate immediately', () => {
   const renderer = read('src/renderer/renderer.js');
   const matches = renderer.match(/window\.quantic\.navigate\('Découvrir le web'\)/g) || [];
   assert.ok(matches.length >= 2);
+});
+
+
+test('omnibox exposes persistent DuckDuckGo and Qwant selection without per-search chooser', () => {
+  const html = read('src/renderer/index.html');
+  const renderer = read('src/renderer/renderer.js');
+  const navigation = read('src/core/navigation.cjs');
+  const store = read('src/services/store.cjs');
+
+  assert.match(html, /id="search-engine-button"/);
+  assert.match(html, /data-search-engine="duckduckgo"/);
+  assert.match(html, /data-search-engine="qwant"/);
+  assert.doesNotMatch(html, /data-search-engine="brave"/);
+  assert.match(renderer, /setSetting\('searchEngine', engine\)/);
+  assert.match(renderer, /currentSearchEngine/);
+  assert.match(navigation, /VALID_ENGINES = new Set\(\['duckduckgo', 'qwant'\]\)/);
+  assert.doesNotMatch(navigation, /quantic:\/\/search\?q=/);
+  assert.match(store, /searchEngine: 'duckduckgo'/);
+});
+
+test('bottom dock uses round vector controls instead of text bars', () => {
+  const html = read('src/renderer/index.html');
+  const css = read('src/renderer/styles.css');
+  assert.match(html, /class="dock-control"/);
+  assert.match(html, /<svg viewBox=/);
+  assert.match(css, /\.dock-control\s*\{[^}]*border-radius:50%/s);
+  assert.match(css, /\.address\s*\{[^}]*border-radius:23px/s);
+});
+
+test('cinematic page bridge uses directional curtains and light streaks', () => {
+  const html = read('src/renderer/index.html');
+  const css = read('src/renderer/styles.css');
+  assert.match(html, /cinema-curtain-left/);
+  assert.match(html, /cinema-curtain-right/);
+  assert.match(html, /cinema-streaks/);
+  assert.match(css, /@keyframes cinema-left/);
+  assert.match(css, /@keyframes cinema-right/);
+  assert.match(css, /@keyframes streak-pass/);
 });
