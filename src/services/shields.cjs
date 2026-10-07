@@ -45,11 +45,7 @@ function timeoutFetch(timeoutMs = FETCH_TIMEOUT_MS) {
     try {
       return await globalThis.fetch(url, {
         ...options,
-        signal: options.signal || controller.signal,
-        headers: {
-          'user-agent': 'GEKKO-Shields/2.2',
-          ...(options.headers || {})
-        }
+        signal: options.signal || controller.signal
       });
     } finally {
       clearTimeout(timer);
