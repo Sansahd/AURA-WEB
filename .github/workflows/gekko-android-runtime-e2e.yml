@@ -1,8 +1,8 @@
-name: Gekko Android Runtime E2E
+name: GEKKO Native 1.0 Android E2E
 
 on:
   push:
-    branches: ["feat/gekko-native-0.9-finish"]
+    branches: ["feat/gekko-native-1.0"]
     paths:
       - "fusion/android/**"
       - "fusion/servo-runtime/patch-servo.py"
