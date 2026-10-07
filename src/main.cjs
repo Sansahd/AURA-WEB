@@ -656,7 +656,8 @@ function createView(tab) {
       javascript: true,
       backgroundThrottling: true,
       spellcheck: false,
-      navigateOnDragDrop: false
+      navigateOnDragDrop: false,
+      preload: path.join(__dirname, 'web-preload.cjs')
     }
   });
 
