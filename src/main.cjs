@@ -26,6 +26,7 @@ const SIDESTAGE_RAIL_W = 58;
 const SIDESTAGE_COLLAPSED_W = 22;
 const EDGE_TRIGGER = 24;
 const HOLD_MS = 1600;
+const CHROME_LAYOUT_ANIM_MS = 280;
 const NORMAL_PARTITION = 'persist:quantic';
 const PRIVATE_PARTITION = 'quantic-private';
 const FAIL_CLOSED_PROXY = 'socks5://127.0.0.1:9';
@@ -249,6 +250,7 @@ async function ensureNetwork() {
 function destroyTabView(tab) {
   if (!tab) return;
   clearTimeout(tab.revealTimer);
+  clearInterval(tab.boundsAnimation);
   tab.revealTimer = null;
   if (!tab.view) return;
   try { win?.contentView?.removeChildView(tab.view); } catch {}
@@ -603,6 +605,14 @@ async function activateYouTubeDirect(tab, requestUrl = '') {
   }
 }
 
+function primeYouTubeDirect(rawUrl = '') {
+  if (isPrivateMode()) return;
+  const videoId = extractYouTubeVideoId(rawUrl);
+  if (!videoId) return;
+  youtubeDirectResolver ||= new YouTubeDirectResolver();
+  youtubeDirectResolver.resolve(videoId).catch(() => {});
+}
+
 function scheduleYouTubeDirect(tab, delayMs = 0) {
   if (!tab || isPrivateMode()) return;
   clearTimeout(tab.youtubeDirectTimer);
@@ -692,6 +702,7 @@ function createView(tab) {
 
   wc.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
     if (!isMainFrame || isInPlace) return;
+    primeYouTubeDirect(_url);
     clearTimeout(tab.revealTimer);
     tab.revealTimer = null;
     tab.transitioning = false;
@@ -743,7 +754,11 @@ function createView(tab) {
     if (url && url !== tab.url) tab.url = url;
     syncFromView(tab, true);
     clearYouTubeDirect(tab).catch(() => {});
-    if (isYouTubeUrl(url)) installYouTubeGuard(wc).catch(() => {});
+    if (isYouTubeUrl(url)) {
+      primeYouTubeDirect(url);
+      installYouTubeGuard(wc).catch(() => {});
+      scheduleYouTubeDirect(tab, 0);
+    }
     installCookieConsentRefusal(wc).catch(() => {});
     installCookieConsentRefusal(wc).catch(() => {});
     if (isGoogleConsentUrl(url)) installGoogleConsentRefusal(wc).catch(() => {});
@@ -757,8 +772,9 @@ function createView(tab) {
     const nextVideoId = extractYouTubeVideoId(url);
     if (previousDirectId && previousDirectId !== nextVideoId) clearYouTubeDirect(tab).catch(() => {});
     if (isYouTubeUrl(url)) {
+      primeYouTubeDirect(url);
       installYouTubeGuard(wc).catch(() => {});
-      if (nextVideoId) scheduleYouTubeDirect(tab, 120);
+      if (nextVideoId) scheduleYouTubeDirect(tab, 60);
     }
     if (isGoogleConsentUrl(url)) installGoogleConsentRefusal(wc).catch(() => {});
     emitState();
@@ -916,7 +932,54 @@ function reopenClosed() {
   if (item) createTab(item.url, true);
 }
 
-function layout() {
+function setTabViewBounds(tab, bounds, animate = false) {
+  if (!tab?.view) return;
+  const key = `${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`;
+  if (!animate) {
+    clearInterval(tab.boundsAnimation);
+    tab.boundsAnimation = null;
+    if (tab.boundsKey !== key) {
+      tab.boundsKey = key;
+      tab.view.setBounds(bounds);
+    }
+    return;
+  }
+
+  let start = bounds;
+  try { start = tab.view.getBounds?.() || bounds; } catch {}
+  if (
+    start.x === bounds.x && start.y === bounds.y &&
+    start.width === bounds.width && start.height === bounds.height
+  ) {
+    tab.boundsKey = key;
+    return;
+  }
+
+  clearInterval(tab.boundsAnimation);
+  const startedAt = Date.now();
+  const frame = () => {
+    if (!tab.view) return clearInterval(tab.boundsAnimation);
+    const t = Math.min(1, (Date.now() - startedAt) / CHROME_LAYOUT_ANIM_MS);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const lerp = (a, b) => Math.round(a + (b - a) * eased);
+    tab.view.setBounds({
+      x: lerp(start.x, bounds.x),
+      y: lerp(start.y, bounds.y),
+      width: Math.max(1, lerp(start.width, bounds.width)),
+      height: Math.max(1, lerp(start.height, bounds.height))
+    });
+    if (t >= 1) {
+      clearInterval(tab.boundsAnimation);
+      tab.boundsAnimation = null;
+      tab.boundsKey = key;
+    }
+  };
+  frame();
+  tab.boundsAnimation = setInterval(frame, 16);
+  tab.boundsAnimation.unref?.();
+}
+
+function layout(options = {}) {
   if (!win || win.isDestroyed()) return;
   const tab = activeTab();
   const [width, height] = win.getContentSize();
@@ -930,8 +993,7 @@ function layout() {
   const right = rail + stageWidth + aiWidth;
   if (tab?.view && isExternal(tab.url)) {
     const bounds = { x: 0, y: top, width: Math.max(1, width - right), height: Math.max(1, height - top - bottom) };
-    const key = `${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}`;
-    if (tab.boundsKey !== key) { tab.boundsKey = key; tab.view.setBounds(bounds); }
+    setTabViewBounds(tab, bounds, Boolean(options?.animateChrome));
   }
   sideStage?.layout({ x: Math.max(0, width - rail - stageWidth), y: top, width: stageWidth, height: Math.max(1, height - top - bottom), privateMode: isPrivateMode() });
 }
@@ -944,7 +1006,7 @@ function scheduleLayout() {
 function showChrome(focusAddress = false) {
   chromeVisible = true;
   revealUntil = Date.now() + HOLD_MS;
-  layout();
+  layout({ animateChrome: true });
   emitState();
   if (focusAddress) win.webContents.send('focus-address');
 }
@@ -963,7 +1025,7 @@ function startImmersionWatcher() {
     if (chromeVisible && Date.now() > revealUntil && pointer.y > bounds.y + TOP_CHROME_H + 36 && pointer.y < bounds.y + bounds.height - BOTTOM_DOCK_H - 36) {
       chromeVisible = false;
       aiOpen = false;
-      layout();
+      layout({ animateChrome: true });
       emitState();
     }
   }, 120);
