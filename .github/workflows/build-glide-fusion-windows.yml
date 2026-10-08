@@ -74,6 +74,33 @@ jobs:
         working-directory: fusion/servo-runtime
         run: cargo build --release
 
+      - name: Provision software OpenGL for GPU-less Windows runner
+        shell: pwsh
+        run: |
+          # GitHub-hosted Windows VMs do not guarantee a modern WGL/OpenGL driver.
+          # Use pinned Mesa llvmpipe only for CI smoke; never package these DLLs.
+          $ErrorActionPreference = "Stop"
+          $mesaVersion = "26.2.4"
+          $archive = Join-Path $env:RUNNER_TEMP "mesa3d.7z"
+          $root = Join-Path $env:RUNNER_TEMP "mesa3d"
+          $uri = "https://github.com/pal1000/mesa-dist-win/releases/download/$mesaVersion/mesa3d-$mesaVersion-release-msvc.7z"
+          Invoke-WebRequest -Uri $uri -OutFile $archive
+          New-Item -ItemType Directory -Force $root | Out-Null
+          & 7z x $archive "-o$root" -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Mesa archive extraction failed" }
+          $opengl = Get-ChildItem $root -Recurse -File -Filter opengl32.dll |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]' } | Select-Object -First 1
+          if (-not $opengl) { throw "Mesa x64 opengl32.dll not found" }
+          $driverDir = $opengl.Directory.FullName
+          foreach ($dll in @("opengl32.dll", "libgallium_wgl.dll")) {
+            $source = Join-Path $driverDir $dll
+            if (-not (Test-Path $source)) { throw "Mesa required DLL missing: $source" }
+            Copy-Item $source "fusion/servo-runtime/target/release/$dll" -Force
+          }
+          "GALLIUM_DRIVER=llvmpipe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "LIBGL_ALWAYS_SOFTWARE=1" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Mesa llvmpipe provisioned for real Servo rendering smoke"
+
       - name: Real Servo runtime smoke
         shell: pwsh
         run: |
@@ -120,6 +147,14 @@ jobs:
           }
           finally {
             if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
+          }
+
+      - name: Remove CI-only Mesa graphics DLLs before packaging
+        shell: pwsh
+        run: |
+          foreach ($dll in @("opengl32.dll", "libgallium_wgl.dll")) {
+            $path = "fusion/servo-runtime/target/release/$dll"
+            if (Test-Path $path) { Remove-Item $path -Force }
           }
 
       - name: Install NSIS
