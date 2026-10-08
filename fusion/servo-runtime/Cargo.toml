@@ -35,5 +35,11 @@ getrandom = "0.2.16"
 
 ureq = { version = "2.12.1", default-features = false, features = ["tls", "json"] }
 
+# Prefer Surfman ANGLE over WGL on Windows: cloud CI runners often lack
+# the WGL extensions required to initialize Servo's rendering context.
+# This is a native D3D/EGL graphics backend, not Chromium or a WebView.
+[target.'cfg(target_os = "windows")'.dependencies]
+surfman = { version = "0.13", features = ["sm-angle-default"] }
+
 [patch."https://github.com/mozilla/nss-rs"]
 nss-rs = { path = "../../vendor/nss-rs" }
