@@ -39,7 +39,7 @@ ureq = { version = "2.12.1", default-features = false, features = ["tls", "json"
 # the WGL extensions required to initialize Servo's rendering context.
 # This is a native D3D/EGL graphics backend, not Chromium or a WebView.
 [target.'cfg(target_os = "windows")'.dependencies]
-surfman = { version = "0.13", features = ["sm-angle-default", "sm-angle-builtin"] }
+surfman = { version = "0.13", features = ["sm-no-wgl", "sm-angle-builtin"] }
 
 [patch."https://github.com/mozilla/nss-rs"]
 nss-rs = { path = "../../vendor/nss-rs" }
