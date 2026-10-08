@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "product": "GEKKO",
+  "goal": "Chromium/Electron-free native browser",
+  "capabilities": [
+    {
+      "id": "navigation",
+      "contract": "Navigate, back, forward, reload, tab lifecycle",
+      "acceptance": "open local and HTTPS pages without blank screens"
+    },
+    {
+      "id": "privacy",
+      "contract": "Network blocking, third-party cookies, tracking protection, consent rejection",
+      "acceptance": "network tests and consent-site fixtures"
+    },
+    {
+      "id": "youtube",
+      "contract": "Uninterrupted primary playback; ads minimized and muted only when technically possible",
+      "acceptance": "real playback E2E with pre-roll and mid-roll cases"
+    },
+    {
+      "id": "downloads",
+      "contract": "Safe HTTP(S) download with progress, filename sanitation, verified output",
+      "acceptance": "download integration tests"
+    },
+    {
+      "id": "bookmarks",
+      "contract": "Local versioned favorites with heart-eyes UI",
+      "acceptance": "add/remove and portable import/export tests"
+    },
+    {
+      "id": "sync",
+      "contract": "Encrypted optional profile sync and export",
+      "acceptance": "cryptographic round trip and no plaintext secrets"
+    },
+    {
+      "id": "ui",
+      "contract": "Bottom omnibox, rounded glossy surfaces, smooth transitions",
+      "acceptance": "visual test windows and mobile"
+    },
+    {
+      "id": "extensions",
+      "contract": "Explicit supported extension API subset, no Electron-specific API exposed",
+      "acceptance": "compatibility test pack"
+    }
+  ],
+  "releaseGates": {
+    "legacy": "GEKKO 2.4 remains available independently",
+    "native": [
+      "cargo check and tests",
+      "real Windows Servo UI smoke",
+      "Windows installer install/uninstall",
+      "Android device smoke",
+      "privacy and YouTube cross-engine E2E"
+    ]
+  }
+}
