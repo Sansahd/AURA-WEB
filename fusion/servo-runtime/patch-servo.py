@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -848,5 +849,16 @@ replace_once(
     """impl<T: Serialize + 'static> AutomaticResponder<T> {""",
     """impl<T: Serialize + Send + 'static> AutomaticResponder<T> {"""
 )
+
+# Validate the native graphics contract on Windows CI before compiling Servo.
+# This shared patch script is executed by all three release validation workflows,
+# so the same source revision is exercised on desktop and Android.
+if os.environ.get("GITHUB_ACTIONS") == "true":
+    print(f"GEKKO Native CI source revision: {os.environ.get('GITHUB_SHA', 'unknown')}", flush=True)
+    if os.name == "nt":
+        manifest = (ROOT / "fusion" / "servo-runtime" / "Cargo.toml").read_text(encoding="utf-8")
+        if 'features = ["sm-no-wgl", "sm-angle-builtin"]' not in manifest:
+            raise SystemExit("GEKKO Windows graphics contract failed: Surfman ANGLE with sm-no-wgl is required")
+        print("GEKKO Windows graphics contract passed: ANGLE enabled; WGL disabled", flush=True)
 
 print("Quantic Servo Gekko Fusion patch applied")
