@@ -8,7 +8,6 @@ publish = false
 [dependencies]
 quantic-ladybird-html = { path = "../../quantic-engine/vendor/ladybird_html" }
 quantic-fusion-mozilla-network = { path = "../mozilla-network" }
-servo = { path = "../../vendor/servo/components/servo", default-features = false, features = ["bundled", "js_jit", "clipboard"] }
 servo-embedder-traits = { path = "../../vendor/servo/components/shared/embedder" }
 winit = "0.30.13"
 euclid = "0.22"
@@ -39,7 +38,13 @@ ureq = { version = "2.12.1", default-features = false, features = ["tls", "json"
 # the WGL extensions required to initialize Servo's rendering context.
 # This is a native D3D/EGL graphics backend, not Chromium or a WebView.
 [target.'cfg(target_os = "windows")'.dependencies]
+# Servo's no-wgl feature configures paint_api and ANGLE EGL as well as
+# Surfman. Surfman features alone do NOT switch Servo's renderer backend.
+servo = { path = "../../vendor/servo/components/servo", default-features = false, features = ["bundled", "js_jit", "clipboard", "no-wgl"] }
 surfman = { version = "0.13", features = ["sm-no-wgl", "sm-angle-builtin"] }
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+servo = { path = "../../vendor/servo/components/servo", default-features = false, features = ["bundled", "js_jit", "clipboard"] }
 
 [patch."https://github.com/mozilla/nss-rs"]
 nss-rs = { path = "../../vendor/nss-rs" }

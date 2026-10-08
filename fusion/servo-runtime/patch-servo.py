@@ -859,6 +859,8 @@ if os.environ.get("GITHUB_ACTIONS") == "true":
         manifest = (ROOT / "fusion" / "servo-runtime" / "Cargo.toml").read_text(encoding="utf-8")
         if 'features = ["sm-no-wgl", "sm-angle-builtin"]' not in manifest:
             raise SystemExit("GEKKO Windows graphics contract failed: Surfman ANGLE with sm-no-wgl is required")
-        print("GEKKO Windows graphics contract passed: ANGLE enabled; WGL disabled", flush=True)
+        if 'features = ["bundled", "js_jit", "clipboard", "no-wgl"]' not in manifest:
+            raise SystemExit("GEKKO Windows graphics contract failed: Servo no-wgl feature missing (paint_api still uses WGL)")
+        print("GEKKO Windows graphics contract passed: Servo no-wgl + Surfman ANGLE enabled", flush=True)
 
 print("Quantic Servo Gekko Fusion patch applied")
