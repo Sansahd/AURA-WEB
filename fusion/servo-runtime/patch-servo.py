@@ -861,6 +861,11 @@ if os.environ.get("GITHUB_ACTIONS") == "true":
             raise SystemExit("GEKKO Windows graphics contract failed: Surfman ANGLE with sm-no-wgl is required")
         if 'features = ["bundled", "js_jit", "clipboard", "no-wgl"]' not in manifest:
             raise SystemExit("GEKKO Windows graphics contract failed: Servo no-wgl feature missing (paint_api still uses WGL)")
-        print("GEKKO Windows graphics contract passed: Servo no-wgl + Surfman ANGLE enabled", flush=True)
+        # A green smoke is not sufficient if the packaged executable omits ANGLE DLLs.
+        workflow = (ROOT / ".github" / "workflows" / "build-glide-fusion-windows.yml").read_text(encoding="utf-8")
+        for dll in ("libEGL.dll", "libGLESv2.dll"):
+            if f'File "dist\\{dll}"' not in workflow:
+                raise SystemExit(f"GEKKO Windows packaging contract failed: NSIS omits {dll}")
+        print("GEKKO Windows graphics contract passed: Servo no-wgl + ANGLE and packaged EGL/GLES DLLs", flush=True)
 
 print("Quantic Servo Gekko Fusion patch applied")
