@@ -11,7 +11,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-2025
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,13 +20,17 @@ jobs:
       - name: Install dependencies
         shell: pwsh
         run: npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
       - name: Check source and run tests
         shell: pwsh
-        run: npm run check
+        run: |
+          npm run check
+          if ($LASTEXITCODE -ne 0) { throw 'GEKKO checks failed' }
       - name: Build Windows installer
         shell: pwsh
         run: |
           npm run dist
+          if ($LASTEXITCODE -ne 0) { throw 'GEKKO packaging failed' }
           if (-not (Test-Path dist/GEKKO-Setup.exe)) { throw 'GEKKO-Setup.exe missing' }
           Get-FileHash dist/GEKKO-Setup.exe -Algorithm SHA256 | Format-List
       - name: Upload Windows preview installer
