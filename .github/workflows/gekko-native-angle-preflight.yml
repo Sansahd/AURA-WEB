@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Verify Windows Servo ANGLE / no-WGL feature contract
         shell: pwsh
         run: |
