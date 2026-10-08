@@ -1,0 +1,44 @@
+name: GEKKO shared contract
+
+on:
+  push:
+    branches:
+      - feat/gekko-2.4
+      - feat/gekko-native-1.1
+    paths:
+      - contracts/gekko-capabilities.v1.json
+      - .github/workflows/gekko-shared-contract.yml
+  pull_request:
+    paths:
+      - contracts/gekko-capabilities.v1.json
+      - .github/workflows/gekko-shared-contract.yml
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate shared capabilities
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const spec = JSON.parse(fs.readFileSync('contracts/gekko-capabilities.v1.json', 'utf8'));
+          assert.equal(spec.schemaVersion, 1);
+          assert.equal(spec.product, 'GEKKO');
+          const names = spec.capabilities.map(x => x.id);
+          assert.equal(new Set(names).size, names.length);
+          for (const id of ['navigation','privacy','youtube','downloads','bookmarks','sync','ui','extensions']) {
+            assert(names.includes(id), 'Missing capability: ' + id);
+          }
+          for (const item of spec.capabilities) {
+            assert(item.contract && item.acceptance, 'Missing contract or gate: ' + item.id);
+          }
+          assert(spec.releaseGates.native.some(x => x.includes('Windows installer')));
+          console.log('GEKKO shared capability contract valid');
+          NODE
