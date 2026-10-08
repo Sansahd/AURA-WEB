@@ -19,7 +19,7 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         shell: pwsh
-        run: npm install --no-audit --no-fund --ignore-scripts
+        run: npm install --no-audit --no-fund
       - name: Check source and run tests
         shell: pwsh
         run: npm run check
