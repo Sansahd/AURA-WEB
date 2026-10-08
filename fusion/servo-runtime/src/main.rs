@@ -2619,7 +2619,8 @@ impl ApplicationHandler<WakeEvent> for App {
         let window = event_loop.create_window(
             Window::default_attributes()
                 .with_title("Gekko — Quantic Browser")
-                .with_visible(!smoke_mode)
+                // Exercise the same visible WGL window as a real user during CI smoke.
+                .with_visible(true)
                 .with_inner_size(winit::dpi::PhysicalSize::new(1440_u32, 900_u32))
                 .with_min_inner_size(winit::dpi::PhysicalSize::new(980_u32, 680_u32)),
         ).expect("create Gekko window");
