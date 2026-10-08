@@ -74,32 +74,22 @@ jobs:
         working-directory: fusion/servo-runtime
         run: cargo build --release
 
-      - name: Provision software OpenGL for GPU-less Windows runner
+      - name: Stage ANGLE EGL and GLES DLLs for Servo runtime smoke
         shell: pwsh
         run: |
-          # GitHub-hosted Windows VMs do not guarantee a modern WGL/OpenGL driver.
-          # Use pinned Mesa llvmpipe only for CI smoke; never package these DLLs.
+          # Servo no-wgl uses ANGLE. Cargo builds its native DLLs under
+          # target/release/build; unlike 'mach build' it does not stage them.
           $ErrorActionPreference = "Stop"
-          $mesaVersion = "26.2.4"
-          $archive = Join-Path $env:RUNNER_TEMP "mesa3d.7z"
-          $root = Join-Path $env:RUNNER_TEMP "mesa3d"
-          $uri = "https://github.com/pal1000/mesa-dist-win/releases/download/$mesaVersion/mesa3d-$mesaVersion-release-msvc.7z"
-          Invoke-WebRequest -Uri $uri -OutFile $archive
-          New-Item -ItemType Directory -Force $root | Out-Null
-          & 7z x $archive "-o$root" -y | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "Mesa archive extraction failed" }
-          $opengl = Get-ChildItem $root -Recurse -File -Filter opengl32.dll |
-            Where-Object { $_.FullName -match '[\\/]x64[\\/]' } | Select-Object -First 1
-          if (-not $opengl) { throw "Mesa x64 opengl32.dll not found" }
-          $driverDir = $opengl.Directory.FullName
-          foreach ($dll in @("opengl32.dll", "libgallium_wgl.dll")) {
-            $source = Join-Path $driverDir $dll
-            if (-not (Test-Path $source)) { throw "Mesa required DLL missing: $source" }
-            Copy-Item $source "fusion/servo-runtime/target/release/$dll" -Force
+          $build = "fusion/servo-runtime/target/release/build"
+          $target = "fusion/servo-runtime/target/release"
+          foreach ($dll in @("libEGL.dll", "libGLESv2.dll")) {
+            $candidate = Get-ChildItem $build -Recurse -File -Filter $dll |
+              Select-Object -First 1
+            if (-not $candidate) { throw "GEKKO ANGLE runtime DLL missing: $dll under $build" }
+            Copy-Item $candidate.FullName (Join-Path $target $dll) -Force
+            if (-not (Test-Path (Join-Path $target $dll))) { throw "Failed to stage GEKKO ANGLE DLL: $dll" }
+            Write-Host "Staged ANGLE dependency: $dll ($($candidate.FullName))"
           }
-          "GALLIUM_DRIVER=llvmpipe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "LIBGL_ALWAYS_SOFTWARE=1" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host "Mesa llvmpipe provisioned for real Servo rendering smoke"
 
       - name: Real Servo runtime smoke
         shell: pwsh
@@ -149,14 +139,6 @@ jobs:
             if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
           }
 
-      - name: Remove CI-only Mesa graphics DLLs before packaging
-        shell: pwsh
-        run: |
-          foreach ($dll in @("opengl32.dll", "libgallium_wgl.dll")) {
-            $path = "fusion/servo-runtime/target/release/$dll"
-            if (Test-Path $path) { Remove-Item $path -Force }
-          }
-
       - name: Install NSIS
         shell: pwsh
         run: choco install nsis -y --no-progress
@@ -166,9 +148,16 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item "fusion\servo-runtime\target\release\quantic-gekko-servo-runtime.exe" "dist\QuanticGekko.exe"
+          foreach ($dll in @("libEGL.dll", "libGLESv2.dll")) {
+            $source = "fusion/servo-runtime/target/release/$dll"
+            if (-not (Test-Path $source)) { throw "Packaging blocked: missing GEKKO ANGLE DLL $dll" }
+            Copy-Item $source "dist/$dll" -Force
+          }
 
           New-Item -ItemType Directory -Force dist\portable | Out-Null
           Copy-Item "dist\QuanticGekko.exe" "dist\portable\QuanticGekko.exe"
+          Copy-Item "dist\libEGL.dll" "dist\portable\libEGL.dll"
+          Copy-Item "dist\libGLESv2.dll" "dist\portable\libGLESv2.dll"
           New-Item -ItemType File -Force "dist\portable\portable.flag" | Out-Null
           "Gekko Portable`nLes données, favoris, sessions et téléchargements restent dans le dossier GekkoData à côté de l'exécutable." | Set-Content -Encoding UTF8 "dist\portable\LISEZ-MOI.txt"
           Compress-Archive -Path "dist\portable\*" -DestinationPath "Quantic-Gekko-Portable.zip" -Force
@@ -191,6 +180,8 @@ jobs:
           Section "Quantic Gekko"
             SetOutPath "$INSTDIR"
             File "dist\QuanticGekko.exe"
+            File "dist\libEGL.dll"
+            File "dist\libGLESv2.dll"
             CreateDirectory "$SMPROGRAMS\Quantic Gekko"
             CreateShortcut "$DESKTOP\Quantic Gekko.lnk" "$INSTDIR\QuanticGekko.exe"
             CreateShortcut "$SMPROGRAMS\Quantic Gekko\Quantic Gekko.lnk" "$INSTDIR\QuanticGekko.exe"
@@ -206,6 +197,8 @@ jobs:
             Delete "$SMPROGRAMS\Quantic Gekko\Quantic Gekko.lnk"
             RMDir "$SMPROGRAMS\Quantic Gekko"
             Delete "$INSTDIR\QuanticGekko.exe"
+            Delete "$INSTDIR\libEGL.dll"
+            Delete "$INSTDIR\libGLESv2.dll"
             Delete "$INSTDIR\Uninstall.exe"
             RMDir "$INSTDIR"
             DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\QuanticGekko"
@@ -219,6 +212,8 @@ jobs:
         shell: pwsh
         run: |
           Get-FileHash dist\QuanticGekko.exe -Algorithm SHA256 | Format-List
+          Get-FileHash dist\libEGL.dll -Algorithm SHA256 | Format-List
+          Get-FileHash dist\libGLESv2.dll -Algorithm SHA256 | Format-List
           Get-FileHash Quantic-Gekko-Setup.exe -Algorithm SHA256 | Format-List
           Get-FileHash Quantic-Gekko-Portable.zip -Algorithm SHA256 | Format-List
 
