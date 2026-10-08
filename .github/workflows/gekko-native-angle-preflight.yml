@@ -1,0 +1,37 @@
+name: GEKKO Native ANGLE preflight
+
+on:
+  push:
+    branches:
+      - feat/gekko-native-1.0
+    paths:
+      - fusion/servo-runtime/Cargo.toml
+      - .github/workflows/gekko-native-angle-preflight.yml
+  pull_request:
+    paths:
+      - fusion/servo-runtime/Cargo.toml
+      - .github/workflows/gekko-native-angle-preflight.yml
+  workflow_dispatch:
+
+jobs:
+  angle-features:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Windows Servo ANGLE / no-WGL feature contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $cargo = Get-Content fusion/servo-runtime/Cargo.toml -Raw
+          if ($cargo -notmatch '(?s)\[target\.\x27cfg\(target_os = "windows"\)\x27\.dependencies\].*?servo = \{[^\r\n]*"no-wgl"') {
+            throw 'Windows Servo must enable no-wgl'
+          }
+          if ($cargo -notmatch '(?s)\[target\.\x27cfg\(target_os = "windows"\)\x27\.dependencies\].*?surfman = \{[^\r\n]*"sm-no-wgl"[^\r\n]*"sm-angle-builtin"') {
+            throw 'Windows Surfman must enable sm-no-wgl and sm-angle-builtin'
+          }
+          Write-Host 'GEKKO Windows ANGLE dependency contract OK'
+      - name: Validate Rust manifest syntax
+        shell: pwsh
+        run: |
+          cargo metadata --no-deps --format-version 1 --manifest-path fusion/servo-runtime/Cargo.toml | Out-Null
