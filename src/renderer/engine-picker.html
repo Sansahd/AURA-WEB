@@ -2,39 +2,42 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self'">
-<title>GEKKO · Moteurs</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'self'">
+<title>GEKKO · Moteurs de recherche</title>
 <style>
-html,body{margin:0;background:transparent;color:#e7fff4;font-family:system-ui,'Segoe UI',sans-serif;user-select:none}
 *{box-sizing:border-box}
-.bubble{position:absolute;left:4px;right:4px;top:4px;bottom:14px;border:1px solid rgba(153,255,213,.34);border-radius:21px;padding:12px;background:linear-gradient(150deg,rgba(15,33,37,.99),rgba(5,17,23,.99));box-shadow:0 15px 38px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12)}
-.bubble:after{content:"";position:absolute;bottom:-7px;left:27px;width:12px;height:12px;transform:rotate(45deg);background:#081a20;border-right:1px solid rgba(153,255,213,.34);border-bottom:1px solid rgba(153,255,213,.34)}
-.heading{display:flex;align-items:center;justify-content:space-between;margin:0 2px 9px;font-size:10px;color:#c3fce4;letter-spacing:.08em;font-weight:750}
-.heading small{font-size:9px;color:rgba(213,250,231,.45)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.engine{display:flex;gap:7px;align-items:center;min-height:53px;padding:7px;border:1px solid rgba(224,255,235,.08);border-radius:13px;background:rgba(255,255,255,.035);color:#e9fff3;cursor:pointer;text-align:left}
-.engine:hover,.engine:focus-visible{background:rgba(147,255,209,.13);border-color:rgba(157,255,219,.36);outline:none}
-.engine.selected{border-color:rgba(156,255,212,.55);background:rgba(90,217,160,.12)}
-.mark{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border-radius:10px;background:rgba(144,255,205,.11);font-size:12px;font-weight:750;color:#d6ffe9}
-.name{font-size:10px;font-weight:630;line-height:1.25}
-.engine[data-engine="gekko"],.engine[data-engine="tor"]{grid-column:1/-1}
-.engine[data-engine="tor"] .mark{color:#d0b9ff;background:rgba(132,93,191,.19)}
+html,body{height:100%;margin:0;overflow:hidden;background:transparent;color:#eafff3;font-family:'Segoe UI',system-ui,sans-serif;user-select:none}
+.bubble{position:absolute;inset:5px 4px 13px;border-radius:23px;padding:11px 13px 12px;border:1px solid rgba(196,255,220,.35);background:linear-gradient(125deg,rgba(20,48,43,.99),rgba(43,34,52,.99) 52%,rgba(48,38,35,.99));box-shadow:0 16px 36px rgba(0,0,0,.52),inset 0 1px 0 rgba(255,241,228,.19)}
+.bubble:after{content:'';position:absolute;width:11px;height:11px;bottom:-7px;left:31px;transform:rotate(45deg);border-right:1px solid rgba(196,255,220,.35);border-bottom:1px solid rgba(196,255,220,.35);background:#202a30}
+.heading{display:flex;justify-content:space-between;align-items:center;padding:0 2px;margin-bottom:6px;color:#e6ffef;font-size:10px;font-weight:720;letter-spacing:.08em}
+.heading small{font-size:9px;color:#b7d7c8;font-weight:550}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 2px;justify-items:center;width:100%;overflow:visible}
+.engine{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:56px;height:67px;padding:2px 0;border:1px solid transparent;border-radius:12px;background:transparent;color:#eafcf2;cursor:pointer}
+.engine:hover,.engine:focus-visible{outline:0;border-color:rgba(206,245,217,.28);background:linear-gradient(145deg,rgba(140,255,201,.13),rgba(241,161,191,.12))}
+.engine.selected{border-color:rgba(154,255,205,.48);background:linear-gradient(130deg,rgba(96,232,174,.19),rgba(204,143,232,.14))}
+.symbol{display:grid;place-items:center;width:37px;height:37px;flex:0 0 37px;border-radius:50%;border:1px solid rgba(221,249,224,.2);background:linear-gradient(148deg,rgba(255,255,255,.95),rgba(235,242,240,.87));box-shadow:inset 0 1px 1px rgba(255,255,255,.84),0 3px 10px rgba(0,0,0,.22)}
+.symbol img{width:24px;height:24px;object-fit:contain}
+.engine[data-engine="gekko"] .symbol{background:linear-gradient(135deg,#215c44,#344b6d)}
+.engine[data-engine="gekko"] .symbol img{width:31px;height:31px}
+.engine[data-engine="tor"] .symbol{background:#f5e9fc}
+.name{font-size:8.5px;font-weight:570;text-align:center;line-height:1.1;white-space:nowrap;max-width:58px}
+.engine[data-engine="tor"]{grid-column:2 / span 2;justify-self:center}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<div class="bubble" role="group" aria-label="Choisir le moteur de recherche">
-  <div class="heading"><span>RECHERCHE</span><small>GEKKO</small></div>
-  <div class="grid">
-    <button class="engine" data-engine="gekko"><span class="mark">G</span><span class="name">GEKKO Search</span></button>
-    <button class="engine" data-engine="duckduckgo"><span class="mark">D</span><span class="name">DuckDuckGo</span></button>
-    <button class="engine" data-engine="qwant"><span class="mark">Q</span><span class="name">Qwant</span></button>
-    <button class="engine" data-engine="startpage"><span class="mark">S</span><span class="name">Startpage</span></button>
-    <button class="engine" data-engine="brave"><span class="mark">B</span><span class="name">Brave Search</span></button>
-    <button class="engine" data-engine="searxng"><span class="mark">Sx</span><span class="name">SearXNG</span></button>
-    <button class="engine" data-engine="tor"><span class="mark">T</span><span class="name">Tor · Veil</span></button>
-  </div>
+<div class="bubble" role="group" aria-label="Choisir un moteur de recherche">
+ <div class="heading"><span>RECHERCHE</span><small>Choisir le moteur</small></div>
+ <div class="grid">
+  <button class="engine" data-engine="gekko" title="GEKKO Search"><span class="symbol"><img src="../assets/quantic-glide-mark.svg" alt=""></span><span class="name">GEKKO</span></button>
+  <button class="engine" data-engine="duckduckgo" title="DuckDuckGo"><span class="symbol"><img src="engine-icons/duckduckgo.svg" alt=""></span><span class="name">DuckDuckGo</span></button>
+  <button class="engine" data-engine="qwant" title="Qwant"><span class="symbol"><img src="engine-icons/qwant.svg" alt=""></span><span class="name">Qwant</span></button>
+  <button class="engine" data-engine="startpage" title="Startpage"><span class="symbol"><img src="engine-icons/startpage.svg" alt=""></span><span class="name">Startpage</span></button>
+  <button class="engine" data-engine="brave" title="Brave Search"><span class="symbol"><img src="engine-icons/brave.svg" alt=""></span><span class="name">Brave</span></button>
+  <button class="engine" data-engine="searxng" title="SearXNG"><span class="symbol"><img src="engine-icons/searxng.svg" alt=""></span><span class="name">SearXNG</span></button>
+  <button class="engine" data-engine="tor" title="Tor via Veil"><span class="symbol"><img src="engine-icons/torbrowser.svg" alt=""></span><span class="name">Tor</span></button>
+ </div>
 </div>
 <script src="engine-picker.js"></script>
 </body>
