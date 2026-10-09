@@ -266,7 +266,9 @@ test('favorites use the heart-eyes control requested for bookmarking', () => {
   const renderer = read('src/renderer/renderer.js');
   const css = read('src/renderer/quantic-glide-brand.css');
   assert.match(html, /class="favorite-heart-eyes"[^>]*>😍<\/span>/);
-  assert.doesNotMatch(html.slice(html.indexOf('id="fav"'), html.indexOf('id="sidestage"')), /icon-star/);
+  assert.doesNotMatch(html, /id="discover"/);
+  assert.doesNotMatch(html, /id="sidestage"/);
+  assert.match(html, /id="search-engine-mark-image"/);
   assert.match(renderer, /fav\.setAttribute\('aria-label', fav\.title\)/);
   assert.match(css, /favorite-heart-eyes/);
   assert.match(css, /#fav\.active/);
