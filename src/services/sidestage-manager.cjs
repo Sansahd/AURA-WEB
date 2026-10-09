@@ -77,11 +77,32 @@ class SideStageManager {
       event.preventDefault();
     });
     wc.on('did-start-loading', () => { this.status.set(appId, 'loading'); this.onChange(); });
-    wc.on('did-stop-loading', () => { this.status.set(appId, 'ready'); this.onChange(); });
-    wc.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
-      if (!isMainFrame || code === -3) return;
+    wc.on('did-stop-loading', () => {
+      // Never erase a real remote error merely because the local failure page
+      // finished loading; otherwise Mail / ZOON appeared blank but "ready".
+      if (this.status.get(appId) !== 'error') this.status.set(appId, 'ready');
+      this.onChange();
+    });
+    const showFailure = (reason) => {
+      if (this.status.get(appId) === 'error' || wc.isDestroyed()) return;
       this.status.set(appId, 'error');
       this.onChange();
+      const label = definition.label.replace(/[&<>"]/g, (s) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[s]);
+      const page = `<!doctype html><html lang="fr"><meta charset="utf-8">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+      <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#07131b;color:#effff4;font-family:system-ui,sans-serif">
+      <main style="max-width:320px;padding:20px;text-align:center">
+      <h2 style="font-size:16px;margin:0 0 12px">${label} indisponible</h2>
+      <p style="color:#a9c5b8;line-height:1.5;font-size:12px">Le service distant ne répond pas (erreur ${Number(reason) || 0}). GEKKO reste fonctionnel.</p>
+      <p style="color:#a9c5b8;font-size:12px">Clique de nouveau sur l’icône pour réessayer, ou ouvre le service dans un onglet.</p>
+      <a href="${definition.url}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 12px;border:1px solid #80dcb5;border-radius:12px;color:#d8ffe9;text-decoration:none;font-size:12px">Ouvrir dans un onglet</a>
+      </main></body></html>`;
+      wc.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page)).catch(() => {});
+    };
+    wc.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
+      if (!isMainFrame || code === -3) return;
+      showFailure(code);
     });
     wc.on('destroyed', () => {
       this.views.delete(appId);
@@ -89,10 +110,7 @@ class SideStageManager {
       this.onChange();
     });
 
-    wc.loadURL(definition.url).catch(() => {
-      this.status.set(appId, 'error');
-      this.onChange();
-    });
+    wc.loadURL(definition.url).catch(() => showFailure(-2));
     return view;
   }
 
@@ -104,9 +122,19 @@ class SideStageManager {
       const target = appDefinition(appId) ? appId : settings.activeApp || settings.pinnedApps[0];
       if (!target) return this.state();
       const alreadyVisible = settings.open && settings.activeApp === target;
-      const open = action === 'toggle' ? !alreadyVisible : true;
+      const failed = this.status.get(target) === 'error';
+      const open = action === 'toggle' ? (!alreadyVisible || failed) : true;
       this.setSettings({ activeApp: target, open, collapsed: open ? false : settings.collapsed });
-      if (open) this.ensureView(target);
+      if (open) {
+        const view = this.ensureView(target);
+        if (failed && view) {
+          this.status.set(target, 'loading');
+          view.webContents.loadURL(appDefinition(target).url).catch(() => {
+            this.status.set(target, 'error');
+            this.onChange();
+          });
+        }
+      }
     } else if (action === 'close') {
       this.setSettings({ open: false });
     } else if (action === 'collapse') {
