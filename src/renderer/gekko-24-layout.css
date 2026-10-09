@@ -434,3 +434,50 @@ body.has-wallpaper .gekko-home-reflection{
   color:#e7fff2;
   font-size:11px;
 }
+
+
+/* GEKKO 2.4 beta 9 · accent is the BAR COLOR, not a thin border.
+   Deliberately linear/quiet: no radial spotlights, blurred halos or glow. */
+#bottom-dock{
+  background:linear-gradient(106deg,
+    color-mix(in srgb,var(--quantic-accent) 34%,#101924) 0%,
+    color-mix(in srgb,var(--quantic-accent) 25%,#262134) 45%,
+    color-mix(in srgb,var(--quantic-accent) 32%,#241d2b) 100%)!important;
+  border:1px solid color-mix(in srgb,var(--quantic-accent) 24%,#5a6770)!important;
+  box-shadow:0 9px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.10)!important;
+  filter:none!important;
+}
+#sidestage-rail:not(.rail-minimized),
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="right"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized){
+  background:linear-gradient(157deg,
+    color-mix(in srgb,var(--quantic-accent) 35%,#131b27) 0%,
+    color-mix(in srgb,var(--quantic-accent) 24%,#252032) 49%,
+    color-mix(in srgb,var(--quantic-accent) 31%,#2b202b) 100%)!important;
+  box-shadow:0 7px 22px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.10)!important;
+  filter:none!important;
+}
+#sidestage-rail.rail-minimized,
+body[data-rail-position="top"] #sidestage-rail.rail-minimized{
+  background:linear-gradient(160deg,
+    color-mix(in srgb,var(--quantic-accent) 31%,#141c29),
+    color-mix(in srgb,var(--quantic-accent) 22%,#242033))!important;
+  box-shadow:none!important;
+}
+#bottom-dock .address,
+#bottom-dock .search-engine-button{
+  box-shadow:none!important;
+  filter:none!important;
+}
+#bottom-dock .address{
+  background:linear-gradient(105deg,
+    color-mix(in srgb,var(--quantic-accent) 13%,rgba(14,21,30,.94)),
+    rgba(27,30,38,.87))!important;
+  border-color:color-mix(in srgb,var(--quantic-accent) 28%,#515763)!important;
+}
+#sidestage-rail .gekko-rail-pin.is-pinned,
+#sidestage-rail .tab.active,
+#sidestage-rail .side-stage-app.active{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;
+}
