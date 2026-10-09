@@ -3,6 +3,8 @@ contextBridge.exposeInMainWorld('quantic', {
   state: () => ipcRenderer.invoke('get-state'), onState: (fn) => ipcRenderer.on('browser-state', (_e, s) => fn(s)),
   navigate: (v) => ipcRenderer.invoke('navigate', v), prewarmSite: (u) => ipcRenderer.invoke('prewarm-site', u), chromeOverlay: (h) => ipcRenderer.invoke('chrome-overlay-height', h), newTab: (u) => u === undefined ? ipcRenderer.invoke('new-tab') : ipcRenderer.invoke('new-tab', u),
   activateTab: (id) => ipcRenderer.invoke('activate-tab', id), closeTab: (id) => ipcRenderer.invoke('close-tab', id),
+  togglePanelTab: (url) => ipcRenderer.invoke('toggle-panel-tab', url),
+  toggleTabMute: (id) => ipcRenderer.invoke('toggle-tab-mute', id),
   plusMenu: () => ipcRenderer.invoke('plus-menu'), mainMenu: () => ipcRenderer.invoke('main-menu'),
   searchEngineMenu: (x,y) => ipcRenderer.invoke('search-engine-menu',x,y),
   toggleRailCollapse: () => ipcRenderer.invoke('toggle-rail-collapse'),
