@@ -267,3 +267,131 @@ body.chrome-hidden #sidestage-rail{
   #sidestage-rail .side-stage-app{height:35px;flex-basis:35px}
   #sidestage-rail .gekko-tab-shelf{padding-top:4px;gap:3px}
 }
+
+
+/* GEKKO 2.4 beta 3 — zero top bar.
+   The dedicated 58px SideStage column owns every window control. */
+#chrome{display:none!important}
+#sidestage-rail,#sidestage-rail.collapsed,
+body.chrome-hidden #sidestage-rail{
+  top:0!important;
+  bottom:72px;
+  padding-top:5px;
+  gap:5px;
+}
+#sidestage-rail .gekko-window-grip{
+  box-sizing:border-box;
+  position:relative;
+  flex:0 0 25px;
+  display:grid;
+  place-items:center;
+  width:44px;
+  min-height:25px;
+  margin:0 0 1px;
+  border-radius:9px;
+  color:rgba(184,239,211,.59);
+  font:700 20px/1 system-ui,sans-serif;
+  letter-spacing:2px;
+  cursor:move;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-app-region:drag;
+  app-region:drag;
+}
+#sidestage-rail .gekko-window-grip:hover{
+  background:rgba(176,255,225,.07);
+  color:rgba(234,255,243,.85);
+}
+#sidestage-rail .gekko-rail-window-controls{
+  display:flex!important;
+  flex:0 0 auto;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  gap:4px;
+  width:100%;
+  margin:2px 0 0;
+  padding:7px 0 0;
+  border-top:1px solid rgba(185,255,224,.15);
+  -webkit-app-region:no-drag;
+  app-region:no-drag;
+}
+#sidestage-rail .gekko-rail-window-controls button{
+  box-sizing:border-box;
+  display:grid;
+  place-items:center;
+  flex:0 0 29px;
+  width:42px;
+  min-width:42px;
+  height:29px;
+  margin:0;
+  padding:0;
+  color:rgba(235,254,244,.82)!important;
+  border:1px solid rgba(213,255,235,.10)!important;
+  border-radius:10px;
+  background:linear-gradient(150deg,rgba(255,255,255,.055),rgba(255,255,255,.01))!important;
+  font:500 18px/1 "Segoe UI Symbol",system-ui,sans-serif;
+  cursor:pointer;
+  transition:background .13s ease,border-color .13s ease,color .13s ease;
+  -webkit-app-region:no-drag;
+  app-region:no-drag;
+}
+#sidestage-rail .gekko-rail-window-controls button:hover{
+  background:rgba(153,255,213,.15)!important;
+  border-color:rgba(165,255,226,.35)!important;
+  color:#fff!important;
+}
+#sidestage-rail .gekko-rail-window-controls button:focus-visible{
+  outline:2px solid #b7ffdc;
+  outline-offset:2px;
+}
+#sidestage-rail .gekko-rail-window-controls button[data-win="close"]{
+  margin-top:4px;
+  color:rgba(255,202,206,.95)!important;
+  border-color:rgba(255,172,178,.17)!important;
+}
+#sidestage-rail .gekko-rail-window-controls button[data-win="close"]:hover{
+  background:rgba(219,46,63,.90)!important;
+  border-color:rgba(255,157,167,.56)!important;
+  color:#fff!important;
+}
+#sidestage-rail .gekko-tab-shelf{
+  margin-top:0;
+  padding-top:5px;
+}
+.home,.internal-page{
+  inset:0 58px 66px 0!important;
+}
+.navigation-transition{
+  inset:0 58px 66px 0!important;
+}
+.ai-panel{
+  top:10px!important;
+  right:68px!important;
+  bottom:76px!important;
+}
+#sidestage-rail .gekko-rail-window-controls button:active{
+  transform:scale(.96);
+}
+@media(max-height:780px){
+  #sidestage-rail{gap:3px!important}
+  #sidestage-rail .side-stage-brand{display:none!important}
+  #sidestage-rail .side-stage-app,
+  #sidestage-rail .side-stage-close{
+    height:35px!important;
+    flex-basis:35px!important;
+  }
+  #sidestage-rail .gekko-window-grip{
+    flex-basis:21px;min-height:21px;
+  }
+  #sidestage-rail .gekko-rail-window-controls button{
+    height:26px;
+    flex-basis:26px;
+  }
+  #sidestage-rail .gekko-tab-shelf{
+    gap:3px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  #sidestage-rail .gekko-rail-window-controls button{transition:none!important}
+}
