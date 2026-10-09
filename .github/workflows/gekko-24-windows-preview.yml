@@ -37,7 +37,7 @@ jobs:
       - name: Upload Windows preview installer
         uses: actions/upload-artifact@v4
         with:
-          name: GEKKO-2.4-beta5-Windows-x64
+          name: GEKKO-2.4-beta6-Windows-x64
           path: dist/GEKKO-Setup.exe
           if-no-files-found: error
           retention-days: 14
