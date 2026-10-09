@@ -85,11 +85,15 @@ test('YouTube Direct failure restores native video and permits manual retry', ()
   const shield = elements.find((node) => node.id === 'gekko-youtube-shield');
   assert.equal(shield.isConnected, false, 'Failed Direct must not obscure native playback');
   assert.ok(playCalls > 0, 'Native video must be allowed to resume');
-  assert.ok(elements.some((node) => node.id === 'gekko-direct-status'), 'Failure should be visible');
+  assert.equal(elements.some((node) => node.id === 'gekko-direct-status' && node.isConnected), false,
+    'An automatic Direct failure must not alarm users when native playback succeeds');
   assert.equal(typeof directButton.listeners.click, 'function');
 
   directButton.listeners.click({ preventDefault() {}, stopPropagation() {} });
   assert.equal(navigationRequests.length, 2, 'Manual retry must override the cooldown');
+  sandbox.window.__gekkoYoutubeAdGuardV1.directResult({ ok: false, error: 'stream blocked' });
+  assert.ok(elements.some((node) => node.id === 'gekko-direct-status' && node.isConnected),
+    'Explicit manual retry failure should expose a useful diagnostic');
 });
 
 test('YouTube URL detection remains restricted to legitimate domains', () => {
