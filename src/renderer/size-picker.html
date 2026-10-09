@@ -1,0 +1,30 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'">
+<title>GEKKO · Taille</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:transparent;color:#effff4;font-family:'Segoe UI',system-ui,sans-serif;user-select:none}
+.bubble{position:absolute;inset:5px 4px 13px;padding:12px 12px 13px;border:1px solid rgba(194,247,213,.39);border-radius:22px;background:linear-gradient(122deg,rgba(16,43,40,.99),rgba(47,34,55,.99) 54%,rgba(52,39,37,.99));box-shadow:0 15px 38px rgba(0,0,0,.51),inset 0 1px 0 rgba(255,245,228,.19)}
+.bubble:after{content:'';position:absolute;bottom:-7px;left:calc(50% - 6px);width:12px;height:12px;transform:rotate(45deg);border-right:1px solid rgba(194,247,213,.39);border-bottom:1px solid rgba(194,247,213,.39);background:#282935}
+h1{margin:0 0 10px 3px;font-size:10px;letter-spacing:.075em;color:#c7ffe1}
+.choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;height:93px;padding:6px 0;border-radius:15px;border:1px solid rgba(223,250,226,.10);background:rgba(251,255,242,.035);color:#e7fff3;cursor:pointer}
+.choice:hover,.choice:focus-visible{outline:none;border-color:rgba(187,255,224,.44);background:linear-gradient(140deg,rgba(139,251,200,.14),rgba(219,150,202,.17))}
+.choice.selected{border-color:rgba(165,255,210,.65);background:rgba(116,216,171,.16)}
+.preview{display:grid;place-items:center;width:57px;height:50px}
+.shape{display:block;position:relative;border:2px solid #c4ffe0;border-radius:7px;background:linear-gradient(140deg,rgba(106,219,169,.22),rgba(210,159,227,.14))}
+.shape:before{content:'';position:absolute;left:3px;right:3px;top:6px;border-top:1px solid rgba(207,255,232,.60)}
+[data-size="small"] .shape{width:28px;height:23px}
+[data-size="medium"] .shape{width:40px;height:33px}
+[data-size="fullscreen"] .shape{width:54px;height:46px;border-color:#ffdbbc;box-shadow:0 0 12px rgba(255,192,146,.15)}
+.name{font-size:10px;font-weight:630}
+</style></head><body>
+<section class="bubble" aria-label="Taille de la fenêtre">
+<h1>TAILLE DE LA FENÊTRE</h1>
+<div class="choices">
+<button class="choice" data-size="small" title="Petite fenêtre · 960 × 640"><span class="preview"><span class="shape"></span></span><span class="name">Petit</span></button>
+<button class="choice" data-size="medium" title="Fenêtre moyenne · 1280 × 800"><span class="preview"><span class="shape"></span></span><span class="name">Moyen</span></button>
+<button class="choice" data-size="fullscreen" title="Plein écran natif"><span class="preview"><span class="shape"></span></span><span class="name">Plein écran</span></button>
+</div>
+</section><script src="size-picker.js"></script></body></html>
