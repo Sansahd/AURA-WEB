@@ -14,7 +14,10 @@ test('rail collapse preserves a clickable 18px handle and gives width back to we
 
   assert.match(main, /const SIDESTAGE_RAIL_MIN_W = 18;/);
   assert.match(main, /const rail = railCollapsed \? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;/);
-  assert.match(main, /railCollapsed = !railCollapsed/);
+  assert.match(main, /railCollapsed = Boolean\(next\)/);
+  assert.match(main, /function startRailHoverWatcher/);
+  assert.match(main, /railLastHover >= 950/);
+  assert.match(main, /railPinned = !railPinned/);
   assert.match(main, /sideStage\?\.hideAll\(\)/);
   assert.match(main, /emitState\(true\)/);
   assert.match(renderer, /railToggle\.onclick = \(\) => fire\(window\.quantic\.toggleRailCollapse\(\)\)/);
@@ -41,5 +44,6 @@ test('engine selection no longer reserves 326px across the browser width', () =>
   assert.doesNotMatch(renderer, /engineOpen \? 326/);
   assert.match(renderer, /window\.quantic\.searchEngineMenu\(/);
   assert.match(main, /showCompactSearchEngineMenu/);
-  assert.match(main, /Menu\.buildFromTemplate\(engines\.map/);
+  assert.match(main, /enginePopover\.loadFile\(/);
+  assert.match(main, /path\.join\(__dirname, 'renderer', 'engine-picker\.html'\)/);
 });
