@@ -703,7 +703,7 @@ function renderSideStage() {
   grip.setAttribute('aria-hidden', 'true');
   sideStageRail.append(grip);
 
-  const pinButton = el('button', 'gekko-rail-pin' + (state.railPinned ? ' is-pinned' : ''), state.railPinned ? '📌' : '♧');
+  const pinButton = el('button', 'gekko-rail-pin' + (state.railPinned ? ' is-pinned' : ''), '📌');
   pinButton.type = 'button';
   pinButton.title = state.railPinned ? 'Désépingler · rétraction automatique' : 'Épingler la barre ouverte';
   pinButton.setAttribute('aria-label', pinButton.title);
