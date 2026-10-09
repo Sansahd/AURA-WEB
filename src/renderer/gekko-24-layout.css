@@ -1,0 +1,242 @@
+/* GEKKO 2.4: three real rail placements.
+   Everything below targets shell chrome only; web content is never filtered. */
+:root{
+  --gekko-teal:#79efd0;
+  --gekko-amber:#f6bd91;
+  --gekko-lilac:#ba9bf1;
+  --gekko-rose:#e99bb7;
+  --gekko-blend:linear-gradient(135deg,rgba(92,232,174,.23),rgba(230,156,204,.15) 48%,rgba(244,192,133,.17));
+}
+
+/* Warm blended light, instead of opaque slate everywhere. */
+html,body,#shell{
+  background-color:#10171a!important;
+}
+body:not(.has-wallpaper){
+  background-image:
+    radial-gradient(ellipse 70% 65% at 7% 12%,rgba(87,202,145,.15),transparent 74%),
+    radial-gradient(ellipse 65% 70% at 95% 88%,rgba(213,134,178,.13),transparent 78%),
+    radial-gradient(ellipse 55% 55% at 72% 5%,rgba(255,190,119,.09),transparent 74%)!important;
+}
+#bottom-dock{
+  background:linear-gradient(112deg,rgba(15,34,32,.97),rgba(37,30,45,.965) 54%,rgba(39,31,30,.97))!important;
+  border-color:rgba(194,243,218,.27)!important;
+  box-shadow:inset 0 1px 0 rgba(255,244,237,.17),0 14px 32px rgba(0,0,0,.35)!important;
+}
+.address{
+  background:linear-gradient(105deg,rgba(117,239,187,.13),rgba(248,210,183,.09) 58%,rgba(187,141,248,.12))!important;
+  border-color:rgba(188,244,216,.30)!important;
+}
+.address:focus-within{
+  border-color:rgba(182,249,207,.69)!important;
+  box-shadow:0 0 0 2px rgba(115,222,159,.12),0 6px 24px rgba(0,0,0,.22)!important;
+}
+#sidestage-rail:not(.rail-minimized){
+  background:linear-gradient(168deg,rgba(22,43,41,.98),rgba(38,29,49,.97) 55%,rgba(51,36,34,.97))!important;
+  border-color:rgba(210,234,212,.26)!important;
+  box-shadow:-8px 0 30px rgba(0,0,0,.25),inset 1px 0 0 rgba(255,244,230,.10)!important;
+}
+#sidestage-rail .side-stage-app.active,
+#sidestage-rail .tab.active{
+  background:linear-gradient(135deg,rgba(107,239,180,.19),rgba(224,154,194,.15) 55%,rgba(252,187,113,.12))!important;
+  border-color:rgba(180,247,208,.49)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.17),0 0 16px rgba(148,224,173,.13)!important;
+}
+#sidestage-rail .gekko-rail-position{
+  display:grid;place-items:center;
+  width:42px;height:30px;flex:0 0 30px;
+  border:1px solid rgba(220,236,211,.19);
+  border-radius:11px;
+  background:var(--gekko-blend);
+  color:#f2e7ff;
+  font:600 20px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+#sidestage-rail .gekko-rail-position:hover{
+  background:linear-gradient(115deg,rgba(101,238,162,.26),rgba(234,154,206,.24),rgba(247,184,127,.22));
+  border-color:rgba(255,220,188,.49);
+}
+#sidestage-rail .gekko-rail-position:focus-visible{
+  outline:2px solid var(--gekko-teal);outline-offset:2px;
+}
+
+/* Gaps, including the whole empty tabs shelf and empty window-control shelf,
+   are actual Electron drag surfaces — not just the six-dot grip.
+   Buttons/tabs stay no-drag so clicking them remains interactive. */
+#sidestage-rail:not(.rail-minimized),
+#sidestage-rail:not(.rail-minimized) .gekko-tab-shelf,
+#sidestage-rail:not(.rail-minimized) .tabs,
+#sidestage-rail:not(.rail-minimized) .gekko-rail-window-controls,
+#sidestage-rail:not(.rail-minimized) .gekko-tab-shelf-label,
+#sidestage-rail:not(.rail-minimized) .side-stage-brand,
+#sidestage-rail:not(.rail-minimized) .gekko-window-grip{
+  -webkit-app-region:drag!important;
+  app-region:drag!important;
+  cursor:grab;
+}
+#sidestage-rail:not(.rail-minimized) button,
+#sidestage-rail:not(.rail-minimized) button *,
+#sidestage-rail:not(.rail-minimized) .tab,
+#sidestage-rail:not(.rail-minimized) .tab *{
+  -webkit-app-region:no-drag!important;
+  app-region:no-drag!important;
+  cursor:pointer;
+}
+
+/* LEFT: icon rail, optional embedded application panel, then native page. */
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="left"] #sidestage-rail.collapsed:not(.rail-minimized){
+  left:0!important;right:auto!important;
+  border-left:0!important;border-right:1px solid rgba(216,232,219,.24)!important;
+  border-radius:0 16px 16px 0!important;
+  box-shadow:8px 0 28px rgba(0,0,0,.24),inset -1px 0 0 rgba(255,255,255,.08)!important;
+}
+body[data-rail-position="left"] #sidestage-rail.rail-minimized{
+  left:0!important;right:auto!important;
+  border-left:0!important;border-right:1px solid rgba(160,245,205,.30)!important;
+  border-radius:0 9px 9px 0!important;
+}
+body[data-rail-position="left"] .home,
+body[data-rail-position="left"] .internal-page,
+body[data-rail-position="left"] .navigation-transition{
+  left:58px!important;right:0!important;
+}
+body[data-rail-position="left"].rail-minimized .home,
+body[data-rail-position="left"].rail-minimized .internal-page,
+body[data-rail-position="left"].rail-minimized .navigation-transition{
+  left:18px!important;right:0!important;
+}
+body[data-rail-position="left"] .ai-panel{left:auto!important;right:10px!important;}
+
+/* TOP: a horizontal tab strip that uses the same icons, applications and
+   trusted window controls; titles are visible when there is sufficient space. */
+body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="top"] #sidestage-rail.collapsed:not(.rail-minimized),
+body[data-rail-position="top"].chrome-hidden #sidestage-rail:not(.rail-minimized){
+  left:0!important;right:0!important;
+  top:0!important;bottom:auto!important;
+  width:100%!important;height:58px!important;min-height:58px!important;
+  flex-direction:row!important;align-items:center!important;
+  padding:5px 9px!important;gap:7px!important;
+  border-left:0!important;border-bottom:1px solid rgba(218,242,215,.27)!important;
+  border-radius:0 0 14px 14px!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.25),inset 0 -1px 0 rgba(255,237,231,.06)!important;
+  overflow:hidden!important;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-rail-toggle{
+  flex:0 0 30px!important;width:30px!important;min-width:30px!important;
+  height:34px!important;margin:0!important;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-rail-position{
+  flex:0 0 35px!important;width:35px!important;height:34px!important;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-window-grip{
+  flex:0 0 26px!important;width:26px!important;height:32px!important;margin:0!important;
+}
+body[data-rail-position="top"] #sidestage-rail .side-stage-collapse{
+  width:27px!important;min-width:27px!important;height:31px!important;margin:0!important;
+}
+body[data-rail-position="top"] #sidestage-rail .side-stage-brand,
+body[data-rail-position="top"] #sidestage-rail .gekko-tab-shelf-label{
+  display:none!important;
+}
+body[data-rail-position="top"] #sidestage-rail .side-stage-app,
+body[data-rail-position="top"] #sidestage-rail .side-stage-close{
+  flex:0 0 33px!important;width:33px!important;height:33px!important;
+  padding:5px!important;border-radius:10px!important;
+}
+body[data-rail-position="top"] #sidestage-rail .side-stage-icon{
+  max-height:23px!important;max-width:23px!important;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-tab-shelf{
+  flex:1 1 auto!important;min-width:70px!important;min-height:0!important;
+  width:auto!important;height:44px!important;
+  flex-direction:row!important;align-items:center!important;
+  margin:0!important;padding:0 5px!important;
+  border-top:0!important;border-left:1px solid rgba(195,245,222,.19)!important;
+  gap:5px!important;
+}
+body[data-rail-position="top"] #sidestage-rail .tabs{
+  display:flex!important;flex:1 1 auto!important;flex-direction:row!important;
+  align-items:center!important;gap:6px!important;
+  width:auto!important;min-width:0!important;max-width:none!important;
+  height:43px!important;
+  overflow-x:auto!important;overflow-y:hidden!important;
+}
+body[data-rail-position="top"] #sidestage-rail .tab{
+  flex:0 0 150px!important;width:150px!important;min-width:100px!important;
+  max-width:150px!important;height:35px!important;
+  padding:0 9px!important;
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  gap:7px!important;
+}
+body[data-rail-position="top"] #sidestage-rail .tab-title{
+  display:block!important;
+  flex:1 1 auto!important;
+  overflow:hidden!important;white-space:nowrap!important;text-overflow:ellipsis!important;
+  font-size:11px!important;
+}
+body[data-rail-position="top"] #sidestage-rail .tab-mark{font-size:12px!important}
+body[data-rail-position="top"] #sidestage-rail .tab-x{
+  position:static!important;opacity:.72!important;
+  border:0!important;background:transparent!important;
+  flex:0 0 15px!important;width:15px!important;height:18px!important;
+}
+body[data-rail-position="top"] #sidestage-rail .plus{
+  flex:0 0 34px!important;width:34px!important;height:33px!important;
+  margin:0!important;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-rail-window-controls{
+  flex:0 0 auto!important;flex-direction:row!important;
+  width:auto!important;min-width:0!important;
+  align-items:center!important;gap:3px!important;
+  margin:0!important;padding:0 0 0 6px!important;
+  border-top:0!important;border-left:1px solid rgba(206,249,227,.2)!important;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-rail-window-controls button{
+  flex:0 0 28px!important;width:28px!important;min-width:28px!important;
+  height:31px!important;margin:0!important;
+}
+body[data-rail-position="top"] .home,
+body[data-rail-position="top"] .internal-page,
+body[data-rail-position="top"] .navigation-transition{
+  top:58px!important;left:0!important;right:0!important;
+}
+body[data-rail-position="top"] .ai-panel{top:68px!important;right:10px!important}
+body[data-rail-position="top"] #sidestage-rail.rail-minimized,
+body[data-rail-position="top"].chrome-hidden #sidestage-rail.rail-minimized{
+  top:0!important;bottom:auto!important;left:0!important;right:0!important;
+  width:100%!important;height:18px!important;min-height:18px!important;
+  flex-direction:row!important;align-items:center!important;
+  padding:0 8px!important;
+  border-radius:0 0 9px 9px!important;
+  border-left:0!important;border-bottom:1px solid rgba(170,250,214,.28)!important;
+}
+body[data-rail-position="top"] #sidestage-rail.rail-minimized .gekko-rail-toggle{
+  width:58px!important;height:18px!important;flex:0 0 58px!important;
+  border-radius:0 0 9px 9px!important;margin:0!important;padding:0!important;
+  font-size:14px!important;
+}
+body[data-rail-position="top"].rail-minimized .home,
+body[data-rail-position="top"].rail-minimized .internal-page,
+body[data-rail-position="top"].rail-minimized .navigation-transition{
+  top:18px!important;left:0!important;right:0!important;
+}
+body[data-rail-position="top"].rail-minimized .ai-panel{top:28px!important}
+
+@media(max-width:1120px){
+  body[data-rail-position="top"] #sidestage-rail .tab{
+    flex:0 0 44px!important;width:44px!important;min-width:44px!important;
+    justify-content:center!important;
+  }
+  body[data-rail-position="top"] #sidestage-rail .tab-title{display:none!important}
+  body[data-rail-position="top"] #sidestage-rail .tab-x{
+    position:absolute!important;right:-2px!important;top:-3px!important;
+  }
+}
+@media(max-width:920px){
+  body[data-rail-position="top"] #sidestage-rail .side-stage-app:nth-of-type(n+6){display:none!important}
+}
+@media(prefers-reduced-motion:reduce){
+  #sidestage-rail .tab{transition:none!important}
+}
