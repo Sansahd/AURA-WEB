@@ -115,6 +115,7 @@ let railDragUntil = 0;
 let railHoverTimer = null;
 let enginePopover = null;
 let enginePopoverReady = false;
+let sizePopover = null;
 let revealUntil = 0;
 let immersiveTimer = null;
 let tabLifecycleTimer = null;
@@ -1080,7 +1081,7 @@ function showCompactSearchEngineMenu(anchorX = 180, anchorY = 320) {
   if (!enginePopover || enginePopover.isDestroyed()) {
     enginePopoverReady = false;
     enginePopover = new BrowserWindow({
-      parent: win, modal: false, width: 326, height: 322, show: false,
+      parent: win, modal: false, width: 276, height: 216, show: false,
       frame: false, transparent: true, resizable: false, movable: false,
       minimizable: false, maximizable: false, skipTaskbar: true,
       hasShadow: true, backgroundColor: '#00000000',
@@ -1105,10 +1106,10 @@ function showCompactSearchEngineMenu(anchorX = 180, anchorY = 320) {
   }
   const bounds = win.getBounds();
   const display = screen.getDisplayMatching(bounds).workArea;
-  const x = Math.min(display.x + display.width - 326,
+  const x = Math.min(display.x + display.width - 276,
     Math.max(display.x, bounds.x + Math.round(Number(anchorX) || 180) - 10));
-  const y = Math.min(display.y + display.height - 322,
-    Math.max(display.y, bounds.y + Math.round(Number(anchorY) || 320) - 308));
+  const y = Math.min(display.y + display.height - 216,
+    Math.max(display.y, bounds.y + Math.round(Number(anchorY) || 320) - 202));
   enginePopover.setPosition(x, y);
   // The dedicated bubble is its own compact, rounded, trusted window: it never
   // changes the entire WebContentsView's bounds or pushes the page upward.
@@ -1181,30 +1182,86 @@ function showRailPositionMenu() {
   return true;
 }
 
-function showWindowSizes() {
-  if (!win || win.isDestroyed()) return;
-  const options = [
-    { label: 'Compacte · 960 × 640', width: 960, height: 640 },
-    { label: 'Moyenne · 1280 × 800', width: 1280, height: 800 },
-    { label: 'Grande · 1600 × 900', width: 1600, height: 900 }
-  ];
-  const menu = Menu.buildFromTemplate(options.map(({ label, width, height }) => ({
-    label,
-    click() {
-      const display = screen.getDisplayMatching(win.getBounds()).workArea;
-      const targetW = Math.min(width, display.width);
-      const targetH = Math.min(height, display.height);
-      if (win.isMaximized()) win.unmaximize();
-      win.setBounds({
-        x: display.x + Math.round((display.width - targetW) / 2),
-        y: display.y + Math.round((display.height - targetH) / 2),
-        width: targetW, height: targetH
-      });
-      layout();
-      emitState(true);
-    }
-  })));
-  menu.popup({ window: win });
+function closeSizePopover() {
+  if (sizePopover && !sizePopover.isDestroyed()) sizePopover.hide();
+}
+function applyWindowSize(choice) {
+  if (!win || win.isDestroyed()) return false;
+  if (choice === 'fullscreen') {
+    win.setFullScreen(true);
+    closeSizePopover();
+    emitState(true);
+    return true;
+  }
+  const sizes = {
+    small: [960,640],
+    medium: [1280,800]
+  };
+  const size = sizes[choice];
+  if (!size) return false;
+  const resize = () => {
+    if (!win || win.isDestroyed()) return;
+    if (win.isMaximized()) win.unmaximize();
+    const display = screen.getDisplayMatching(win.getBounds()).workArea;
+    const width = Math.min(size[0], display.width);
+    const height = Math.min(size[1], display.height);
+    win.setBounds({
+      x: display.x + Math.round((display.width - width) / 2),
+      y: display.y + Math.round((display.height - height) / 2),
+      width, height
+    });
+    layout();
+    emitState(true);
+  };
+  if (win.isFullScreen()) {
+    win.once('leave-full-screen', resize);
+    win.setFullScreen(false);
+  } else resize();
+  closeSizePopover();
+  return true;
+}
+function showWindowSizes(anchorX = 160, anchorY = 250) {
+  if (!win || win.isDestroyed()) return false;
+  if (sizePopover?.isVisible()) { closeSizePopover(); return true; }
+  if (!sizePopover || sizePopover.isDestroyed()) {
+    sizePopover = new BrowserWindow({
+      parent: win, modal: false, width: 300, height: 168, show: false,
+      frame: false, transparent: true, resizable: false, movable: false,
+      minimizable: false, maximizable: false, skipTaskbar: true,
+      hasShadow: true, backgroundColor: '#00000000',
+      webPreferences: {
+        preload: path.join(__dirname, 'size-picker-preload.cjs'),
+        contextIsolation: true, nodeIntegration: false, sandbox: true
+      }
+    });
+    const picker = sizePopover;
+    picker.setMenuBarVisibility(false);
+    picker.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    picker.on('blur', () => { if (!picker.isDestroyed()) picker.hide(); });
+    picker.on('closed', () => { if (sizePopover === picker) sizePopover = null; });
+    picker.webContents.on('did-finish-load', () => {
+      if (sizePopover === picker && !picker.isDestroyed()) picker.show();
+    });
+  }
+  const bounds = win.getBounds();
+  const display = screen.getDisplayMatching(bounds).workArea;
+  const position = store?.settings().railPosition || 'right';
+  const requestedX = Number(anchorX) || 160;
+  const requestedY = Number(anchorY) || 250;
+  const px = position === 'right' ? bounds.x + requestedX - 296
+    : position === 'left' ? bounds.x + requestedX + 40
+    : bounds.x + requestedX - 135;
+  const py = position === 'top' ? bounds.y + requestedY + 35
+    : bounds.y + requestedY - 145;
+  const x = Math.max(display.x, Math.min(display.x + display.width - 300, Math.round(px)));
+  const y = Math.max(display.y, Math.min(display.y + display.height - 168, Math.round(py)));
+  sizePopover.setPosition(x, y);
+  const current = win.isFullScreen() ? 'fullscreen'
+    : (win.getBounds().width <= 1070 ? 'small' : 'medium');
+  sizePopover.loadFile(path.join(__dirname, 'renderer', 'size-picker.html'), {
+    query: { active: current }
+  }).catch(() => closeSizePopover());
+  return true;
 }
 
 function menuForPlus() {
@@ -1608,6 +1665,15 @@ ipcMain.on('gekko-picker-dismiss', (event) => {
   if (enginePopover && !enginePopover.isDestroyed() && event.sender === enginePopover.webContents)
     closeEnginePopover();
 });
+ipcMain.on('gekko-size-choice', (event, size) => {
+  if (!sizePopover || sizePopover.isDestroyed() || event.sender !== sizePopover.webContents) return;
+  if (!['small', 'medium', 'fullscreen'].includes(size)) return;
+  applyWindowSize(size);
+});
+ipcMain.on('gekko-size-dismiss', (event) => {
+  if (sizePopover && !sizePopover.isDestroyed() && event.sender === sizePopover.webContents)
+    closeSizePopover();
+});
 ipcMain.handle('get-state', () => state());
 ipcMain.handle('navigate', async (_event, value) => loadTab(activeTab(), value));
 ipcMain.handle('prewarm-site', (_event, url) => prewarmPopularSite(url));
@@ -1622,6 +1688,7 @@ ipcMain.handle('close-tab', (_event, id) => closeTab(Number(id)));
 ipcMain.handle('plus-menu', () => menuForPlus());
 ipcMain.handle('search-engine-menu', (_event, x, y) => showCompactSearchEngineMenu(x, y));
 ipcMain.handle('rail-position-menu', () => showRailPositionMenu());
+ipcMain.handle('window-size-menu', (_event, x, y) => showWindowSizes(x, y));
 ipcMain.handle('toggle-rail-collapse', () => {
   // Chevron = manual expand/collapse. It never changes the pin preference.
   if (railPinned) railPinned = false;
