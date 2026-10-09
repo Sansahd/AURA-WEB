@@ -241,8 +241,13 @@ test('search engine picker is a compact native popup and never opens a full-widt
   assert.match(renderer, /window\.quantic\.searchEngineMenu\(/);
   assert.doesNotMatch(renderer, /engineOpen \? 326/);
   assert.match(main, /function showCompactSearchEngineMenu/);
-  assert.match(main, /Menu\.buildFromTemplate\(engines\.map/);
-  assert.match(main, /menu\.popup\(\{/);
+  assert.match(main, /enginePopover\.loadFile\(/);
+  assert.match(main, /parent: win, modal: false/);
+  assert.match(main, /event\.sender !== enginePopover\.webContents/);
+  const picker = read('src/renderer/engine-picker.html');
+  assert.match(picker, /class="bubble"/);
+  assert.match(picker, /class="grid"/);
+  assert.match(picker, /engine-picker\.js/);
   assert.match(preload, /searchEngineMenu: \(x,y\) => ipcRenderer\.invoke\('search-engine-menu',x,y\)/);
   assert.match(firewall, /'search-engine-menu': \(args\)/);
   assert.match(main, /BOTTOM_DOCK_H \+ chromeOverlayHeight/);
