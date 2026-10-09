@@ -684,7 +684,7 @@ function renderSideStage() {
 
   const railToggle = el('button', 'gekko-rail-toggle', minimized ? '‹' : '›');
   railToggle.type = 'button';
-  railToggle.title = minimized ? 'Déployer la barre latérale' : 'Rétracter la barre latérale';
+  railToggle.title = state.railPinned ? 'Rétraction automatique (désépingler)' : 'Garder la barre latérale déployée';
   railToggle.setAttribute('aria-label', railToggle.title);
   railToggle.onclick = () => fire(window.quantic.toggleRailCollapse());
   sideStageRail.append(railToggle);
@@ -787,8 +787,8 @@ function render() {
   const maximizeControl = windowControls?.querySelector('[data-win="maximize"]');
   if (maximizeControl) {
     const maximized = Boolean(state.windowMaximized);
-    const label = maximized ? 'Restaurer la taille de la fenêtre' : 'Agrandir la fenêtre';
-    maximizeControl.textContent = maximized ? '❐' : '□';
+    const label = maximized ? 'Choisir une des trois tailles · clic droit pour restaurer' : 'Choisir une des trois tailles de fenêtre';
+    maximizeControl.textContent = '▣';
     maximizeControl.title = label;
     maximizeControl.setAttribute('aria-label', label);
   }
@@ -847,7 +847,7 @@ searchEngineButton.onclick = () => {
   const rect = searchEngineButton.getBoundingClientRect();
   fire(window.quantic.searchEngineMenu(
     Math.max(0, Math.round(rect.left)),
-    Math.max(0, Math.round(rect.top - 280))
+    Math.max(0, Math.round(rect.top))
   ));
 };
 document.querySelectorAll('[data-search-engine]').forEach((button) => {
@@ -868,7 +868,10 @@ $('#ai').onclick = () => fire(window.quantic.toggleAi());
 $('#ai-close').onclick = () => fire(window.quantic.toggleAi());
 
 document.querySelectorAll('[data-win]').forEach((button) => {
-  button.onclick = () => fire(window.quantic.windowControl(button.dataset.win));
+  button.onclick = () => fire(window.quantic.windowControl(button.dataset.win === 'maximize' ? 'sizes' : button.dataset.win));
+  if (button.dataset.win === 'maximize') {
+    button.oncontextmenu = (event) => { event.preventDefault(); fire(window.quantic.windowControl('maximize')); };
+  }
 });
 
 address.oninput = () => {
