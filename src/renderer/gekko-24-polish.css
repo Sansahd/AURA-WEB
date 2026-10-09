@@ -99,3 +99,171 @@ body.chrome-hidden #bottom-dock{transform:translate3d(0,80px,0)}
 @media(prefers-reduced-motion:reduce){
   .tab,.tab-x{transition:none!important}
 }
+
+
+/* 2.4: vertical open tabs beneath SideStage's fixed application shortcuts.
+   No external favicon requests: deterministic local host monograms only. */
+html,body{background-color:#07131b}
+#shell{background-color:#07131b}
+#chrome .tabs{display:none}
+#chrome .plus{display:none}
+#sidestage-rail,
+#sidestage-rail.collapsed{
+  top:42px;
+  right:0;
+  bottom:72px;
+  width:58px;
+  padding:8px 5px;
+  display:flex;
+  align-items:center;
+  flex-direction:column;
+  gap:6px;
+  border-left:1px solid rgba(181,255,220,.14);
+  border-radius:16px 0 0 16px;
+  background:linear-gradient(180deg,rgba(9,24,28,.98),rgba(5,14,20,.96));
+  box-shadow:-8px 0 26px rgba(0,0,0,.22),inset 1px 0 0 rgba(255,255,255,.05);
+  backdrop-filter:none;
+  overflow:visible;
+  transform:none;
+}
+body.private-mode #sidestage-rail{
+  opacity:1;
+  pointer-events:auto;
+  transform:none;
+}
+body.chrome-hidden #sidestage-rail{
+  top:0;
+  bottom:6px;
+}
+#sidestage-rail .side-stage-brand{
+  height:16px;
+  font-size:8px;
+  letter-spacing:.07em;
+  margin:0;
+  color:rgba(205,245,222,.48);
+}
+#sidestage-rail .side-stage-collapse{
+  height:21px;
+  width:44px;
+  min-width:44px;
+  border-radius:9px;
+  font-size:14px;
+}
+#sidestage-rail .side-stage-app,
+#sidestage-rail .side-stage-close{
+  flex:0 0 42px;
+  width:42px;
+  height:42px;
+  border-radius:13px;
+}
+#sidestage-rail .gekko-tab-shelf{
+  min-height:70px;
+  width:100%;
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  align-items:center;
+  gap:7px;
+  padding-top:8px;
+  margin-top:4px;
+  border-top:1px solid rgba(189,255,229,.14);
+  overflow:hidden;
+}
+#sidestage-rail .gekko-tab-shelf-label{
+  font-size:8px;
+  line-height:12px;
+  font-weight:700;
+  letter-spacing:.07em;
+  color:rgba(195,250,224,.55);
+}
+#sidestage-rail .tabs{
+  display:flex;
+  flex:1 1 auto;
+  align-items:center;
+  flex-direction:column;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  min-height:0;
+  gap:7px;
+  overflow-x:hidden;
+  overflow-y:auto;
+  scrollbar-width:none;
+  padding:2px 0;
+}
+#sidestage-rail .tab{
+  position:relative;
+  flex:0 0 40px;
+  width:42px;
+  height:40px;
+  min-width:42px;
+  max-width:42px;
+  min-height:40px;
+  padding:0;
+  margin:0;
+  display:grid;
+  place-items:center;
+  border-radius:13px;
+}
+#sidestage-rail .tab-title{display:none}
+#sidestage-rail .tab-mark{
+  font-size:16px;
+  font-weight:730;
+  color:rgba(239,255,245,.9);
+  line-height:1;
+  text-align:center;
+  pointer-events:none;
+}
+#sidestage-rail .tab.active{
+  border-color:rgba(155,255,206,.56)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 0 13px rgba(111,240,194,.12)!important;
+}
+#sidestage-rail .tab.active::before{
+  content:"";
+  position:absolute;
+  left:-4px;
+  height:17px;
+  width:2px;
+  background:#9fffda;
+  border-radius:4px;
+}
+#sidestage-rail .tab-x{
+  position:absolute;
+  right:-2px;
+  top:-3px;
+  display:grid;
+  place-items:center;
+  width:16px;
+  height:16px;
+  padding:0;
+  border-radius:50%;
+  background:#132029;
+  border:1px solid rgba(222,255,237,.25);
+  color:#fff;
+  opacity:0;
+  font-size:13px;
+  line-height:14px;
+}
+#sidestage-rail .tab:hover .tab-x,
+#sidestage-rail .tab:focus-visible .tab-x{
+  opacity:1;
+}
+#sidestage-rail .plus{
+  flex:0 0 34px;
+  margin:2px 0 0;
+  height:34px;
+  width:40px;
+  border-radius:12px;
+  font-size:22px;
+  border:1px dashed rgba(170,255,221,.28);
+  background:rgba(122,255,198,.045);
+}
+#sidestage-rail .plus:hover{
+  background:rgba(137,255,206,.14);
+  border-color:rgba(170,255,221,.53);
+}
+@media(max-height:650px){
+  #sidestage-rail{gap:3px}
+  #sidestage-rail .side-stage-app{height:35px;flex-basis:35px}
+  #sidestage-rail .gekko-tab-shelf{padding-top:4px;gap:3px}
+}
