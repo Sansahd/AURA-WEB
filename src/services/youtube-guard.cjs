@@ -28,7 +28,7 @@ function youtubeGuardSource() {
       return true;
     }
 
-    const PLAYER_ENDPOINT = /\\/youtubei\\/v1\\/player(?:[/?#]|$)/i;
+    const PLAYER_ENDPOINT = /\/youtubei\/v1\/player(?:[/?#]|$)/i;
     const AD_KEYS = new Set([
       'adPlacements',
       'playerAds',
