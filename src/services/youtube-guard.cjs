@@ -654,23 +654,24 @@ function youtubeGuardSource() {
           state.adSince = 0;
           // Direct is an optional alternate player: if native YouTube still works,
           // do not alarm the user with a failure banner after an ad is skipped.
-          if (state.manualDirectRetry) setDirectStatus(result.error || 'Flux direct indisponible');
+          const wasManual = state.manualDirectRetry;
+          if (wasManual) setDirectStatus(result.error || 'Flux direct indisponible');
           else setDirectStatus();
           state.manualDirectRetry = false;
           const button = document.getElementById('gekko-direct-button');
-          if (button) {
-            const original = button.textContent;
+          if (button && wasManual) {
             button.textContent = 'DIRECT ✕';
             button.title = String(result.error || 'Flux direct indisponible');
             setTimeout(() => {
               if (!button.isConnected) return;
-              button.textContent = original || 'G·DIRECT';
-              button.title = 'Lire avec GEKKO Direct';
-              state.directRequested = false;
+              button.textContent = 'G·DIRECT';
+              button.title = 'Essayer le lecteur vidéo alternatif';
             }, 2600);
-          } else {
-            state.directRequested = false;
+          } else if (button) {
+            button.textContent = 'G·DIRECT';
+            button.title = 'Essayer le lecteur vidéo alternatif';
           }
+          state.directRequested = false;
         }
       },
       resetDirect(cooldownMs = 0) {
