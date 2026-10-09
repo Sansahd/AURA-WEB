@@ -37,7 +37,7 @@ test('native external-page and SideStage geometry respects the position',()=>{
  assert.match(main,/sideStage\?\.layout\(\{/);
  assert.match(main,/position === 'top'/);
  assert.match(main,/position === 'left'/);
- assert.match(main,/position === 'right'/);
+ assert.match(main,/railPosition === 'right'/);
 });
 
 test('position-specific top/left/right rail CSS protects page geometry',()=>{
