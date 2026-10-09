@@ -8,6 +8,7 @@ const tabNodes = new Map();
 
 const $ = (selector) => document.querySelector(selector);
 const tabsEl = $('#tabs');
+const plusButton = $('#plus');
 const address = $('#address');
 const home = $('#home');
 const internalPage = $('#internal-page');
@@ -222,7 +223,7 @@ function renderTabs() {
     try {
       if (String(tab.url || '').startsWith('quantic://')) mark = '⌂';
       else {
-        const hostname = new URL(tab.url).hostname.replace(/^www\\./, '');
+        const hostname = new URL(tab.url).hostname.replace(/^www\./, '');
         mark = hostname.includes('youtube.com') ? '▶' : (hostname[0]?.toUpperCase() || '◈');
       }
     } catch {}
@@ -717,9 +718,8 @@ function renderSideStage() {
   shelf.setAttribute('aria-label', 'Onglets ouverts');
   shelf.append(el('div', 'gekko-tab-shelf-label', 'PAGES'));
   shelf.append(tabsEl);
-  const plus = $('#plus');
-  plus.title = 'Nouvel onglet';
-  shelf.append(plus);
+  plusButton.title = 'Nouvel onglet';
+  shelf.append(plusButton);
   sideStageRail.append(shelf);
 }
 
