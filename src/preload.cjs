@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('quantic', {
   plusMenu: () => ipcRenderer.invoke('plus-menu'), mainMenu: () => ipcRenderer.invoke('main-menu'),
   searchEngineMenu: (x,y) => ipcRenderer.invoke('search-engine-menu',x,y),
   toggleRailCollapse: () => ipcRenderer.invoke('toggle-rail-collapse'),
+  railPositionMenu: () => ipcRenderer.invoke('rail-position-menu'),
   back: () => ipcRenderer.invoke('back'), forward: () => ipcRenderer.invoke('forward'), reload: () => ipcRenderer.invoke('reload'), stop: () => ipcRenderer.invoke('stop'),
   home: () => ipcRenderer.invoke('home'), toggleFavorite: () => ipcRenderer.invoke('toggle-favorite'), toggleAi: () => ipcRenderer.invoke('toggle-ai'),
   aiAction: (action, prompt='') => ipcRenderer.invoke('ai-action', action, prompt),
