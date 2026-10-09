@@ -27,7 +27,7 @@ const sideStageRail = $('#sidestage-rail');
 const searchEngineButton = $('#search-engine-button');
 const searchEngineMenu = $('#search-engine-menu');
 const searchEngineMark = $('#search-engine-mark');
-const searchEngineMarkText = $('#search-engine-mark-text');
+const searchEngineMarkImage = $('#search-engine-mark-image');
 const searchEngineLabel = $('#search-engine-label');
 const siteSuggestions = $('#site-suggestions');
 let siteMatches = [];
@@ -55,7 +55,12 @@ function currentSearchEngine() {
 function renderSearchEngineControl() {
   const key = currentSearchEngine();
   const meta = SEARCH_ENGINES[key];
-  if (searchEngineMarkText) searchEngineMarkText.textContent = meta.mark;
+  // Reuse the same bundled SVG logos as the engine selector (no network requests).
+  const markSrc = key === 'gekko' ? '../assets/quantic-glide-mark.svg'
+    : 'engine-icons/' + (key === 'tor' ? 'torbrowser' : key) + '.svg';
+  if (searchEngineMarkImage && searchEngineMarkImage.getAttribute('src') !== markSrc) {
+    searchEngineMarkImage.setAttribute('src', markSrc);
+  }
   if (searchEngineLabel) searchEngineLabel.textContent = meta.label;
   if (searchEngineButton) {
     searchEngineButton.dataset.engine = key;
@@ -840,7 +845,6 @@ fire(window.quantic.state().then(acceptState));
 
 $('#logo').onclick = () => fire(window.quantic.home());
 $('#home-button').onclick = () => fire(window.quantic.home());
-$('#discover').onclick = () => fire(window.quantic.navigate('Découvrir le web'));
 $('#bookmarks').onclick = () => fire(window.quantic.newTab('quantic://favorites'));
 $('#downloads').onclick = () => fire(window.quantic.navigate('https://mediumorchid-badger-314305.hostingersite.com/downloads/#gekko'));
 $('#apps-button').onclick = () => appsPanel?.classList.toggle('hidden');
