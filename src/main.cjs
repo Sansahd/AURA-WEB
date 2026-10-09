@@ -1051,6 +1051,39 @@ function startImmersionWatcher() {
   immersiveTimer.unref?.();
 }
 
+function showCompactSearchEngineMenu(anchorX = 180, anchorY = 320) {
+  if (!win || win.isDestroyed() || !store) return false;
+  const active = normalizeEngine(store.settings().searchEngine);
+  const engines = [
+    ['gekko', 'GEKKO Search'],
+    ['duckduckgo', 'DuckDuckGo'],
+    ['qwant', 'Qwant'],
+    ['startpage', 'Startpage'],
+    ['brave', 'Brave Search'],
+    ['searxng', 'SearXNG'],
+    ['tor', 'Tor · Veil']
+  ];
+  const menu = Menu.buildFromTemplate(engines.map(([id, label]) => ({
+    label,
+    type: 'radio',
+    checked: active === id,
+    click() {
+      store.setSetting('searchEngine', id);
+      emitState(true);
+      win?.webContents?.send('focus-address');
+    }
+  })));
+  const [width, height] = win.getContentSize();
+  // Native context menu floats only near the engine icon, rather than
+  // resizing the entire tab view for a 326px-tall HTML overlay.
+  menu.popup({
+    window: win,
+    x: Math.max(0, Math.min(Math.round(Number(anchorX) || 180), width - 240)),
+    y: Math.max(0, Math.min(Math.round(Number(anchorY) || 320), height - 280))
+  });
+  return true;
+}
+
 function menuForPlus() {
   Menu.buildFromTemplate([
     { label: 'Nouvel onglet', accelerator: 'Ctrl+T', click: () => createTab(HOME, true) },
@@ -1447,6 +1480,14 @@ ipcMain.handle('new-tab', (_event, url = HOME) => createTab(url, true));
 ipcMain.handle('activate-tab', (_event, id) => activateTab(Number(id)));
 ipcMain.handle('close-tab', (_event, id) => closeTab(Number(id)));
 ipcMain.handle('plus-menu', () => menuForPlus());
+ipcMain.handle('search-engine-menu', (_event, x, y) => showCompactSearchEngineMenu(x, y));
+ipcMain.handle('toggle-rail-collapse', () => {
+  railCollapsed = !railCollapsed;
+  if (railCollapsed) sideStage?.hideAll();
+  layout();
+  emitState(true);
+  return railCollapsed;
+});
 ipcMain.handle('main-menu', () => mainMenu());
 ipcMain.handle('extension-install', async () => {
   if (!extensionManager || isPrivateMode()) return { ok: false, error: 'extensions_unavailable_in_private_mode' };
