@@ -27,6 +27,7 @@ test('YouTube Direct failure restores native video and permits manual retry', ()
         children.forEach((child) => { child.isConnected = true; });
       },
       prepend(child) { this.append(child); },
+      appendChild(child) { this.append(child); return child; },
       remove() { this.isConnected = false; },
       addEventListener(name, callback) { this.listeners ||= {}; this.listeners[name] = callback; }
     };
