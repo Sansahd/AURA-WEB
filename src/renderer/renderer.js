@@ -217,7 +217,14 @@ function createTabNode(tab) {
   close.title = 'Fermer';
   close.onclick = (event) => { event.stopPropagation(); fire(window.quantic.closeTab(tab.id)); };
   button.onclick = () => fire(window.quantic.activateTab(tab.id));
-  button.append(mark, title, sound, close);
+  const favicon = el('img', 'tab-favicon');
+  favicon.alt = '';
+  favicon.decoding = 'async';
+  favicon.referrerPolicy = 'no-referrer';
+  favicon.hidden = true;
+  favicon.onerror = () => { favicon.hidden = true; mark.hidden = false; };
+  button.append(favicon, mark, title, sound, close);
+  button._favicon = favicon;
   button._sound = sound;
   button._title = title;
   button._mark = mark;
@@ -254,11 +261,23 @@ function renderTabs() {
     } catch {}
     node.title = title;
     node.setAttribute('aria-label', title);
+    const favicon = typeof tab.favicon === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(tab.favicon)
+      ? tab.favicon : '';
+    if (node._favicon.dataset.source !== favicon) {
+      node._favicon.dataset.source = favicon;
+      node._favicon.hidden = !favicon;
+      if (favicon) node._favicon.src = favicon;
+      else node._favicon.removeAttribute('src');
+    }
+    node._mark.hidden = Boolean(favicon) && !node._favicon.hidden;
     if (node._mark.textContent !== mark) node._mark.textContent = mark;
     if (node._title.textContent !== title) node._title.textContent = title;
     tabsEl.append(node);
     if (tab.id === state.activeId) activeNode = node;
   }
+
+  // The + belongs to the scrollable tab strip, immediately after the last tab.
+  tabsEl.append(plusButton);
 
   for (const [id, node] of tabNodes) {
     if (!seen.has(id)) {
@@ -815,7 +834,7 @@ function renderSideStage() {
   shelf.append(el('div', 'gekko-tab-shelf-label', 'PAGES'));
   shelf.append(tabsEl);
   plusButton.title = 'Nouvel onglet';
-  shelf.append(plusButton);
+  tabsEl.append(plusButton);
   sideStageRail.append(shelf);
 
   // Move the real Electron window controls, retaining their existing IPC handlers.
