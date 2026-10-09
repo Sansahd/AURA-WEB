@@ -203,11 +203,22 @@ function createTabNode(tab) {
   button.type = 'button';
   const mark = el('span', 'tab-mark', '◈');
   const title = el('span', 'tab-title');
+  const sound = el('span', 'tab-sound no-drag', '🔊');
+  sound.setAttribute('role', 'button');
+  sound.setAttribute('tabindex', '0');
+  sound.onclick = (event) => { event.stopPropagation(); fire(window.quantic.toggleTabMute(tab.id)); };
+  sound.onkeydown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault(); event.stopPropagation();
+      fire(window.quantic.toggleTabMute(tab.id));
+    }
+  };
   const close = el('span', 'tab-x', '×');
   close.title = 'Fermer';
   close.onclick = (event) => { event.stopPropagation(); fire(window.quantic.closeTab(tab.id)); };
   button.onclick = () => fire(window.quantic.activateTab(tab.id));
-  button.append(mark, title, close);
+  button.append(mark, title, sound, close);
+  button._sound = sound;
   button._title = title;
   button._mark = mark;
   return button;
@@ -225,6 +236,13 @@ function renderTabs() {
     }
     node.classList.toggle('active', tab.id === state.activeId);
     node.classList.toggle('loading', Boolean(tab.loading));
+    node.classList.toggle('audible', Boolean(tab.audible));
+    node.classList.toggle('muted', Boolean(tab.muted));
+    node._sound.textContent = tab.muted ? '🔇' : '🔊';
+    node._sound.title = tab.muted ? 'Rétablir le son de cet onglet' : 'Couper le son de cet onglet';
+    node._sound.setAttribute('aria-label', node._sound.title);
+    node._sound.setAttribute('aria-pressed', String(Boolean(tab.muted)));
+    node._sound.tabIndex = tab.audible || tab.muted ? 0 : -1;
     const title = tab.title || 'Nouvel onglet';
     let mark = '◈';
     try {
@@ -843,23 +861,23 @@ fire(window.quantic.state().then(acceptState));
 
 $('#logo').onclick = () => fire(window.quantic.home());
 $('#home-button').onclick = () => fire(window.quantic.home());
-$('#bookmarks').onclick = () => fire(window.quantic.newTab('quantic://favorites'));
+$('#bookmarks').onclick = () => fire(window.quantic.togglePanelTab('quantic://favorites'));
 $('#downloads').onclick = () => fire(window.quantic.navigate('https://mediumorchid-badger-314305.hostingersite.com/downloads/#gekko'));
 $('#apps-button').onclick = () => appsPanel?.classList.toggle('hidden');
 $('#home-tool-apps').onclick = () => appsPanel?.classList.toggle('hidden');
 $('#home-tool-home').onclick = () => fire(window.quantic.home());
-$('#home-tool-settings').onclick = () => fire(window.quantic.newTab('quantic://settings'));
+$('#home-tool-settings').onclick = () => fire(window.quantic.togglePanelTab('quantic://settings'));
 $('#apps-close').onclick = () => appsPanel?.classList.add('hidden');
 document.querySelectorAll('[data-app-url]').forEach((button) => {
   button.onclick = () => {
     appsPanel?.classList.add('hidden');
-    fire(window.quantic.newTab(button.dataset.appUrl));
+    fire(window.quantic.togglePanelTab(button.dataset.appUrl));
   };
 });
 $('#plus').onclick = () => fire(window.quantic.newTab());
 $('#plus').oncontextmenu = (event) => { event.preventDefault(); fire(window.quantic.plusMenu()); };
 $('#menu').onclick = () => fire(window.quantic.mainMenu());
-$('#persona').onclick = () => fire(window.quantic.newTab('quantic://settings'));
+$('#persona').onclick = () => fire(window.quantic.togglePanelTab('quantic://settings'));
 
 function closeSearchEngineMenu() {
   searchEngineMenu.classList.add('hidden');
@@ -973,11 +991,11 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
       return;
     }
     if (action === 'secure-tabs') {
-      fire(window.quantic.newTab('quantic://settings'));
+      fire(window.quantic.togglePanelTab('quantic://settings'));
       return;
     }
     if (action === 'fast-light') {
-      fire(window.quantic.navigate('quantic://settings'));
+      fire(window.quantic.togglePanelTab('quantic://settings'));
       return;
     }
   };
