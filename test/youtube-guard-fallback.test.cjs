@@ -64,7 +64,7 @@ test('YouTube Direct failure restores native video and permits manual retry', ()
     document,
     location,
     URL,
-    window: {},
+    window: { addEventListener() {} },
     Date: class extends Date { static now() { return now; } },
     MutationObserver: class { observe() {} disconnect() {} },
     setInterval() { return 1; },
