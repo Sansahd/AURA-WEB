@@ -682,7 +682,7 @@ function renderSideStage() {
   // A single, always available draggable grip replaces the entire top bar.
   // Window control buttons stay outside this draggable surface.
   const grip = el('div', 'gekko-window-grip no-drag', '⠿');
-  grip.title = 'Déplacer la fenêtre · double-clic pour agrandir';
+  grip.title = 'Déplacer la fenêtre';
   grip.setAttribute('aria-hidden', 'true');
   sideStageRail.append(grip);
 
