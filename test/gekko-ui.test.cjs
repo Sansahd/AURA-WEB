@@ -78,7 +78,7 @@ test('new tab matches the approved cinematic GEKKO browser composition', () => {
   assert.match(html, /Private Search/);
   assert.match(html, /Secure Tabs/);
   assert.match(html, /Fast &amp; Light/);
-  assert.match(html, /Explore More/);
+  assert.doesNotMatch(html, /Explore More/);
 
   assert.match(css, /clip-path/);
   assert.match(css, /drop-shadow/);
@@ -114,10 +114,12 @@ test('Apps button opens a real Quantic launcher', () => {
 });
 
 
-test('Discover actions navigate immediately', () => {
+test('redundant Discover shortcuts are not present', () => {
   const renderer = read('src/renderer/renderer.js');
-  const matches = renderer.match(/window\.quantic\.navigate\('Découvrir le web'\)/g) || [];
-  assert.ok(matches.length >= 2);
+  const html = read('src/renderer/index.html');
+  assert.doesNotMatch(html, /id="discover"/);
+  assert.doesNotMatch(html, /data-home-action="explore-more"/);
+  assert.doesNotMatch(renderer, /navigate\('Découvrir le web'\)/);
 });
 
 
