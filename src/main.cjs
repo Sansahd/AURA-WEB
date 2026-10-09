@@ -672,7 +672,9 @@ function createView(tab) {
   tab.sleptAt = 0;
   // WebContentsView is white by default. Keep it transparent until the page is
   // ready so the Quantic glass shell remains visible instead of flashing white.
-  try { view.setBackgroundColor('#00000000'); } catch {}
+  // Keep a fully opaque dark backing surface during native resize and page paint.
+  // A transparent WebContentsView can reveal white compositor frames on Windows.
+  try { view.setBackgroundColor('#07131b'); } catch {}
   win.contentView.addChildView(view);
   const wc = view.webContents;
   attachBrowserShortcuts(wc);
@@ -994,8 +996,10 @@ function layout(options = {}) {
   const top = chromeHidden ? 0 : TOP_CHROME_H;
   const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H + chromeOverlayHeight;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
-  const rail = stageState.enabled && !isPrivateMode() ? (stageState.collapsed ? SIDESTAGE_COLLAPSED_W : SIDESTAGE_RAIL_W) : 0;
-  const stageWidth = stageState.open && !stageState.collapsed ? Number(stageState.width || 420) : 0;
+  // The compact open-tab shelf is always available, including in private mode.
+  const rail = SIDESTAGE_RAIL_W;
+  const stageWidth = stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
+    ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed) ? AI_W : 0;
   const right = rail + stageWidth + aiWidth;
   if (tab?.view && isExternal(tab.url)) {
@@ -1288,7 +1292,7 @@ function createWindow() {
     minHeight: 600,
     frame: false,
     transparent: false,
-    backgroundColor: '#0b1220',
+    backgroundColor: '#07131b',
     roundedCorners: true,
     thickFrame: true,
     show: false,
@@ -1326,7 +1330,9 @@ function createWindow() {
   }, 15000);
   shellWatchdog.unref?.();
 
-  win.on('resize', scheduleLayout);
+  // Update the WebContentsView immediately: a 16ms deferred layout can expose
+  // an uncovered strip while the user resizes the window with the mouse.
+  win.on('resize', layout);
   win.on('maximize', layout);
   win.on('unmaximize', layout);
 }
