@@ -402,3 +402,7 @@ body.has-wallpaper .gekko-home-reflection{
 #bottom-dock .dock-control:hover:not(:disabled){
   border-color:color-mix(in srgb,var(--quantic-accent) 40%,#e1decc)!important;
 }
+
+/* Three purposeful home actions; no redundant Discover/Explore shortcut. */
+.gekko-home-cards{grid-template-columns:repeat(3,minmax(0,1fr))!important;max-width:760px!important}
+@media(max-width:780px){.gekko-home-cards{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
