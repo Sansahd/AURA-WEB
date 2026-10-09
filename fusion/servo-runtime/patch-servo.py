@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -848,5 +849,23 @@ replace_once(
     """impl<T: Serialize + 'static> AutomaticResponder<T> {""",
     """impl<T: Serialize + Send + 'static> AutomaticResponder<T> {"""
 )
+
+# Validate the native graphics contract on Windows CI before compiling Servo.
+# This shared patch script is executed by all three release validation workflows,
+# so the same source revision is exercised on desktop and Android.
+if os.environ.get("GITHUB_ACTIONS") == "true":
+    print(f"GEKKO Native CI source revision: {os.environ.get('GITHUB_SHA', 'unknown')}", flush=True)
+    if os.name == "nt":
+        manifest = (ROOT / "fusion" / "servo-runtime" / "Cargo.toml").read_text(encoding="utf-8")
+        if 'features = ["sm-no-wgl", "sm-angle-builtin"]' not in manifest:
+            raise SystemExit("GEKKO Windows graphics contract failed: Surfman ANGLE with sm-no-wgl is required")
+        if 'features = ["bundled", "js_jit", "clipboard", "no-wgl"]' not in manifest:
+            raise SystemExit("GEKKO Windows graphics contract failed: Servo no-wgl feature missing (paint_api still uses WGL)")
+        # A green smoke is not sufficient if the packaged executable omits ANGLE DLLs.
+        workflow = (ROOT / ".github" / "workflows" / "build-glide-fusion-windows.yml").read_text(encoding="utf-8")
+        for dll in ("libEGL.dll", "libGLESv2.dll"):
+            if f'File "dist\\{dll}"' not in workflow:
+                raise SystemExit(f"GEKKO Windows packaging contract failed: NSIS omits {dll}")
+        print("GEKKO Windows graphics contract passed: Servo no-wgl + ANGLE and packaged EGL/GLES DLLs", flush=True)
 
 print("Quantic Servo Gekko Fusion patch applied")

@@ -4,6 +4,7 @@ mod aura;
 mod downloads;
 mod privacy;
 mod paths;
+mod sync_vault;
 mod youtube;
 
 use std::cell::{Cell, RefCell};
@@ -86,6 +87,152 @@ const DOWNLOAD_BRIDGE_SCRIPT: &str = r#"
 })();
 "#;
 
+const COOKIE_CONSENT_REJECT_SCRIPT: &str = r##"
+(() => {
+  const KEY = "__gekkoCookieRejectNativeV1";
+  if (window[KEY]?.installed) {
+    try { window[KEY].scan?.(); } catch (_) {}
+    return;
+  }
+
+  const rejectLabels = [
+    "tout refuser","refuser tout","refuser","je refuse","continuer sans accepter",
+    "reject all","reject everything","decline all","decline","only necessary",
+    "necessary only","essential only","use necessary cookies only",
+    "alle ablehnen","alles ablehnen","nur notwendige","nur erforderliche",
+    "rechazar todo","rechazar todos","solo necesarias","sólo necesarias",
+    "rifiuta tutto","rifiuta tutti","solo necessari",
+    "rejeitar tudo","recusar tudo","apenas necessários",
+    "alles weigeren","weigeren","alleen noodzakelijke",
+    "odrzuć wszystko","odmów wszystkiego","tylko niezbędne"
+  ];
+  const manageLabels = [
+    "gérer mes choix","gerer mes choix","paramétrer","parametrer","personnaliser",
+    "manage choices","manage options","cookie settings","customize",
+    "einstellungen","auswahl verwalten","configurar","gestionar opciones",
+    "impostazioni","gestisci preferenze","gerir preferências","beheer voorkeuren"
+  ];
+  const directSelectors = [
+    "#onetrust-reject-all-handler",
+    "#CybotCookiebotDialogBodyButtonDecline",
+    "#didomi-notice-disagree-button",
+    "[data-testid='uc-deny-all-button']",
+    "[data-testid='uc-deny-all']",
+    "[data-testid='consent-reject-all']",
+    "[data-cookiefirst-action='reject']",
+    ".cky-btn-reject",
+    ".cmplz-deny",
+    "button[aria-label*='Refuser']",
+    "button[aria-label*='Reject']"
+  ];
+
+  const norm = value => String(value || "").replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  const labelOf = node => norm([
+    node?.innerText, node?.textContent, node?.getAttribute?.("aria-label"),
+    node?.getAttribute?.("title"), node?.getAttribute?.("value")
+  ].filter(Boolean).join(" "));
+  const visible = node => {
+    try {
+      const style = getComputedStyle(node), rect = node.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" &&
+        Number(style.opacity || 1) > 0 && rect.width > 1 && rect.height > 1;
+    } catch (_) { return true; }
+  };
+  const matches = (label, list) => list.some(item =>
+    label === item || label.startsWith(item + " ") ||
+    label.endsWith(" " + item) || label.includes(" " + item + " ")
+  );
+  const click = node => {
+    if (!node || !visible(node)) return false;
+    try { node.click(); return true; } catch (_) {
+      try {
+        node.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+        return true;
+      } catch (_) { return false; }
+    }
+  };
+
+  const roots = () => {
+    const out = [document], queue = [document.documentElement].filter(Boolean), seen = new Set(queue);
+    while (queue.length) {
+      const node = queue.shift();
+      try {
+        if (node.shadowRoot && !seen.has(node.shadowRoot)) {
+          seen.add(node.shadowRoot); out.push(node.shadowRoot);
+          queue.push(...node.shadowRoot.querySelectorAll("*"));
+        }
+        for (const child of node.querySelectorAll?.("*") || []) {
+          if (!seen.has(child)) { seen.add(child); queue.push(child); }
+        }
+      } catch (_) {}
+    }
+    for (const frame of document.querySelectorAll("iframe")) {
+      try { if (frame.contentDocument) out.push(frame.contentDocument); } catch (_) {}
+    }
+    return out;
+  };
+
+  const state = { installed: true, rejected: false, openedSettings: false, attempts: 0, observer: null, timer: null };
+  const scan = () => {
+    if (state.rejected) return true;
+    state.attempts += 1;
+
+    for (const root of roots()) {
+      for (const selector of directSelectors) {
+        let node = null;
+        try { node = root.querySelector(selector); } catch (_) {}
+        if (node && click(node)) { state.rejected = true; break; }
+      }
+      if (state.rejected) break;
+
+      let nodes = [];
+      try { nodes = [...root.querySelectorAll("button,[role='button'],a,input[type='button'],input[type='submit']")]; } catch (_) {}
+      for (const node of nodes) {
+        const label = labelOf(node);
+        if (label && matches(label, rejectLabels) && click(node)) { state.rejected = true; break; }
+      }
+      if (state.rejected) break;
+    }
+
+    if (state.rejected) {
+      try { state.observer?.disconnect(); } catch (_) {}
+      clearInterval(state.timer);
+      return true;
+    }
+
+    if (!state.openedSettings && state.attempts >= 2) {
+      for (const root of roots()) {
+        let nodes = [];
+        try { nodes = [...root.querySelectorAll("button,[role='button'],a")]; } catch (_) {}
+        const opener = nodes.find(node => matches(labelOf(node), manageLabels) && visible(node));
+        if (opener && click(opener)) {
+          state.openedSettings = true;
+          setTimeout(scan, 80);
+          break;
+        }
+      }
+    }
+    return false;
+  };
+
+  state.scan = scan;
+  window[KEY] = state;
+  scan();
+  try {
+    state.observer = new MutationObserver(scan);
+    state.observer.observe(document.documentElement || document, {
+      subtree: true, childList: true, attributes: true,
+      attributeFilter: ["aria-label","title","value","class","style"]
+    });
+  } catch (_) {}
+  state.timer = setInterval(scan, 350);
+  setTimeout(() => {
+    try { state.observer?.disconnect(); } catch (_) {}
+    clearInterval(state.timer);
+  }, 20000);
+})();
+"##;
+
 const PRIVACY_HARDENING_SCRIPT: &str = r#"
 (() => {
   if (window.__gekkoPrivacyV3) return;
@@ -100,8 +247,43 @@ const PRIVACY_HARDENING_SCRIPT: &str = r#"
   try {
     define(Navigator.prototype, "hardwareConcurrency", 4);
     if ("deviceMemory" in navigator) define(Navigator.prototype, "deviceMemory", 8);
+    define(Navigator.prototype, "doNotTrack", "1");
+    define(Navigator.prototype, "globalPrivacyControl", true);
+    define(Navigator.prototype, "webdriver", false);
     define(Screen.prototype, "colorDepth", 24);
     define(Screen.prototype, "pixelDepth", 24);
+  } catch (_) {}
+
+  try {
+    const patchWebGL = (proto) => {
+      if (!proto || typeof proto.getParameter !== "function") return;
+      const realGetParameter = proto.getParameter;
+      Object.defineProperty(proto, "getParameter", {
+        configurable: true,
+        value(parameter) {
+          if (parameter === 37445) return "GEKKO";
+          if (parameter === 37446) return "ANGLE (Generic GPU)";
+          return realGetParameter.call(this, parameter);
+        }
+      });
+    };
+    patchWebGL(window.WebGLRenderingContext?.prototype);
+    patchWebGL(window.WebGL2RenderingContext?.prototype);
+  } catch (_) {}
+
+  try {
+    const uaData = navigator.userAgentData;
+    if (uaData && typeof uaData.getHighEntropyValues === "function") {
+      const realHighEntropy = uaData.getHighEntropyValues.bind(uaData);
+      uaData.getHighEntropyValues = async (hints) => {
+        const result = await realHighEntropy(hints);
+        if ("platformVersion" in result) result.platformVersion = "15.0.0";
+        if ("architecture" in result) result.architecture = "x86";
+        if ("bitness" in result) result.bitness = "64";
+        if ("model" in result) result.model = "";
+        return result;
+      };
+    }
   } catch (_) {}
 
   try {
@@ -400,6 +582,7 @@ struct FusionState {
     h3_probe_inflight: Mutex<std::collections::HashSet<String>>,
     h3_successes: Cell<u64>,
     h3_fallbacks: Cell<u64>,
+    sync_secret: RefCell<String>,
 }
 
 struct FusionDelegate {
@@ -506,7 +689,13 @@ impl servo::WebViewDelegate for FusionDelegate {
                     return;
                 }
                 let color = egui::ColorImage::from_rgba_unmultiplied(size, image.as_raw());
-                let texture = state.egui.borrow().egui_ctx.load_texture(
+                // Servo may call back while egui already has a mutable borrow.
+                // Missing a transition snapshot is preferable to crashing the browser.
+                let Ok(egui) = state.egui.try_borrow() else {
+                    state.window.request_redraw();
+                    return;
+                };
+                let texture = egui.egui_ctx.load_texture(
                     "gekko-last-frame",
                     color,
                     egui::TextureOptions::LINEAR,
@@ -905,6 +1094,76 @@ impl FusionState {
             .collect();
         data.active_tab = self.active_tab.get().min(data.session_tabs.len().saturating_sub(1));
         save_browser_data(&data);
+    }
+
+    fn export_encrypted_sync(&self) {
+        let secret = self.sync_secret.borrow().clone();
+        if secret.chars().count() < 8 {
+            *self.status.borrow_mut() = "Sync chiffrée · phrase secrète de 8 caractères minimum".into();
+            return;
+        }
+
+        self.persist_session();
+        let payload = {
+            let data = self.browser_data.borrow();
+            match serde_json::to_vec(&*data) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    *self.status.borrow_mut() = format!("Sync chiffrée · sérialisation impossible: {error}");
+                    return;
+                }
+            }
+        };
+
+        let Some(path) = paths::encrypted_sync_file() else {
+            *self.status.borrow_mut() = "Sync chiffrée · dossier GEKKO indisponible".into();
+            return;
+        };
+
+        match sync_vault::write_file(&path, &payload, &secret) {
+            Ok(()) => {
+                self.sync_secret.borrow_mut().clear();
+                *self.status.borrow_mut() = format!("Sync chiffrée exportée · {}", path.display());
+            }
+            Err(error) => {
+                *self.status.borrow_mut() = format!("Sync chiffrée · {error}");
+            }
+        }
+        self.window.request_redraw();
+    }
+
+    fn import_encrypted_sync(&self) {
+        let secret = self.sync_secret.borrow().clone();
+        if secret.chars().count() < 8 {
+            *self.status.borrow_mut() = "Sync chiffrée · phrase secrète de 8 caractères minimum".into();
+            return;
+        }
+
+        let Some(path) = paths::encrypted_sync_file() else {
+            *self.status.borrow_mut() = "Sync chiffrée · dossier GEKKO indisponible".into();
+            return;
+        };
+
+        let imported = sync_vault::read_file(&path, &secret)
+            .and_then(|payload| serde_json::from_slice::<BrowserData>(&payload)
+                .map_err(|_| "Contenu GEKKO invalide".to_string()));
+
+        match imported {
+            Ok(data) => {
+                *self.browser_data.borrow_mut() = data;
+                {
+                    let data = self.browser_data.borrow();
+                    save_browser_data(&data);
+                }
+                self.sync_secret.borrow_mut().clear();
+                *self.status.borrow_mut() =
+                    "Sync chiffrée importée · favoris/historique actifs, session au prochain démarrage".into();
+            }
+            Err(error) => {
+                *self.status.borrow_mut() = format!("Sync chiffrée · {error}");
+            }
+        }
+        self.window.request_redraw();
     }
 
     fn new_tab(&self, url: Url) {
@@ -1649,6 +1908,39 @@ impl FusionState {
                             self.downloads_panel_open.set(true);
                         }
 
+                        ui.add_space(10.0);
+                        ui.label(egui::RichText::new("SYNC CHIFFRÉE").strong().size(9.0).color(ACCENT));
+                        ui.label(
+                            egui::RichText::new("AES-256-GCM + scrypt · aucun compte, aucun cloud")
+                                .size(8.5)
+                                .color(MUTED)
+                        );
+                        {
+                            let mut secret = self.sync_secret.borrow_mut();
+                            ui.add(
+                                egui::TextEdit::singleline(&mut *secret)
+                                    .password(true)
+                                    .hint_text("Phrase secrète · 8 caractères minimum")
+                                    .desired_width(ui.available_width())
+                            );
+                        }
+                        ui.horizontal(|ui| {
+                            if ui.add(
+                                egui::Button::new("Exporter")
+                                    .fill(PANEL_SOFT)
+                                    .corner_radius(14.0)
+                            ).clicked() {
+                                self.export_encrypted_sync();
+                            }
+                            if ui.add(
+                                egui::Button::new("Importer")
+                                    .fill(PANEL_SOFT)
+                                    .corner_radius(14.0)
+                            ).clicked() {
+                                self.import_encrypted_sync();
+                            }
+                        });
+
                         if self.history_open.get() {
                             ui.add_space(6.0);
                             let data = self.browser_data.borrow();
@@ -2110,7 +2402,9 @@ impl FusionState {
                 urlApi: typeof URL === "function",
                 promiseApi: typeof Promise === "function",
                 textEncoderApi: typeof TextEncoder === "function",
-                webrtcBlocked: typeof RTCPeerConnection === "undefined"
+                webrtcBlocked: typeof RTCPeerConnection === "undefined",
+                gpc: navigator.globalPrivacyControl === true,
+                dnt: navigator.doNotTrack === "1"
             })"##,
             move |result| {
                 let payload = match result {
@@ -2331,7 +2625,8 @@ impl ApplicationHandler<WakeEvent> for App {
         let window = event_loop.create_window(
             Window::default_attributes()
                 .with_title("Gekko — Quantic Browser")
-                .with_visible(!smoke_mode)
+                // Exercise the same visible WGL window as a real user during CI smoke.
+                .with_visible(true)
                 .with_inner_size(winit::dpi::PhysicalSize::new(1440_u32, 900_u32))
                 .with_min_inner_size(winit::dpi::PhysicalSize::new(980_u32, 680_u32)),
         ).expect("create Gekko window");
@@ -2362,8 +2657,8 @@ impl ApplicationHandler<WakeEvent> for App {
         preferences.dom_webrtc_enabled = false;
         preferences.dom_webrtc_transceiver_enabled = false;
         preferences.dom_bluetooth_enabled = false;
-        preferences.dom_geolocation_enabled = true;
-        preferences.dom_notification_enabled = true;
+        preferences.dom_geolocation_enabled = false;
+        preferences.dom_notification_enabled = false;
         preferences.dom_permissions_enabled = true;
 
         let servo = ServoBuilder::default()
@@ -2375,6 +2670,7 @@ impl ApplicationHandler<WakeEvent> for App {
         let delegate = Rc::new(FusionDelegate::new());
         let user_content_manager = Rc::new(UserContentManager::new(&servo));
         user_content_manager.add_script(Rc::new(UserScript::from(DOWNLOAD_BRIDGE_SCRIPT)));
+        user_content_manager.add_script(Rc::new(UserScript::from(COOKIE_CONSENT_REJECT_SCRIPT)));
         user_content_manager.add_script(Rc::new(UserScript::from(PRIVACY_HARDENING_SCRIPT)));
         user_content_manager.add_script(Rc::new(UserScript::from(YOUTUBE_CLEAN_PLAYBACK_SCRIPT)));
 
@@ -2461,6 +2757,7 @@ impl ApplicationHandler<WakeEvent> for App {
             h3_probe_inflight: Mutex::new(std::collections::HashSet::new()),
             h3_successes: Cell::new(0),
             h3_fallbacks: Cell::new(0),
+            sync_secret: RefCell::new(String::new()),
         });
         delegate.bind(&state);
         state.active_webview().load(configured_start.clone());
@@ -2780,6 +3077,21 @@ mod privacy_v3_tests {
         assert!(PRIVACY_HARDENING_SCRIPT.contains("RTCPeerConnection"));
         assert!(PRIVACY_HARDENING_SCRIPT.contains("hardwareConcurrency"));
         assert!(PRIVACY_HARDENING_SCRIPT.contains("performance"));
+    }
+
+    #[test]
+    fn privacy_v3_exposes_gpc_dnt_and_webgl_standardization() {
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("globalPrivacyControl"));
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("doNotTrack"));
+        assert!(PRIVACY_HARDENING_SCRIPT.contains("ANGLE (Generic GPU)"));
+    }
+
+    #[test]
+    fn cookie_refusal_script_prefers_rejection() {
+        assert!(COOKIE_CONSENT_REJECT_SCRIPT.contains("tout refuser"));
+        assert!(COOKIE_CONSENT_REJECT_SCRIPT.contains("reject all"));
+        assert!(COOKIE_CONSENT_REJECT_SCRIPT.contains("onetrust-reject-all-handler"));
+        assert!(!COOKIE_CONSENT_REJECT_SCRIPT.contains("accept all"));
     }
 
     #[test]

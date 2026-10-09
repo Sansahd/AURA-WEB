@@ -1,8 +1,8 @@
-name: Build Quantic Gekko Android
+name: GEKKO Native 1.0 Android
 
 on:
   push:
-    branches: ["quantic-fusion-servo-gecko-ladybird", "feat/gekko-native-0.9-finish"]
+    branches: ["quantic-fusion-servo-gecko-ladybird", "feat/gekko-native-1.0"]
     paths:
       - "fusion/android/**"
       - "fusion/servo-runtime/patch-servo.py"

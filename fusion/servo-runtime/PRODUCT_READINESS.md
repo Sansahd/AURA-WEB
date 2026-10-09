@@ -1,6 +1,6 @@
-# Gekko 0.8.5 — Product Readiness Gate
+# GEKKO Native 1.0 — Product Readiness Gate
 
-Gekko may be described as **8.5/10 or better** for a category only when the corresponding release gate below is green.
+GEKKO Native 1.0 is releasable only when every mandatory gate below is green. The Electron 2.3 branch remains a rollback path during the native transition; it is not part of the native runtime.
 
 ## Ladybird runtime integration — target 8.5/10
 
@@ -15,7 +15,7 @@ Gekko may be described as **8.5/10 or better** for a category only when the corr
 - Product title, runtime labels, installer name, executable name and data directory use Gekko.
 - Existing Glide browser data is migrated on first launch.
 - The runtime draws a native Earth + attached gekko mark rather than the former abstract circles.
-- Windows package is `Quantic-Gekko-Setup.exe`, version 0.8.5.
+- Windows package is `Quantic-Gekko-Setup.exe`, version 1.0.0.
 
 ## Cinematic navigation — target 8.5/10
 
@@ -44,3 +44,14 @@ Release gate must execute:
 A release is not called 8.5/10 globally if the current HEAD fails any mandatory quality job. Scores are evidence-based, not branding.
 
 The GitHub quality gate enforces these runtime hooks and rejects legacy Glide branding before release.
+
+
+## Native 1.0 promotion gate
+
+- Windows desktop runtime is built directly from `fusion/servo-runtime`.
+- Runtime dependency tree must reject Chromium, Electron, CEF and WebView2.
+- A real Windows smoke run must render the fixture in Servo, execute JavaScript, expose the expected DOM marker and exit by its own smoke hook.
+- The Windows installer and portable archive must contain only the native GEKKO executable plus installer metadata.
+- Android ARM64 build and x86_64 runtime E2E must remain green.
+- Neqo stays wired into the live resource path with Servo fallback.
+- `main` remains on GEKKO 2.3 until this gate is green; Native 1.0 is promoted only after validation.
