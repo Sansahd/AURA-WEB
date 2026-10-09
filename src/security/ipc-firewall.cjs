@@ -52,6 +52,8 @@ const CHANNEL_VALIDATORS = Object.freeze({
   'new-tab': (args) => args.length <= 1 && (args.length === 0 || isString(args[0])),
   'activate-tab': (args) => args.length === 1 && isPositiveId(args[0]),
   'close-tab': (args) => args.length === 1 && isPositiveId(args[0]),
+  'toggle-panel-tab': (args) => args.length === 1 && isString(args[0], 256),
+  'toggle-tab-mute': (args) => args.length === 1 && isPositiveId(args[0]),
   'plus-menu': noArgs,
   'main-menu': noArgs,
   'search-engine-menu': (args) => args.length === 2 && args.every((v) => Number.isFinite(v) && v >= 0 && v < 10000),
