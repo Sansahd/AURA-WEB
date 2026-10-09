@@ -141,6 +141,8 @@ function tabState(tab) {
     loading: Boolean(tab.loading),
     transitioning: Boolean(tab.transitioning),
     sleeping: Boolean(tab.sleeping),
+    audible: Boolean(tab.audible),
+    muted: Boolean(tab.muted),
     youtubeDirect: tab.youtubeDirect || null,
     favorite: Boolean(store?.isFavorite(tab.url)),
     ...navState(isExternal(tab.url) ? tab.view?.webContents : null)
@@ -401,6 +403,7 @@ function snapshotNormalWorkspace() {
       title: tab.title,
       url: tab.url,
       lastExternalUrl: tab.lastExternalUrl || '',
+      muted: Boolean(tab.muted),
       lastActiveAt: tab.lastActiveAt || Date.now()
     }))
   };
@@ -430,6 +433,7 @@ function restoreNormalWorkspace(snapshot) {
       sleeping: false,
       mediaPlaying: false,
       audible: false,
+      muted: Boolean(item.muted),
       permissionPromptOpen: false,
       downloadActive: false
     };
@@ -695,11 +699,15 @@ function createView(tab) {
   try { view.setBackgroundColor('#07131b'); } catch {}
   win.contentView.addChildView(view);
   const wc = view.webContents;
+  wc.setAudioMuted(Boolean(tab.muted));
   attachBrowserShortcuts(wc);
 
   wc.on('media-started-playing', () => { tab.mediaPlaying = true; });
   wc.on('media-paused', () => { tab.mediaPlaying = false; });
-  wc.on('audio-state-changed', (_event, audible) => { tab.audible = Boolean(audible); });
+  wc.on('audio-state-changed', (_event, audible) => {
+    const next = Boolean(audible);
+    if (next !== Boolean(tab.audible)) { tab.audible = next; emitState(); }
+  });
 
   wc.setWindowOpenHandler(({ url }) => {
     if (isExternal(url) || isInternal(url)) {
@@ -892,7 +900,7 @@ function createTab(url = HOME, activate = true) {
     loading: false, transitioning: false, transitionStartedAt: 0, revealTimer: null, youtubeDirectTimer: null,
     awaitingNetwork: false, awaitingPage: false, boundsKey: '',
     createdAt: now, lastActiveAt: now, lastBackgroundAt: 0, sleeping: false,
-    mediaPlaying: false, audible: false, permissionPromptOpen: false, downloadActive: false
+    mediaPlaying: false, audible: false, muted: false, permissionPromptOpen: false, downloadActive: false
   };
   tabs.set(tab.id, tab);
   if (activate) {
@@ -905,6 +913,40 @@ function createTab(url = HOME, activate = true) {
   emitState(true);
   loadTab(tab, url).catch(() => {});
   return tab.id;
+}
+
+function togglePanelTab(url) {
+  const normalized = String(url || '').trim();
+  const allowedInternal = new Set([
+    'quantic://settings', 'quantic://favorites', 'quantic://history',
+    'quantic://career', 'quantic://downloads'
+  ]);
+  const allowedApps = new Set([
+    'https://antiquewhite-dolphin-780448.hostingersite.com/',
+    'https://quanticmail.onrender.com/',
+    'https://xdsawyerlol.github.io/QuanticSillage/zoon.html',
+    'https://mediumorchid-badger-314305.hostingersite.com/news/',
+    'https://mediumorchid-badger-314305.hostingersite.com/vision/'
+  ]);
+  if (!allowedInternal.has(normalized) && !allowedApps.has(normalized)) return false;
+  // Reusing existing tabs avoids multiplying settings and app windows.
+  const existing = [...tabs.values()].find(tab => tab.url === normalized);
+  if (existing) {
+    if (existing.id === activeId) return closeTab(existing.id);
+    return activateTab(existing.id);
+  }
+  createTab(normalized, true);
+  return true;
+}
+
+function toggleTabMute(id) {
+  const tab = tabs.get(Number(id));
+  if (!tab) return false;
+  tab.muted = !Boolean(tab.muted);
+  const wc = tab.view?.webContents;
+  if (wc && !wc.isDestroyed()) wc.setAudioMuted(tab.muted);
+  emitState(true);
+  return tab.muted;
 }
 
 function activateTab(id) {
@@ -1288,8 +1330,8 @@ function mainMenu() {
     { label: 'Nouvel onglet', accelerator: 'Ctrl+T', click: () => createTab(HOME, true) },
     { label: 'Rouvrir l’onglet fermé', accelerator: 'Ctrl+Shift+T', click: reopenClosed },
     { type: 'separator' },
-    { label: 'Favoris', click: () => createTab('quantic://favorites', true) },
-    { label: 'Historique', accelerator: 'Ctrl+H', click: () => createTab('quantic://history', true) },
+    { label: 'Favoris', click: () => togglePanelTab('quantic://favorites') },
+    { label: 'Historique', accelerator: 'Ctrl+H', click: () => togglePanelTab('quantic://history') },
     { label: 'Téléchargements', click: () => shell.openPath(app.getPath('downloads')) },
     { type: 'separator' },
     { label: 'Moteur de recherche', submenu: [
@@ -1305,10 +1347,10 @@ function mainMenu() {
     ] },
     { label: 'Réseau privé (Tor)', type: 'checkbox', checked: settings.networkMode === 'private', click: (item) => { setNetworkMode(item.checked ? 'private' : 'balanced').catch(() => {}); } },
     { label: 'Mode immersion', type: 'checkbox', checked: settings.immersiveMode !== false, click: (item) => { store.setSetting('immersiveMode', item.checked); chromeVisible = true; layout(); emitState(true); } },
-    { label: 'Personnalisation locale · Persona', click: () => createTab('quantic://settings', true) },
+    { label: 'Personnalisation locale · Persona', click: () => togglePanelTab('quantic://settings') },
     { label: 'SideStage', enabled: settings.networkMode !== 'private', click: () => { aiOpen = false; sideStage?.action('toggle'); layout(); emitState(true); } },
     { type: 'separator' },
-    { label: 'AURA Career · tableau de bord', click: () => createTab('quantic://career', true) },
+    { label: 'AURA Career · tableau de bord', click: () => togglePanelTab('quantic://career') },
     { label: 'AURA Career · lancer maintenant', click: () => {
       careerAgent?.runOnce().then(() => emitState(true)).catch(() => {});
       emitState(true);
@@ -1335,7 +1377,7 @@ function mainMenu() {
     } },
     { label: 'AURA Career · ouvrir le dossier', click: () => careerAgent && shell.openPath(careerAgent.folder()) },
     { type: 'separator' },
-    { label: 'Paramètres', click: () => createTab('quantic://settings', true) },
+    { label: 'Paramètres', click: () => togglePanelTab('quantic://settings') },
     { type: 'separator' },
     { label: 'Quitter Quantic', role: 'quit' }
   ]).popup({ window: win });
@@ -1690,6 +1732,8 @@ ipcMain.handle('chrome-overlay-height', (_event, height) => {
 ipcMain.handle('new-tab', (_event, url = HOME) => createTab(url, true));
 ipcMain.handle('activate-tab', (_event, id) => activateTab(Number(id)));
 ipcMain.handle('close-tab', (_event, id) => closeTab(Number(id)));
+ipcMain.handle('toggle-panel-tab', (_event, url) => togglePanelTab(url));
+ipcMain.handle('toggle-tab-mute', (_event, id) => toggleTabMute(id));
 ipcMain.handle('plus-menu', () => menuForPlus());
 ipcMain.handle('search-engine-menu', (_event, x, y) => showCompactSearchEngineMenu(x, y));
 ipcMain.handle('rail-position-menu', () => showRailPositionMenu());
