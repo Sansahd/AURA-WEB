@@ -193,13 +193,15 @@ function navigateAddressValue() {
 function createTabNode(tab) {
   const button = el('button', 'tab no-drag');
   button.type = 'button';
+  const mark = el('span', 'tab-mark', '◈');
   const title = el('span', 'tab-title');
   const close = el('span', 'tab-x', '×');
   close.title = 'Fermer';
   close.onclick = (event) => { event.stopPropagation(); fire(window.quantic.closeTab(tab.id)); };
   button.onclick = () => fire(window.quantic.activateTab(tab.id));
-  button.append(title, close);
+  button.append(mark, title, close);
   button._title = title;
+  button._mark = mark;
   return button;
 }
 
@@ -215,8 +217,18 @@ function renderTabs() {
     }
     node.classList.toggle('active', tab.id === state.activeId);
     node.classList.toggle('loading', Boolean(tab.loading));
-    node.title = tab.title || 'Nouvel onglet';
     const title = tab.title || 'Nouvel onglet';
+    let mark = '◈';
+    try {
+      if (String(tab.url || '').startsWith('quantic://')) mark = '⌂';
+      else {
+        const hostname = new URL(tab.url).hostname.replace(/^www\\./, '');
+        mark = hostname.includes('youtube.com') ? '▶' : (hostname[0]?.toUpperCase() || '◈');
+      }
+    } catch {}
+    node.title = title;
+    node.setAttribute('aria-label', title);
+    if (node._mark.textContent !== mark) node._mark.textContent = mark;
     if (node._title.textContent !== title) node._title.textContent = title;
     tabsEl.append(node);
     if (tab.id === state.activeId) activeNode = node;
@@ -653,7 +665,63 @@ function renderInternal() {
 }
 
 function applyAppearance(){const a=state.settings?.appearance||{},root=document.documentElement;root.style.setProperty('--quantic-accent',a.accent||'#7aa2ff');root.style.setProperty('--quantic-glass-opacity',String(a.glassOpacity??.72));root.style.setProperty('--quantic-window-radius',String(Number(a.radius||14))+'px');document.body.classList.toggle('private-mode',state.settings?.networkMode==='private');const hasWallpaper=a.wallpaperMode!=='none';document.body.classList.toggle('has-wallpaper',hasWallpaper);const v=Number(a.wallpaperVersion||0);if(v===lastWallpaperVersion)return;lastWallpaperVersion=v;if(!hasWallpaper){root.style.setProperty('--quantic-wallpaper-image','none');return;}fire(window.quantic.wallpaperData().then((image)=>{if(v!==lastWallpaperVersion)return;const ok=Boolean(image);document.body.classList.toggle('has-wallpaper',ok);root.style.setProperty('--quantic-wallpaper-image',ok?'url('+JSON.stringify(image)+')':'none');}));}
-function renderSideStage(){const data=state.sideStage||{enabled:false,apps:[]},key=JSON.stringify(data);if(key===lastSideStageKey)return;lastSideStageKey=key;sideStageRail.classList.toggle('hidden',!data.enabled||data.privateDisabled);sideStageRail.classList.toggle('collapsed',Boolean(data.collapsed));sideStageRail.replaceChildren();if(!data.enabled||data.privateDisabled)return;const collapse=el('button','side-stage-collapse',data.collapsed?'‹':'›');collapse.title=data.collapsed?'Déployer SideStage':'Rétracter SideStage';collapse.onclick=()=>fire(window.quantic.setSetting('sideStageAction','collapse'));sideStageRail.append(collapse);if(data.collapsed)return;sideStageRail.append(el('div','side-stage-brand','SIDE'));for(const app of data.apps||[]){const button=el('button','side-stage-app '+(data.open&&data.activeApp===app.id?'active ':'')+(app.status==='loading'?'loading':''));button.title=app.label||app.id;button.setAttribute('aria-label',app.label||app.id);if(app.icon){const icon=document.createElement('img');icon.className='side-stage-icon';icon.src=app.icon;icon.alt='';button.append(icon);}else button.textContent=app.short||app.label.slice(0,2);button.onclick=()=>fire(window.quantic.setSetting('sideStageAction','toggle:'+app.id));button.oncontextmenu=(e)=>{e.preventDefault();fire(window.quantic.setSetting('sideStageAction','reload:'+app.id));};sideStageRail.append(button);}sideStageRail.append(el('div','side-stage-spacer'));if(data.open){const close=el('button','side-stage-close','×');close.title='Masquer le lecteur';close.onclick=()=>fire(window.quantic.setSetting('sideStageAction','close'));sideStageRail.append(close);}}
+function renderSideStage() {
+  const data = state.sideStage || { enabled: false, apps: [] };
+  const key = JSON.stringify(data);
+  if (key === lastSideStageKey && tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf')) return;
+  lastSideStageKey = key;
+
+  // Open tabs always live below fixed SideStage applications. The tab shelf also
+  // works in private mode and when SideStage applications are disabled.
+  sideStageRail.classList.remove('hidden');
+  sideStageRail.classList.toggle('collapsed', Boolean(data.collapsed));
+  sideStageRail.replaceChildren();
+
+  if (data.enabled && !data.privateDisabled) {
+    const collapse = el('button', 'side-stage-collapse', data.collapsed ? '‹' : '›');
+    collapse.title = data.collapsed ? 'Déployer SideStage' : 'Rétracter SideStage';
+    collapse.onclick = () => fire(window.quantic.setSetting('sideStageAction', 'collapse'));
+    sideStageRail.append(collapse);
+    if (!data.collapsed) {
+      sideStageRail.append(el('div', 'side-stage-brand', 'FIXES'));
+      for (const app of data.apps || []) {
+        const button = el('button', 'side-stage-app ' +
+          (data.open && data.activeApp === app.id ? 'active ' : '') +
+          (app.status === 'loading' ? 'loading' : ''));
+        button.title = app.label || app.id;
+        button.setAttribute('aria-label', app.label || app.id);
+        if (app.icon) {
+          const icon = document.createElement('img');
+          icon.className = 'side-stage-icon';
+          icon.src = app.icon;
+          icon.alt = '';
+          button.append(icon);
+        } else button.textContent = app.short || app.label.slice(0, 2);
+        button.onclick = () => fire(window.quantic.setSetting('sideStageAction', 'toggle:' + app.id));
+        button.oncontextmenu = (e) => {
+          e.preventDefault();
+          fire(window.quantic.setSetting('sideStageAction', 'reload:' + app.id));
+        };
+        sideStageRail.append(button);
+      }
+      if (data.open) {
+        const close = el('button', 'side-stage-close', '×');
+        close.title = 'Masquer le lecteur';
+        close.onclick = () => fire(window.quantic.setSetting('sideStageAction', 'close'));
+        sideStageRail.append(close);
+      }
+    }
+  }
+
+  const shelf = el('div', 'gekko-tab-shelf');
+  shelf.setAttribute('aria-label', 'Onglets ouverts');
+  shelf.append(el('div', 'gekko-tab-shelf-label', 'PAGES'));
+  shelf.append(tabsEl);
+  const plus = $('#plus');
+  plus.title = 'Nouvel onglet';
+  shelf.append(plus);
+  sideStageRail.append(shelf);
+}
 
 function render() {
   applyAppearance();
