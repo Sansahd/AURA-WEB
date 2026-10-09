@@ -74,7 +74,7 @@ test('new tab matches the approved cinematic GEKKO browser composition', () => {
   ]) assert.match(html, new RegExp(marker));
 
   const cards = (html.match(/class="gekko-home-card"/g) || []).length;
-  assert.equal(cards, 4);
+  assert.equal(cards, 3);
   assert.match(html, /Private Search/);
   assert.match(html, /Secure Tabs/);
   assert.match(html, /Fast &amp; Light/);
@@ -92,7 +92,7 @@ test('new tab visual controls stay functional', () => {
   assert.match(html, /data-home-action="private-search"/);
   assert.match(html, /data-home-action="secure-tabs"/);
   assert.match(html, /data-home-action="fast-light"/);
-  assert.match(html, /data-home-action="explore-more"/);
+  assert.doesNotMatch(html, /data-home-action="explore-more"/);
   assert.match(renderer, /data-home-action/);
   assert.match(renderer, /private-search/);
   assert.match(renderer, /secure-tabs/);
