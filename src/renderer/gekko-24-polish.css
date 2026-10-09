@@ -395,3 +395,6 @@ body.chrome-hidden #sidestage-rail{
 @media(prefers-reduced-motion:reduce){
   #sidestage-rail .gekko-rail-window-controls button{transition:none!important}
 }
+
+/* In immersive mode the bottom dock disappears: let the tab rail use its space. */
+body.chrome-hidden #sidestage-rail{bottom:6px!important}
