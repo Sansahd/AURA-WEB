@@ -10,7 +10,7 @@
   const mindsLink = q('#quantic-minds-link');
   const VAULT_KEY = 'quantic-vault-v1';
   const PBKDF2_ITERATIONS = 310000;
-  const QUANTIC_MAIL_URL = 'https://mediumorchid-badger-314305.hostingersite.com/mail/';
+  const QUANTIC_MAIL_URL = 'https://quanticmail.onrender.com/';
   let vaultSession = null;
   let vaultLockTimer = null;
 
