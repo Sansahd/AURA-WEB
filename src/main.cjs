@@ -1,9 +1,10 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, dialog, shell, screen } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, session, Menu, dialog, shell, screen, nativeImage } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { QuanticStore } = require('./services/store.cjs');
 const { QuanticVeil } = require('./services/veil.cjs');
 const { wireGuardStatus, openWireGuard } = require('./services/vpn-system.cjs');
+const { fetchSmallIcon } = require('./services/favicon-cache.cjs');
 const { installPrivacyLayer } = require('./services/privacy.cjs');
 const { GekkoShields } = require('./services/shields.cjs');
 const { installYouTubeGuard, isYouTubeUrl } = require('./services/youtube-guard.cjs');
@@ -144,6 +145,7 @@ function tabState(tab) {
     sleeping: Boolean(tab.sleeping),
     audible: Boolean(tab.audible),
     muted: Boolean(tab.muted),
+    favicon: tab.favicon || '',
     youtubeDirect: tab.youtubeDirect || null,
     favorite: Boolean(store?.isFavorite(tab.url)),
     ...navState(isExternal(tab.url) ? tab.view?.webContents : null)
@@ -435,6 +437,8 @@ function restoreNormalWorkspace(snapshot) {
       mediaPlaying: false,
       audible: false,
       muted: Boolean(item.muted),
+      favicon: '',
+      faviconRequest: 0,
       permissionPromptOpen: false,
       downloadActive: false
     };
@@ -540,6 +544,8 @@ function showInternal(tab, url) {
   clearTimeout(tab.revealTimer);
   tab.revealTimer = null;
   tab.url = url;
+  tab.favicon = '';
+  tab.faviconRequest = (tab.faviconRequest || 0) + 1;
   tab.title = internalTitle(url);
   tab.loading = false;
   tab.transitioning = false;
@@ -744,6 +750,8 @@ function createView(tab) {
     tab.revealTimer = null;
     tab.transitioning = false;
     tab.awaitingPage = false;
+    tab.favicon = '';
+    tab.faviconRequest = (tab.faviconRequest || 0) + 1;
     if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
     emitState();
   });
@@ -777,6 +785,27 @@ function createView(tab) {
     syncFromView(tab, true);
     if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
     emitState();
+  });
+
+  wc.on('page-favicon-updated', (_event, favicons) => {
+    const currentUrl = wc.getURL() || tab.url;
+    if (!isExternal(currentUrl) || !Array.isArray(favicons) || !favicons.length) return;
+    const request = (tab.faviconRequest || 0) + 1;
+    tab.faviconRequest = request;
+    // Fetch in the tab session, not the shell. No third-party favicon proxy.
+    fetchSmallIcon({
+      candidates: favicons,
+      pageUrl: currentUrl,
+      fetch: (url, options) => wc.session.fetch(url, options),
+      nativeImage,
+      signal: AbortSignal.timeout(3500)
+    }).then(icon => {
+      if (request !== tab.faviconRequest || !icon ||
+          tabs.get(tab.id) !== tab || tab.view?.webContents !== wc ||
+          wc.isDestroyed() || new URL(wc.getURL()).origin !== new URL(currentUrl).origin) return;
+      tab.favicon = icon;
+      emitState();
+    }).catch(() => {});
   });
 
   wc.on('page-title-updated', (_event, title) => {
@@ -901,7 +930,7 @@ function createTab(url = HOME, activate = true) {
     loading: false, transitioning: false, transitionStartedAt: 0, revealTimer: null, youtubeDirectTimer: null,
     awaitingNetwork: false, awaitingPage: false, boundsKey: '',
     createdAt: now, lastActiveAt: now, lastBackgroundAt: 0, sleeping: false,
-    mediaPlaying: false, audible: false, muted: false, permissionPromptOpen: false, downloadActive: false
+    mediaPlaying: false, audible: false, muted: false, favicon: '', faviconRequest: 0, permissionPromptOpen: false, downloadActive: false
   };
   tabs.set(tab.id, tab);
   if (activate) {
