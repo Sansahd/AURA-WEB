@@ -398,3 +398,106 @@ body.chrome-hidden #sidestage-rail{
 
 /* In immersive mode the bottom dock disappears: let the tab rail use its space. */
 body.chrome-hidden #sidestage-rail{bottom:6px!important}
+
+
+/* GEKKO 2.4 beta 4 — no phantom bottom gutter.
+   Native WebContentsView bounds now snap when the dock appears; do not
+   animate an empty shell strip while the renderer catches up. */
+#bottom-dock{
+  transition:none!important;
+  filter:none!important;
+}
+body.chrome-hidden #bottom-dock{
+  transition:none!important;
+  transform:translate3d(0,90px,0)!important;
+  opacity:0!important;
+  filter:none!important;
+  pointer-events:none!important;
+}
+
+/* The engine selection is an anchored native popup, not a 326px-wide
+   native-view cutout. Retire the old full-width dock-overlay behavior. */
+#search-engine-menu{display:none!important}
+
+/* Every non-interactive area in the expanded right rail can move the window.
+   Actual buttons, scrollable tabs, and their controls remain clickable. */
+#sidestage-rail:not(.rail-minimized),
+#sidestage-rail:not(.rail-minimized) .gekko-tab-shelf,
+#sidestage-rail:not(.rail-minimized) .side-stage-brand,
+#sidestage-rail:not(.rail-minimized) .gekko-tab-shelf-label{
+  -webkit-app-region:drag!important;
+  app-region:drag!important;
+  -webkit-user-select:none;
+  user-select:none;
+}
+#sidestage-rail button,
+#sidestage-rail button *,
+#sidestage-rail .tabs,
+#sidestage-rail .gekko-rail-window-controls{
+  -webkit-app-region:no-drag!important;
+  app-region:no-drag!important;
+}
+#sidestage-rail .gekko-rail-toggle{
+  display:grid;
+  place-items:center;
+  width:44px;
+  height:26px;
+  min-height:26px;
+  flex:0 0 26px;
+  margin:0;
+  padding:0;
+  border:1px solid rgba(182,255,223,.19);
+  border-radius:10px;
+  background:linear-gradient(135deg,rgba(155,255,213,.12),rgba(255,255,255,.02));
+  color:#d9ffee;
+  font:600 20px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+#sidestage-rail .gekko-rail-toggle:hover,
+#sidestage-rail .gekko-rail-toggle:focus-visible{
+  background:rgba(161,255,218,.24);
+  border-color:rgba(181,255,225,.50);
+}
+#sidestage-rail.rail-minimized,
+body.chrome-hidden #sidestage-rail.rail-minimized,
+body.private-mode #sidestage-rail.rail-minimized{
+  width:18px!important;
+  min-width:18px!important;
+  top:0!important;
+  bottom:0!important;
+  padding:5px 0!important;
+  gap:0!important;
+  display:flex!important;
+  align-items:center!important;
+  background:rgba(7,21,25,.95)!important;
+  border-radius:9px 0 0 9px!important;
+  border-left:1px solid rgba(151,255,219,.18)!important;
+  box-shadow:-2px 0 8px rgba(0,0,0,.18)!important;
+  overflow:visible!important;
+  -webkit-app-region:no-drag!important;
+  app-region:no-drag!important;
+}
+#sidestage-rail.rail-minimized .gekko-rail-toggle{
+  flex:0 0 62px!important;
+  width:18px!important;
+  height:62px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:8px 0 0 8px!important;
+  background:linear-gradient(180deg,rgba(140,255,214,.16),rgba(255,255,255,.025))!important;
+  color:#d9ffee!important;
+  font-size:18px;
+}
+#sidestage-rail.rail-minimized .gekko-rail-toggle:hover{
+  background:rgba(136,255,209,.28)!important;
+}
+body.rail-minimized .home,
+body.rail-minimized .internal-page,
+body.rail-minimized .navigation-transition{
+  right:18px!important;
+}
+body.rail-minimized .ai-panel{right:28px!important}
+@media(prefers-reduced-motion:reduce){
+  #sidestage-rail .gekko-rail-toggle{transition:none!important}
+}
