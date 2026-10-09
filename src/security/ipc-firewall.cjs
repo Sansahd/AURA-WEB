@@ -56,6 +56,7 @@ const CHANNEL_VALIDATORS = Object.freeze({
   'main-menu': noArgs,
   'search-engine-menu': (args) => args.length === 2 && args.every((v) => Number.isFinite(v) && v >= 0 && v < 10000),
   'toggle-rail-collapse': noArgs,
+  'rail-position-menu': noArgs,
   'extension-install': noArgs,
   'extension-remove': (args) => args.length === 1 && isString(args[0], 128) && args[0].trim().length > 0,
   'sync-export': (args) => args.length === 1 && isString(args[0], 1024) && args[0].length >= 8,
@@ -85,6 +86,7 @@ const CHANNEL_VALIDATORS = Object.freeze({
     if (key === 'searchEngine') return SEARCH_ENGINES.has(value);
     if (key === 'networkMode') return NETWORK_MODES.has(value);
     if (key === 'immersiveMode') return typeof value === 'boolean';
+    if (key === 'railPosition') return ['top', 'left', 'right'].includes(value);
     if (key === 'appearance') return isAppearancePatch(value);
     if (key === 'generateWallpaper') return isString(value, 512) && value.trim().length > 0;
     if (key === 'resetWallpaper') return value === true;
