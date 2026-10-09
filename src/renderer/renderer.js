@@ -75,9 +75,10 @@ function el(tag, className = '', text = '') {
 }
 
 function syncChromeOverlay() {
-  const engineOpen = Boolean(searchEngineMenu && !searchEngineMenu.classList.contains('hidden'));
+  // Search engine choices are opened as a compact native popup.
+  // Only local site suggestions need any additional WebContentsView room.
   const sitesOpen = Boolean(siteSuggestions && !siteSuggestions.classList.contains('hidden'));
-  fire(window.quantic.chromeOverlay(engineOpen ? 326 : (sitesOpen ? 248 : 0)));
+  fire(window.quantic.chromeOverlay(sitesOpen ? 248 : 0));
 }
 
 function closeSiteSuggestions() {
