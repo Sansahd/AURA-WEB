@@ -678,7 +678,7 @@ function renderSideStage() {
   const minimized = Boolean(state.railCollapsed);
   const position = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
   const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned);
-  if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-toggle')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
+  if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-reveal')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
 
   // Open tabs always live below fixed SideStage applications. The tab shelf also
@@ -688,18 +688,13 @@ function renderSideStage() {
   sideStageRail.classList.toggle('rail-minimized', minimized);
   sideStageRail.replaceChildren();
 
-  const arrows = position === 'left'
-    ? (minimized ? '›' : '‹')
-    : position === 'top'
-      ? (minimized ? '⌄' : '⌃')
-      : (minimized ? '‹' : '›');
-  const railToggle = el('button', 'gekko-rail-toggle', arrows);
-  railToggle.type = 'button';
-  railToggle.title = minimized ? 'Ouvrir la barre' : 'Rétracter la barre';
-  railToggle.setAttribute('aria-label', railToggle.title);
-  railToggle.onclick = () => fire(window.quantic.toggleRailCollapse());
-  sideStageRail.append(railToggle);
-  if (minimized) return;
+  if (minimized) {
+    // Minimal non-interactive edge indicator: pointer hover alone reveals the rail.
+    const reveal = el('div', 'gekko-rail-reveal');
+    reveal.setAttribute('aria-hidden', 'true');
+    sideStageRail.append(reveal);
+    return;
+  }
 
   // A single, always available draggable grip replaces the entire top bar.
   // Window control buttons stay outside this draggable surface.
@@ -725,11 +720,8 @@ function renderSideStage() {
   sideStageRail.append(positionButton);
 
   if (data.enabled && !data.privateDisabled) {
-    const collapse = el('button', 'side-stage-collapse', data.collapsed ? '‹' : '›');
-    collapse.title = data.collapsed ? 'Déployer SideStage' : 'Rétracter SideStage';
-    collapse.onclick = () => fire(window.quantic.setSetting('sideStageAction', 'collapse'));
-    sideStageRail.append(collapse);
-    if (!data.collapsed) {
+    // Fixed application shortcuts are always present; no redundant collapse control.
+    {
       sideStageRail.append(el('div', 'side-stage-brand', 'FIXES'));
       for (const app of data.apps || []) {
         const button = el('button', 'side-stage-app ' +
