@@ -708,8 +708,11 @@ function renderSideStage() {
         const button = el('button', 'side-stage-app ' +
           (data.open && data.activeApp === app.id ? 'active ' : '') +
           (app.status === 'loading' ? 'loading' : ''));
-        button.title = app.label || app.id;
-        button.setAttribute('aria-label', app.label || app.id);
+        button.title = app.status === 'error'
+          ? (app.label || app.id) + ' indisponible · cliquer pour réessayer'
+          : (app.label || app.id);
+        button.classList.toggle('error', app.status === 'error');
+        button.setAttribute('aria-label', button.title);
         if (app.icon) {
           const icon = document.createElement('img');
           icon.className = 'side-stage-icon';
