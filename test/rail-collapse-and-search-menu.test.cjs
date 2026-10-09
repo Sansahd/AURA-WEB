@@ -24,7 +24,7 @@ test('rail collapse preserves a clickable 18px handle and gives width back to we
   assert.doesNotMatch(renderer, /const railToggle = el\(/);
   assert.match(renderer, /sideStageRail\.append\(reveal\)/);
   assert.match(renderer, /pinButton\.onclick = \(\) => fire\(window\.quantic\.toggleRailPin\(\)\)/);
-  assert.match(renderer, /if \(minimized\) return;/);
+  assert.match(renderer, /if \(minimized\) \{/);
   assert.match(css, /#sidestage-rail\.rail-minimized/);
   assert.match(css, /width:18px!important/);
   assert.match(css, /body\.rail-minimized \.home/);
