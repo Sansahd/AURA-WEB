@@ -773,6 +773,14 @@ function render() {
     const details = [runtime.model, runtime.role].filter(Boolean).join(' · ');
     aiEngine.title = details || (runtime.lastError || 'AURA 2.0');
   }
+  const maximizeControl = windowControls?.querySelector('[data-win="maximize"]');
+  if (maximizeControl) {
+    const maximized = Boolean(state.windowMaximized);
+    const label = maximized ? 'Restaurer la taille de la fenêtre' : 'Agrandir la fenêtre';
+    maximizeControl.textContent = maximized ? '❐' : '□';
+    maximizeControl.title = label;
+    maximizeControl.setAttribute('aria-label', label);
+  }
   document.body.classList.toggle('chrome-hidden', state.immersive && !state.chromeVisible);
   document.body.classList.toggle('immersive', state.immersive && !state.chromeVisible);
 }
