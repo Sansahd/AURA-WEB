@@ -3,6 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { QuanticStore } = require('./services/store.cjs');
 const { QuanticVeil } = require('./services/veil.cjs');
+const { wireGuardStatus, openWireGuard } = require('./services/vpn-system.cjs');
 const { installPrivacyLayer } = require('./services/privacy.cjs');
 const { GekkoShields } = require('./services/shields.cjs');
 const { installYouTubeGuard, isYouTubeUrl } = require('./services/youtube-guard.cjs');
@@ -1944,6 +1945,9 @@ ipcMain.handle('wallpaper-data', () => wallpaperDataUrl(app, store.settings().ap
 ipcMain.handle('remove-favorite', (_event, url) => { store.removeFavorite(url); emitState(true); });
 ipcMain.handle('rename-favorite', (_event, url, title) => { store.renameFavorite(url, title); emitState(true); });
 ipcMain.handle('open-downloads', () => shell.openPath(app.getPath('downloads')));
+ipcMain.handle('vpn-status', () => wireGuardStatus());
+ipcMain.handle('vpn-open', () => openWireGuard());
+ipcMain.handle('vpn-install-info', () => shell.openExternal('https://www.wireguard.com/install/'));
 ipcMain.handle('retry-veil', async () => { const ok = await ensureNetwork(); emitState(true); return { ok, ...veil.snapshot() }; });
 ipcMain.handle('retry-current', () => { const tab = activeTab(); return tab ? loadTab(tab, tab.lastExternalUrl || HOME) : { ok: false }; });
 
