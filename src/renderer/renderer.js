@@ -9,6 +9,7 @@ const tabNodes = new Map();
 const $ = (selector) => document.querySelector(selector);
 const tabsEl = $('#tabs');
 const plusButton = $('#plus');
+const windowControls = document.querySelector('#chrome .window-controls');
 const address = $('#address');
 const home = $('#home');
 const internalPage = $('#internal-page');
@@ -678,6 +679,13 @@ function renderSideStage() {
   sideStageRail.classList.toggle('collapsed', Boolean(data.collapsed));
   sideStageRail.replaceChildren();
 
+  // A single, always available draggable grip replaces the entire top bar.
+  // Window control buttons stay outside this draggable surface.
+  const grip = el('div', 'gekko-window-grip no-drag', '⠿');
+  grip.title = 'Déplacer la fenêtre · double-clic pour agrandir';
+  grip.setAttribute('aria-hidden', 'true');
+  sideStageRail.append(grip);
+
   if (data.enabled && !data.privateDisabled) {
     const collapse = el('button', 'side-stage-collapse', data.collapsed ? '‹' : '›');
     collapse.title = data.collapsed ? 'Déployer SideStage' : 'Rétracter SideStage';
@@ -721,6 +729,18 @@ function renderSideStage() {
   plusButton.title = 'Nouvel onglet';
   shelf.append(plusButton);
   sideStageRail.append(shelf);
+
+  // Move the real Electron window controls, retaining their existing IPC handlers.
+  // Keep these persistent DOM nodes across SideStage refreshes.
+  if (windowControls) {
+    windowControls.classList.add('gekko-rail-window-controls');
+    windowControls.setAttribute('role', 'group');
+    windowControls.setAttribute('aria-label', 'Commandes de fenêtre');
+    for (const button of windowControls.querySelectorAll('[data-win]')) {
+      button.title = ({ minimize: 'Réduire', maximize: 'Agrandir ou restaurer', close: 'Fermer GEKKO' })[button.dataset.win] || 'Fenêtre';
+    }
+    sideStageRail.append(windowControls);
+  }
 }
 
 function render() {
