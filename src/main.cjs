@@ -22,7 +22,8 @@ const { GekkoExtensionManager } = require('./services/extensions.cjs');
 const { writeEncryptedFile, readEncryptedFile } = require('./services/sync-vault.cjs');
 
 const HOME = 'quantic://newtab';
-const TOP_CHROME_H = 42;
+// 2.4: no top title/tab bar. Native WebContentsViews reach the top edge.
+const TOP_CHROME_H = 0;
 const BOTTOM_DOCK_H = 66;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 58;
@@ -1030,9 +1031,10 @@ function startImmersionWatcher() {
     const pointer = screen.getCursorScreenPoint();
     const insideX = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width;
     if (!insideX) return;
-    const nearTop = pointer.y <= bounds.y + EDGE_TRIGGER;
+    // With the address dock at the bottom, hovering the title-free top edge
+    // must not unexpectedly reveal bottom controls during window movement.
     const nearBottom = pointer.y >= bounds.y + bounds.height - EDGE_TRIGGER;
-    if (!chromeVisible && (nearTop || nearBottom)) return showChrome(false);
+    if (!chromeVisible && nearBottom) return showChrome(false);
     if (chromeVisible && Date.now() > revealUntil && pointer.y > bounds.y + TOP_CHROME_H + 36 && pointer.y < bounds.y + bounds.height - BOTTOM_DOCK_H - 36) {
       chromeVisible = false;
       aiOpen = false;
