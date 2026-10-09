@@ -58,6 +58,7 @@ const CHANNEL_VALIDATORS = Object.freeze({
   'toggle-rail-collapse': noArgs,
   'toggle-rail-pin': noArgs,
   'rail-position-menu': noArgs,
+  'window-size-menu': (args) => args.length === 2 && args.every(v => Number.isSafeInteger(v) && v >= 0 && v <= 10000),
   'extension-install': noArgs,
   'extension-remove': (args) => args.length === 1 && isString(args[0], 128) && args[0].trim().length > 0,
   'sync-export': (args) => args.length === 1 && isString(args[0], 1024) && args[0].length >= 8,
