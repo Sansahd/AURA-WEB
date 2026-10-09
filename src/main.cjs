@@ -28,6 +28,8 @@ const BOTTOM_DOCK_H = 66;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 58;
 const SIDESTAGE_RAIL_MIN_W = 18;
+const HORIZONTAL_RAIL_H = 58;
+const HORIZONTAL_RAIL_MIN_H = 18;
 const SIDESTAGE_COLLAPSED_W = 22;
 const EDGE_TRIGGER = 24;
 const HOLD_MS = 1600;
@@ -154,6 +156,7 @@ function state() {
     chromeVisible,
     railCollapsed,
     railPinned,
+    railPosition: store?.settings().railPosition || 'right',
     windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
     settings: store?.settings() || {},
@@ -1008,16 +1011,26 @@ function layout(options = {}) {
   const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H + chromeOverlayHeight;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
   // The compact open-tab shelf is always available, including in private mode.
+  const railPosition = store?.settings().railPosition || 'right';
+  const horizontal = railPosition === 'top';
   const rail = railCollapsed ? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;
+  const topRail = horizontal ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
   const stageWidth = !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
     ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
-  const right = rail + stageWidth + aiWidth;
+  const sideLeft = railPosition === 'left' ? rail + stageWidth : 0;
+  const sideRight = railPosition === 'right' ? rail + stageWidth + aiWidth : (horizontal ? stageWidth + aiWidth : aiWidth);
+  const viewTop = top + topRail;
+  const availableHeight = Math.max(1, height - viewTop - bottom);
   if (tab?.view && isExternal(tab.url)) {
-    const bounds = { x: 0, y: top, width: Math.max(1, width - right), height: Math.max(1, height - top - bottom) };
+    const bounds = { x: sideLeft, y: viewTop, width: Math.max(1, width - sideLeft - sideRight), height: availableHeight };
     setTabViewBounds(tab, bounds, Boolean(options?.animateChrome));
   }
-  sideStage?.layout({ x: Math.max(0, width - rail - stageWidth), y: top, width: stageWidth, height: Math.max(1, height - top - bottom), privateMode: isPrivateMode() || railCollapsed });
+  const stageX = railPosition === 'left' ? rail : Math.max(0, width - (horizontal ? 0 : rail) - stageWidth);
+  sideStage?.layout({
+    x: stageX, y: viewTop, width: stageWidth, height: availableHeight,
+    privateMode: isPrivateMode() || railCollapsed
+  });
 }
 
 function scheduleLayout() {
@@ -1119,12 +1132,18 @@ function startRailHoverWatcher() {
     const bounds = win.getBounds();
     const pointer = screen.getCursorScreenPoint();
     const vertical = pointer.y >= bounds.y && pointer.y <= bounds.y + bounds.height;
+    const horizontal = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width;
     const stage = sideStage?.state({ privateMode: isPrivateMode() }) || {};
+    const position = store?.settings().railPosition || 'right';
     const additional = !railCollapsed && stage.open && !stage.collapsed
       ? Number(stage.width || 420) : 0;
     const reach = railCollapsed ? 30 : SIDESTAGE_RAIL_W + additional + 16;
-    const inside = vertical && pointer.x >= bounds.x + bounds.width - reach &&
-      pointer.x <= bounds.x + bounds.width;
+    const edge = position === 'top'
+      ? (horizontal && pointer.y >= bounds.y && pointer.y <= bounds.y + (railCollapsed ? 30 : HORIZONTAL_RAIL_H + 12))
+      : position === 'left'
+        ? (vertical && pointer.x >= bounds.x && pointer.x <= bounds.x + reach)
+        : (vertical && pointer.x >= bounds.x + bounds.width - reach && pointer.x <= bounds.x + bounds.width);
+    const inside = edge;
     if (inside) {
       railLastHover = Date.now();
       setRailCollapsed(false);
@@ -1133,6 +1152,27 @@ function startRailHoverWatcher() {
     }
   }, 130);
   railHoverTimer.unref?.();
+}
+
+function chooseRailPosition(position) {
+  if (!store || !['top', 'left', 'right'].includes(position)) return false;
+  store.setSetting('railPosition', position);
+  railLastHover = Date.now();
+  // Keep the new location visible briefly so the switch is discoverable.
+  setRailCollapsed(false);
+  layout();
+  emitState(true);
+  return true;
+}
+function showRailPositionMenu() {
+  if (!win || win.isDestroyed() || !store) return false;
+  const selected = store.settings().railPosition || 'right';
+  Menu.buildFromTemplate([
+    { label: 'En haut', type: 'radio', checked: selected === 'top', click: () => chooseRailPosition('top') },
+    { label: 'À droite', type: 'radio', checked: selected === 'right', click: () => chooseRailPosition('right') },
+    { label: 'À gauche', type: 'radio', checked: selected === 'left', click: () => chooseRailPosition('left') }
+  ]).popup({ window: win });
+  return true;
 }
 
 function showWindowSizes() {
@@ -1574,6 +1614,7 @@ ipcMain.handle('activate-tab', (_event, id) => activateTab(Number(id)));
 ipcMain.handle('close-tab', (_event, id) => closeTab(Number(id)));
 ipcMain.handle('plus-menu', () => menuForPlus());
 ipcMain.handle('search-engine-menu', (_event, x, y) => showCompactSearchEngineMenu(x, y));
+ipcMain.handle('rail-position-menu', () => showRailPositionMenu());
 ipcMain.handle('toggle-rail-collapse', () => {
   railPinned = !railPinned;
   railLastHover = Date.now();
@@ -1731,6 +1772,8 @@ ipcMain.handle('set-setting', async (_event, key, value) => {
     await clearWallpaper(app);
     const current = store.settings().appearance;
     store.setSetting('appearance', normalizeAppearance({ ...current, wallpaperMode: 'none', wallpaperPrompt: '', wallpaperFile: '', wallpaperVersion: Date.now() }, current));
+  } else if (key === 'railPosition') {
+    chooseRailPosition(value);
   } else if (key === 'sideStageAction') {
     if (isPrivateMode()) return store.settings();
     const [action, appId = ''] = String(value || '').split(':', 2);
