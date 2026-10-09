@@ -504,6 +504,37 @@ function renderSettings(data) {
   network.append(networkRow, el('div', 'muted', data.settings?.networkMode === 'private' ? 'Tor masque votre IP, avec une compatibilité parfois réduite.' : 'Votre IP reste visible aux sites ; les protections locales Quantic restent actives.'));
   internalContent.append(network);
 
+  const vpn = el('section', 'internal-section');
+  vpn.append(el('h2', '', 'VPN · WireGuard local'));
+  const vpnMessage = el('div', 'muted', 'Vérification du client WireGuard installé…');
+  const vpnActions = el('div', 'engine-row');
+  const vpnOpen = el('button', 'pill-button', 'Ouvrir WireGuard');
+  const vpnCheck = el('button', 'pill-button', 'Vérifier le tunnel');
+  const vpnInstall = el('button', 'pill-button', 'Installer WireGuard');
+  const refreshVpn = () => fire(window.quantic.vpnStatus().then(result => {
+    if (!result?.available) {
+      vpnMessage.textContent = 'WireGuard non détecté. Aucune connexion VPN automatique n’est configurée.';
+      vpnOpen.disabled = true;
+    } else {
+      vpnOpen.disabled = false;
+      vpnMessage.textContent = result.active
+        ? 'Un tunnel WireGuard Windows est démarré. Routage et DNS non encore vérifiés.'
+        : result.reason === 'unknown'
+          ? 'WireGuard est installé ; le statut des tunnels n’a pas pu être vérifié.'
+          : 'WireGuard installé, aucun tunnel actif détecté.';
+    }
+  }).catch(() => { vpnMessage.textContent = 'Impossible de vérifier le VPN local.'; }));
+  vpnCheck.onclick = refreshVpn;
+  vpnOpen.onclick = () => fire(window.quantic.vpnOpen().then(result => {
+    if (!result?.ok) vpnMessage.textContent = 'Impossible d’ouvrir WireGuard. Vérifier son installation.';
+  }));
+  vpnInstall.onclick = () => fire(window.quantic.vpnInstallInfo());
+  vpnActions.append(vpnOpen, vpnCheck, vpnInstall);
+  vpn.append(vpnMessage, vpnActions, el('div', 'persona-note',
+    'GEKKO ne télécharge pas de relais VPN publics non vérifiés. Il utilise la configuration WireGuard de Windows ; les pays disponibles dépendent du fournisseur de tunnels choisi. Tor reste un mode privé distinct, pas un VPN.'));
+  internalContent.append(vpn);
+  refreshVpn();
+
   const immersion = el('section', 'internal-section');
   immersion.append(el('h2', '', 'Immersion'));
   const toggle = el('button', `pill-button ${data.settings?.immersiveMode !== false ? 'active' : ''}`, data.settings?.immersiveMode !== false ? 'Activée' : 'Désactivée');
