@@ -54,6 +54,9 @@ test('auto-retract pin and chevron are independent, preserving drag in motion',(
  assert.match(main,/const shouldCollapse = railPinned \? false : Boolean\(next\)/);
  assert.match(main,/railManualUntil/);
  assert.match(main,/railDragUntil/);
+ assert.match(main,/let railAwaitPointerExit = false/);
+ assert.match(main,/if \(inside && railAwaitPointerExit\) return/);
+ assert.match(main,/railAwaitPointerExit = next/);
  assert.match(main,/win\.on\('move', \(\) => \{ railDragUntil/);
  assert.match(renderer,/gekko-rail-pin/);
  assert.match(renderer,/gekko-rail-toggle/);
