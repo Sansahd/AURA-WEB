@@ -12,8 +12,8 @@ html,body{height:100%;margin:0;overflow:hidden;background:transparent;color:#eaf
 .bubble:after{content:'';position:absolute;width:11px;height:11px;bottom:-7px;left:31px;transform:rotate(45deg);border-right:1px solid rgba(196,255,220,.35);border-bottom:1px solid rgba(196,255,220,.35);background:#202a30}
 .heading{display:flex;justify-content:space-between;align-items:center;padding:0 2px;margin-bottom:6px;color:#e6ffef;font-size:10px;font-weight:720;letter-spacing:.08em}
 .heading small{font-size:9px;color:#b7d7c8;font-weight:550}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 2px;justify-items:center;width:100%;overflow:visible}
-.engine{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:56px;height:67px;padding:2px 0;border:1px solid transparent;border-radius:12px;background:transparent;color:#eafcf2;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px 2px;justify-items:center;width:100%;overflow:visible}
+.engine{grid-column:span 2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:56px;height:67px;padding:2px 0;border:1px solid transparent;border-radius:12px;background:transparent;color:#eafcf2;cursor:pointer}
 .engine:hover,.engine:focus-visible{outline:0;border-color:rgba(206,245,217,.28);background:linear-gradient(145deg,rgba(140,255,201,.13),rgba(241,161,191,.12))}
 .engine.selected{border-color:rgba(154,255,205,.48);background:linear-gradient(130deg,rgba(96,232,174,.19),rgba(204,143,232,.14))}
 .symbol{display:grid;place-items:center;width:37px;height:37px;flex:0 0 37px;border-radius:50%;border:1px solid rgba(221,249,224,.2);background:linear-gradient(148deg,rgba(255,255,255,.95),rgba(235,242,240,.87));box-shadow:inset 0 1px 1px rgba(255,255,255,.84),0 3px 10px rgba(0,0,0,.22)}
@@ -22,7 +22,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:transparent;color:#eaf
 .engine[data-engine="gekko"] .symbol img{width:31px;height:31px}
 .engine[data-engine="tor"] .symbol{background:#f5e9fc}
 .name{font-size:8.5px;font-weight:570;text-align:center;line-height:1.1;white-space:nowrap;max-width:58px}
-.engine[data-engine="tor"]{grid-column:2 / span 2;justify-self:center}
+.engine:nth-child(5){grid-column:2/span 2}
+.engine:nth-child(6){grid-column:4/span 2}
+.engine:nth-child(7){grid-column:6/span 2}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
