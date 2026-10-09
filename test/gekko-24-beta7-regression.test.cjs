@@ -59,7 +59,8 @@ test('auto-retract pin and chevron are independent, preserving drag in motion',(
  assert.match(main,/railAwaitPointerExit = next/);
  assert.match(main,/win\.on\('move', \(\) => \{ railDragUntil/);
  assert.match(renderer,/gekko-rail-pin/);
- assert.match(renderer,/gekko-rail-toggle/);
+ assert.doesNotMatch(renderer,/const railToggle = el\(/);
+ assert.match(renderer,/gekko-rail-reveal/);
  assert.match(renderer,/pinButton\.onclick/);
  assert.match(css,/#sidestage-rail \.gekko-rail-pin\.is-pinned/);
 });
