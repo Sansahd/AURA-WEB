@@ -112,6 +112,7 @@ let railPinned = false;
 let railLastHover = 0;
 let railManualUntil = 0;
 let railDragUntil = 0;
+let railAwaitPointerExit = false;
 let railHoverTimer = null;
 let enginePopover = null;
 let enginePopoverReady = false;
@@ -1151,6 +1152,10 @@ function startRailHoverWatcher() {
         ? (vertical && pointer.x >= bounds.x && pointer.x <= bounds.x + reach)
         : (vertical && pointer.x >= bounds.x + bounds.width - reach && pointer.x <= bounds.x + bounds.width);
     const inside = edge;
+    // A deliberate click on collapse must stay collapsed until the mouse
+    // actually leaves and comes back; otherwise hover immediately reopens it.
+    if (!inside) railAwaitPointerExit = false;
+    if (inside && railAwaitPointerExit) return;
     if (inside) {
       railLastHover = Date.now();
       setRailCollapsed(false);
@@ -1693,6 +1698,7 @@ ipcMain.handle('toggle-rail-collapse', () => {
   // Chevron = manual expand/collapse. It never changes the pin preference.
   if (railPinned) railPinned = false;
   const next = !railCollapsed;
+  railAwaitPointerExit = next;
   railManualUntil = Date.now() + 1100;
   railLastHover = Date.now();
   setRailCollapsed(next);
@@ -1701,6 +1707,7 @@ ipcMain.handle('toggle-rail-collapse', () => {
 });
 ipcMain.handle('toggle-rail-pin', () => {
   railPinned = !railPinned;
+  railAwaitPointerExit = false;
   railManualUntil = Date.now() + 1200;
   railLastHover = Date.now();
   if (railPinned) setRailCollapsed(false);
