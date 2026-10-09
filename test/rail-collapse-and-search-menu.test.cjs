@@ -14,19 +14,23 @@ test('rail collapse preserves a clickable 18px handle and gives width back to we
 
   assert.match(main, /const SIDESTAGE_RAIL_MIN_W = 18;/);
   assert.match(main, /const rail = railCollapsed \? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;/);
-  assert.match(main, /railCollapsed = Boolean\(next\)/);
+  assert.match(main, /railCollapsed = shouldCollapse/);
+  assert.match(main, /const shouldCollapse = railPinned \? false : Boolean\(next\)/);
   assert.match(main, /function startRailHoverWatcher/);
-  assert.match(main, /railLastHover >= 950/);
+  assert.match(main, /railLastHover >= 1000/);
   assert.match(main, /railPinned = !railPinned/);
   assert.match(main, /sideStage\?\.hideAll\(\)/);
   assert.match(main, /emitState\(true\)/);
   assert.match(renderer, /railToggle\.onclick = \(\) => fire\(window\.quantic\.toggleRailCollapse\(\)\)/);
+  assert.match(renderer, /pinButton\.onclick = \(\) => fire\(window\.quantic\.toggleRailPin\(\)\)/);
   assert.match(renderer, /if \(minimized\) return;/);
   assert.match(css, /#sidestage-rail\.rail-minimized/);
   assert.match(css, /width:18px!important/);
   assert.match(css, /body\.rail-minimized \.home/);
   assert.match(preload, /toggleRailCollapse: \(\) => ipcRenderer\.invoke\('toggle-rail-collapse'\)/);
+  assert.match(preload, /toggleRailPin: \(\) => ipcRenderer\.invoke\('toggle-rail-pin'\)/);
   assert.match(firewall, /'toggle-rail-collapse': noArgs/);
+  assert.match(firewall, /'toggle-rail-pin': noArgs/);
 });
 
 test('whole unused sidebar surface is draggable but controls remain clickable', () => {
