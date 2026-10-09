@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'">
+<title>GEKKO · Moteurs</title>
+<style>
+html,body{margin:0;background:transparent;color:#e7fff4;font-family:system-ui,'Segoe UI',sans-serif;user-select:none}
+*{box-sizing:border-box}
+.bubble{position:absolute;left:4px;right:4px;top:4px;bottom:14px;border:1px solid rgba(153,255,213,.34);border-radius:21px;padding:12px;background:linear-gradient(150deg,rgba(15,33,37,.99),rgba(5,17,23,.99));box-shadow:0 15px 38px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12)}
+.bubble:after{content:"";position:absolute;bottom:-7px;left:27px;width:12px;height:12px;transform:rotate(45deg);background:#081a20;border-right:1px solid rgba(153,255,213,.34);border-bottom:1px solid rgba(153,255,213,.34)}
+.heading{display:flex;align-items:center;justify-content:space-between;margin:0 2px 9px;font-size:10px;color:#c3fce4;letter-spacing:.08em;font-weight:750}
+.heading small{font-size:9px;color:rgba(213,250,231,.45)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.engine{display:flex;gap:7px;align-items:center;min-height:53px;padding:7px;border:1px solid rgba(224,255,235,.08);border-radius:13px;background:rgba(255,255,255,.035);color:#e9fff3;cursor:pointer;text-align:left}
+.engine:hover,.engine:focus-visible{background:rgba(147,255,209,.13);border-color:rgba(157,255,219,.36);outline:none}
+.engine.selected{border-color:rgba(156,255,212,.55);background:rgba(90,217,160,.12)}
+.mark{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border-radius:10px;background:rgba(144,255,205,.11);font-size:12px;font-weight:750;color:#d6ffe9}
+.name{font-size:10px;font-weight:630;line-height:1.25}
+.engine[data-engine="gekko"],.engine[data-engine="tor"]{grid-column:1/-1}
+.engine[data-engine="tor"] .mark{color:#d0b9ff;background:rgba(132,93,191,.19)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bubble" role="group" aria-label="Choisir le moteur de recherche">
+  <div class="heading"><span>RECHERCHE</span><small>GEKKO</small></div>
+  <div class="grid">
+    <button class="engine" data-engine="gekko"><span class="mark">G</span><span class="name">GEKKO Search</span></button>
+    <button class="engine" data-engine="duckduckgo"><span class="mark">D</span><span class="name">DuckDuckGo</span></button>
+    <button class="engine" data-engine="qwant"><span class="mark">Q</span><span class="name">Qwant</span></button>
+    <button class="engine" data-engine="startpage"><span class="mark">S</span><span class="name">Startpage</span></button>
+    <button class="engine" data-engine="brave"><span class="mark">B</span><span class="name">Brave Search</span></button>
+    <button class="engine" data-engine="searxng"><span class="mark">Sx</span><span class="name">SearXNG</span></button>
+    <button class="engine" data-engine="tor"><span class="mark">T</span><span class="name">Tor · Veil</span></button>
+  </div>
+</div>
+<script src="engine-picker.js"></script>
+</body>
+</html>
