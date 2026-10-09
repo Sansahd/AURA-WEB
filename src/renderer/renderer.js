@@ -671,7 +671,8 @@ function applyAppearance(){const a=state.settings?.appearance||{},root=document.
 function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
   const minimized = Boolean(state.railCollapsed);
-  const key = JSON.stringify(data) + ':' + minimized;
+  const position = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
+  const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned);
   if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-toggle')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
 
@@ -682,7 +683,12 @@ function renderSideStage() {
   sideStageRail.classList.toggle('rail-minimized', minimized);
   sideStageRail.replaceChildren();
 
-  const railToggle = el('button', 'gekko-rail-toggle', minimized ? '‹' : '›');
+  const arrows = position === 'left'
+    ? (minimized ? '›' : '‹')
+    : position === 'top'
+      ? (minimized ? '⌄' : '⌃')
+      : (minimized ? '‹' : '›');
+  const railToggle = el('button', 'gekko-rail-toggle', arrows);
   railToggle.type = 'button';
   railToggle.title = state.railPinned ? 'Rétraction automatique (désépingler)' : 'Garder la barre latérale déployée';
   railToggle.setAttribute('aria-label', railToggle.title);
@@ -692,10 +698,18 @@ function renderSideStage() {
 
   // A single, always available draggable grip replaces the entire top bar.
   // Window control buttons stay outside this draggable surface.
-  const grip = el('div', 'gekko-window-grip no-drag', '⠿');
+  const grip = el('div', 'gekko-window-grip', '⠿');
   grip.title = 'Déplacer la fenêtre';
   grip.setAttribute('aria-hidden', 'true');
   sideStageRail.append(grip);
+
+  // Three-position layout chooser is always visible in the expanded rail.
+  const positionButton = el('button', 'gekko-rail-position', '◫');
+  positionButton.type = 'button';
+  positionButton.title = 'Position de la barre : en haut, à droite ou à gauche';
+  positionButton.setAttribute('aria-label', positionButton.title);
+  positionButton.onclick = () => fire(window.quantic.railPositionMenu());
+  sideStageRail.append(positionButton);
 
   if (data.enabled && !data.privateDisabled) {
     const collapse = el('button', 'side-stage-collapse', data.collapsed ? '‹' : '›');
@@ -758,6 +772,7 @@ function renderSideStage() {
 }
 
 function render() {
+  document.body.dataset.railPosition = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
   applyAppearance();
   renderSearchEngineControl();
   renderSideStage();
