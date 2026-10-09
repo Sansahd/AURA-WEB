@@ -94,10 +94,58 @@ function installFingerprintGuard() {
   } catch {}
 }
 
+// Run only on YouTube, before its page scripts parse the initial player response.
+// This complements the later DOM-ready guard; no work is done on other websites.
+function installYouTubeEarlyAdFilter() {
+  const host = String(location.hostname || '').toLowerCase();
+  if (host !== 'youtube.com' && !host.endsWith('.youtube.com') &&
+      host !== 'youtube-nocookie.com' && !host.endsWith('.youtube-nocookie.com')) return;
+
+  const keys = ['adPlacements', 'playerAds', 'adSlots', 'adBreakParams', 'adParams'];
+  const sanitize = (response) => {
+    if (!response || typeof response !== 'object') return response;
+    if (!response.streamingData && !response.playabilityStatus) return response;
+    for (const key of keys) {
+      try { delete response[key]; } catch {}
+    }
+    return response;
+  };
+
+  try {
+    const nativeParse = JSON.parse;
+    if (!JSON.__gekkoEarlyAdFilter) {
+      Object.defineProperty(JSON, '__gekkoEarlyAdFilter', { value: true });
+      JSON.parse = function gekkoEarlyPlayerParse(input, ...rest) {
+        const data = nativeParse.call(this, input, ...rest);
+        if (typeof input === 'string' && input.includes('"streamingData"') &&
+            (input.includes('"adPlacements"') || input.includes('"playerAds"') || input.includes('"adSlots"'))) {
+          sanitize(data);
+        }
+        return data;
+      };
+    }
+  } catch {}
+
+  try {
+    let current = sanitize(window.ytInitialPlayerResponse);
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'ytInitialPlayerResponse');
+    if (!descriptor || descriptor.configurable) {
+      Object.defineProperty(window, 'ytInitialPlayerResponse', {
+        configurable: true,
+        enumerable: true,
+        get() { return current; },
+        set(value) { current = sanitize(value); }
+      });
+    }
+  } catch {}
+}
+
 try {
   if (typeof contextBridge?.executeInMainWorld === 'function') {
     contextBridge.executeInMainWorld({ func: installFingerprintGuard });
+    contextBridge.executeInMainWorld({ func: installYouTubeEarlyAdFilter });
   } else {
     webFrame.executeJavaScript(`(${installFingerprintGuard.toString()})()`, true).catch(() => {});
+    webFrame.executeJavaScript(`(${installYouTubeEarlyAdFilter.toString()})()`, true).catch(() => {});
   }
 } catch {}
