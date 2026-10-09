@@ -240,3 +240,68 @@ body[data-rail-position="top"].rail-minimized .ai-panel{top:28px!important}
 @media(prefers-reduced-motion:reduce){
   #sidestage-rail .tab{transition:none!important}
 }
+
+
+/* GEKKO 2.4 beta 7: chromatic glass, layered rather than a uniform dark wash. */
+:root {
+  --gekko-mint-wash:rgba(96,245,168,.32);
+  --gekko-orchid-wash:rgba(213,134,224,.25);
+  --gekko-peach-wash:rgba(255,182,136,.24);
+}
+#bottom-dock{
+  background:
+    radial-gradient(ellipse 50% 170% at 9% 3%,var(--gekko-mint-wash),transparent 83%),
+    radial-gradient(ellipse 64% 160% at 63% 100%,var(--gekko-orchid-wash),transparent 79%),
+    radial-gradient(ellipse 43% 158% at 104% 10%,var(--gekko-peach-wash),transparent 82%),
+    linear-gradient(111deg,#0d2728 0%,#272638 49%,#3a292c 100%)!important;
+  border-color:rgba(228,240,218,.36)!important;
+  box-shadow:0 12px 34px rgba(0,0,0,.37),inset 0 1px 0 rgba(255,250,240,.23)!important;
+}
+#sidestage-rail:not(.rail-minimized){
+  background:
+    radial-gradient(ellipse 165% 38% at -45% 0%,rgba(91,245,169,.34),transparent 85%),
+    radial-gradient(ellipse 125% 54% at 115% 57%,rgba(204,130,224,.26),transparent 91%),
+    radial-gradient(ellipse 140% 40% at 5% 110%,rgba(252,172,119,.27),transparent 85%),
+    linear-gradient(155deg,#133333,#2b2839 55%,#392a30)!important;
+  border-color:rgba(234,230,219,.33)!important;
+  box-shadow:-8px 0 28px rgba(0,0,0,.28),inset 1px 0 0 rgba(255,251,233,.21)!important;
+}
+.address{
+  background:
+    linear-gradient(110deg,rgba(117,255,183,.16),rgba(216,159,229,.14) 48%,rgba(255,188,134,.14)),
+    rgba(246,255,242,.06)!important;
+  border-color:rgba(231,249,216,.32)!important;
+}
+#sidestage-rail .gekko-rail-pin{
+  display:grid;place-items:center;
+  width:42px;min-width:42px;
+  height:30px;min-height:30px;
+  flex:0 0 30px;
+  font:500 15px/1 system-ui,sans-serif;
+  border-radius:11px;
+  border:1px solid rgba(224,252,226,.20);
+  background:linear-gradient(140deg,rgba(118,231,171,.12),rgba(214,145,232,.13));
+  color:#e7ffe9;cursor:pointer;
+  filter:saturate(.85);
+}
+#sidestage-rail .gekko-rail-pin.is-pinned{
+  border-color:rgba(255,210,150,.69);
+  background:linear-gradient(132deg,rgba(255,177,102,.36),rgba(225,150,196,.24));
+  box-shadow:0 0 14px rgba(251,171,101,.16);
+  filter:none;
+}
+#sidestage-rail .gekko-rail-pin:hover,
+#sidestage-rail .gekko-rail-pin:focus-visible{
+  outline:1px solid rgba(255,238,189,.65);
+  outline-offset:1px;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-rail-pin{
+  flex:0 0 35px!important;
+  width:35px!important;
+  height:34px!important;
+}
+@media(max-height:710px){
+  body:not([data-rail-position="top"]) #sidestage-rail .gekko-rail-pin{
+    height:25px!important;min-height:25px!important;flex-basis:25px!important;
+  }
+}
