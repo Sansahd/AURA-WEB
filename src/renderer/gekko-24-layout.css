@@ -406,3 +406,31 @@ body.has-wallpaper .gekko-home-reflection{
 /* Three purposeful home actions; no redundant Discover/Explore shortcut. */
 .gekko-home-cards{grid-template-columns:repeat(3,minmax(0,1fr))!important;max-width:760px!important}
 @media(max-width:780px){.gekko-home-cards{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* Persona settings shows the applied wallpaper instead of silently saving it. */
+.persona-wallpaper-preview{
+  position:relative;
+  margin-top:14px;
+  width:100%;
+  height:135px;
+  overflow:hidden;
+  border-radius:16px;
+  border:1px solid color-mix(in srgb,var(--quantic-accent) 34%,rgba(234,247,220,.24));
+  background-image:
+    linear-gradient(180deg,rgba(4,9,19,.10),rgba(3,8,17,.33)),
+    var(--quantic-wallpaper-image),
+    linear-gradient(122deg,#124438,#494060 56%,#75493c);
+  background-size:cover,cover,cover;
+  background-position:center,center,center;
+}
+.persona-wallpaper-preview-caption{
+  position:absolute;
+  bottom:11px;
+  left:13px;
+  padding:6px 10px;
+  border:1px solid rgba(224,255,237,.17);
+  border-radius:999px;
+  background:rgba(10,18,26,.74);
+  color:#e7fff2;
+  font-size:11px;
+}
