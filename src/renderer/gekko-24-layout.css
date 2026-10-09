@@ -305,3 +305,100 @@ body[data-rail-position="top"] #sidestage-rail .gekko-rail-pin{
     height:25px!important;min-height:25px!important;flex-basis:25px!important;
   }
 }
+
+
+/* GEKKO 2.4 beta 8 · measured minimalism: no redundant rail chevrons.
+   When closed, the thin colored edge itself is the hover target. */
+#sidestage-rail.rail-minimized .gekko-rail-reveal{
+  box-sizing:border-box;
+  width:8px;
+  height:58px;
+  flex:0 0 58px;
+  align-self:center;
+  border-radius:99px;
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--quantic-accent) 70%,#a9ffd7),
+    rgba(222,148,220,.8) 56%,
+    rgba(249,184,133,.75));
+  box-shadow:0 0 13px color-mix(in srgb,var(--quantic-accent) 24%,transparent);
+  pointer-events:none;
+}
+body[data-rail-position="top"] #sidestage-rail.rail-minimized .gekko-rail-reveal{
+  width:58px;height:5px;flex:0 0 58px;border-radius:99px;
+  background:linear-gradient(90deg,
+    color-mix(in srgb,var(--quantic-accent) 70%,#a9ffd7),
+    rgba(222,148,220,.8),rgba(249,184,133,.75));
+}
+#sidestage-rail .gekko-rail-pin{margin-bottom:2px;}
+
+/* Display the selected search engine's REAL locally bundled logo. */
+#bottom-dock #search-engine-button .search-engine-mark{
+  width:30px;height:30px;
+  border-radius:50%;
+  overflow:hidden;
+  background:linear-gradient(135deg,#fbfffb,#e2ede8)!important;
+  border:1px solid rgba(235,255,235,.46)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.80),0 2px 9px rgba(0,0,0,.24)!important;
+}
+#bottom-dock #search-engine-button[data-engine="gekko"] .search-engine-mark{
+  background:linear-gradient(140deg,#133f38,#343150)!important;
+}
+#bottom-dock #search-engine-mark-image{
+  display:block!important;
+  width:23px;height:23px;
+  object-fit:contain;
+  opacity:1!important;
+  filter:none!important;
+  pointer-events:none;
+}
+#bottom-dock #search-engine-button[data-engine="gekko"] #search-engine-mark-image{
+  width:27px;height:27px;
+}
+
+/* User-selected wallpaper must appear on the HOME SCENE itself.
+   The original scenic backgrounds were opaque and completely covered the
+   Persona wallpaper painted beneath #shell. */
+body.has-wallpaper .home{
+  background:transparent!important;
+}
+body.has-wallpaper .gekko-home-scene{
+  background-image:
+    linear-gradient(180deg,rgba(3,10,20,.17),rgba(5,10,18,.08) 55%,rgba(3,8,15,.43)),
+    var(--quantic-wallpaper-image)!important;
+  background-position:center,center!important;
+  background-repeat:no-repeat,no-repeat!important;
+  background-size:cover,cover!important;
+}
+body.has-wallpaper .gekko-home-sky,
+body.has-wallpaper .gekko-home-aurora,
+body.has-wallpaper .gekko-home-mountains,
+body.has-wallpaper .gekko-home-reflection{
+  opacity:0!important;
+  pointer-events:none!important;
+}
+
+/* Connect Persona accent color to the real premium UI, while retaining the
+   subdued mint/orchid/peach tones that establish GEKKO's visual identity. */
+#bottom-dock{
+  border-color:color-mix(in srgb,var(--quantic-accent) 28%,rgba(228,240,218,.36))!important;
+}
+#bottom-dock .address:focus-within{
+  border-color:color-mix(in srgb,var(--quantic-accent) 70%,#bcf7d6)!important;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--quantic-accent) 25%,transparent),
+    inset 0 1px 0 rgba(255,255,255,.16)!important;
+}
+#sidestage-rail .tab.active,
+#sidestage-rail .side-stage-app.active{
+  border-color:color-mix(in srgb,var(--quantic-accent) 62%,#e4eace)!important;
+  background:linear-gradient(140deg,
+    color-mix(in srgb,var(--quantic-accent) 24%,rgba(92,199,150,.13)),
+    rgba(210,145,198,.16),rgba(245,175,124,.10))!important;
+}
+#sidestage-rail .gekko-rail-pin.is-pinned{
+  border-color:color-mix(in srgb,var(--quantic-accent) 60%,#ffdfab)!important;
+  box-shadow:0 0 13px color-mix(in srgb,var(--quantic-accent) 23%,transparent)!important;
+}
+#sidestage-rail .gekko-rail-position:hover,
+#bottom-dock .dock-control:hover:not(:disabled){
+  border-color:color-mix(in srgb,var(--quantic-accent) 40%,#e1decc)!important;
+}
