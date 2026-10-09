@@ -1022,10 +1022,9 @@ function scheduleLayout() {
 function showChrome(focusAddress = false) {
   chromeVisible = true;
   revealUntil = Date.now() + HOLD_MS;
-  // Never interpolate the native page bounds while the dock appears: the
-  // empty uncovered compositor strip looked like an extra blank toolbar.
+  // Do not animate a temporary blank strip or delay dock visibility by a frame.
   layout();
-  emitState();
+  emitState(true);
   if (focusAddress) win.webContents.send('focus-address');
 }
 
@@ -1045,7 +1044,7 @@ function startImmersionWatcher() {
       chromeVisible = false;
       aiOpen = false;
       layout();
-      emitState();
+      emitState(true);
     }
   }, 120);
   immersiveTimer.unref?.();
