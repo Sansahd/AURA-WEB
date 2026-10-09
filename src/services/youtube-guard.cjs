@@ -67,7 +67,8 @@ function youtubeGuardSource() {
       shield: null,
       shieldRestore: null,
       adCornerRestore: null,
-      adCornerBadge: null
+      adCornerBadge: null,
+      directStatusBadge: null
     };
 
     function scrub(value, seen = new WeakSet()) {
@@ -261,13 +262,42 @@ function youtubeGuardSource() {
       return true;
     }
 
-    function requestDirect() {
-      if (Date.now() < state.directCooldownUntil) return false;
+    function setDirectStatus(error = '') {
+      try { state.directStatusBadge?.remove?.(); } catch {}
+      state.directStatusBadge = null;
+      if (!error) return;
+      const player = document.querySelector('#movie_player');
+      if (!player) return;
+      const badge = document.createElement('div');
+      badge.id = 'gekko-direct-status';
+      badge.textContent = 'GEKKO DIRECT indisponible · Lecture YouTube rétablie';
+      badge.title = String(error).slice(0, 180);
+      badge.setAttribute('role', 'status');
+      badge.style.cssText = [
+        'position:absolute','left:12px','bottom:52px','z-index:2147483002',
+        'max-width:calc(100% - 24px)','padding:7px 11px',
+        'border:1px solid rgba(255,205,140,.28)','border-radius:12px',
+        'background:rgba(12,14,18,.92)','color:#ffe9c9',
+        'font:600 11px/1.4 system-ui,sans-serif',
+        'pointer-events:none'
+      ].join(';');
+      player.appendChild(badge);
+      state.directStatusBadge = badge;
+    }
+
+    function requestDirect(force = false) {
+      if (!force && Date.now() < state.directCooldownUntil) return false;
       const activeVideoId = currentVideoId();
-      if (state.directFailedFor && state.directFailedFor === activeVideoId) return false;
+      if (!force && state.directFailedFor === activeVideoId && activeVideoId) return false;
       if (state.directRequested || (window.__gekkoDirectPlayerV2?.snapshot?.().active || window.__gekkoDirectPlayerV1?.snapshot?.().active)) return false;
       const videoId = currentVideoId();
       if (!/^[A-Za-z0-9_-]{6,32}$/.test(videoId)) return false;
+      if (force) {
+        state.directFailedFor = '';
+        state.directCooldownUntil = 0;
+        state.directFallbackAfter = 0;
+      }
+      setDirectStatus();
       state.directRequested = true;
       try {
         location.href = 'gekko-direct://youtube/' + encodeURIComponent(videoId);
@@ -303,7 +333,7 @@ function youtubeGuardSource() {
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        requestDirect();
+        requestDirect(true);
       });
       controls.prepend(button);
     }
@@ -526,6 +556,7 @@ function youtubeGuardSource() {
         state.directFailedFor = '';
         state.directFallbackAfter = 0;
         state.directCooldownUntil = 0;
+        setDirectStatus();
         removeDirectShield(true);
       }
 
@@ -549,11 +580,9 @@ function youtubeGuardSource() {
       }
 
       if (state.directFailedFor === videoId) {
-        if (adIsShowing()) {
-          ensureDirectShield();
-          bypassAdPlayback();
-          return;
-        }
+        // A failed Direct stream must never leave the viewer behind an opaque shield.
+        // Restore native playback even if YouTube is still displaying an ad;
+        // the native mute/skip mitigation runs separately.
         if (Date.now() >= state.directFallbackAfter) {
           removeDirectShield(true);
         } else {
@@ -599,6 +628,7 @@ function youtubeGuardSource() {
       try { clearInterval(state.interval); } catch {}
       try { state.observer?.disconnect(); } catch {}
       hideAdCorner(true);
+      setDirectStatus();
       restorePlayback();
     }, { once: true });
 
@@ -609,6 +639,7 @@ function youtubeGuardSource() {
         if (result.ok) {
           state.directFailedFor = '';
           state.directFallbackAfter = 0;
+          setDirectStatus();
           removeDirectShield(false);
         }
         if (!result.ok) {
@@ -617,6 +648,7 @@ function youtubeGuardSource() {
           state.directFallbackAfter = Date.now() + 1400;
           state.directCooldownUntil = Date.now() + 15000;
           state.adSince = 0;
+          setDirectStatus(result.error || 'Flux direct indisponible');
           const button = document.getElementById('gekko-direct-button');
           if (button) {
             const original = button.textContent;
@@ -640,6 +672,7 @@ function youtubeGuardSource() {
         state.directFailedFor = '';
         state.directFallbackAfter = 0;
         state.directCooldownUntil = Date.now() + Math.max(0, Number(cooldownMs || 0));
+        setDirectStatus();
       }
     };
     refresh();
