@@ -3,7 +3,7 @@
 const INSTALLED = Symbol.for('quantic.ipcFirewallInstalled');
 const SEARCH_ENGINES = new Set(['gekko', 'duckduckgo', 'qwant', 'startpage', 'brave', 'searxng', 'tor']);
 const AI_ACTIONS = new Set(['summarize', 'compare', 'plan', 'chat']);
-const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close']);
+const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close', 'sizes']);
 const NETWORK_MODES = new Set(['balanced', 'private']);
 const SIDE_ACTIONS = new Set(['toggle', 'select', 'close', 'reload', 'collapse']);
 const SIDE_APPS = new Set(['youtube', 'twitch', 'spotify', 'netflix', 'proton']);
