@@ -669,15 +669,25 @@ function renderInternal() {
 function applyAppearance(){const a=state.settings?.appearance||{},root=document.documentElement;root.style.setProperty('--quantic-accent',a.accent||'#7aa2ff');root.style.setProperty('--quantic-glass-opacity',String(a.glassOpacity??.72));root.style.setProperty('--quantic-window-radius',String(Number(a.radius||14))+'px');document.body.classList.toggle('private-mode',state.settings?.networkMode==='private');const hasWallpaper=a.wallpaperMode!=='none';document.body.classList.toggle('has-wallpaper',hasWallpaper);const v=Number(a.wallpaperVersion||0);if(v===lastWallpaperVersion)return;lastWallpaperVersion=v;if(!hasWallpaper){root.style.setProperty('--quantic-wallpaper-image','none');return;}fire(window.quantic.wallpaperData().then((image)=>{if(v!==lastWallpaperVersion)return;const ok=Boolean(image);document.body.classList.toggle('has-wallpaper',ok);root.style.setProperty('--quantic-wallpaper-image',ok?'url('+JSON.stringify(image)+')':'none');}));}
 function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
-  const key = JSON.stringify(data);
-  if (key === lastSideStageKey && tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf')) return;
+  const minimized = Boolean(state.railCollapsed);
+  const key = JSON.stringify(data) + ':' + minimized;
+  if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-toggle')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
 
   // Open tabs always live below fixed SideStage applications. The tab shelf also
   // works in private mode and when SideStage applications are disabled.
   sideStageRail.classList.remove('hidden');
   sideStageRail.classList.toggle('collapsed', Boolean(data.collapsed));
+  sideStageRail.classList.toggle('rail-minimized', minimized);
   sideStageRail.replaceChildren();
+
+  const railToggle = el('button', 'gekko-rail-toggle', minimized ? '‹' : '›');
+  railToggle.type = 'button';
+  railToggle.title = minimized ? 'Déployer la barre latérale' : 'Rétracter la barre latérale';
+  railToggle.setAttribute('aria-label', railToggle.title);
+  railToggle.onclick = () => fire(window.quantic.toggleRailCollapse());
+  sideStageRail.append(railToggle);
+  if (minimized) return;
 
   // A single, always available draggable grip replaces the entire top bar.
   // Window control buttons stay outside this draggable surface.
@@ -781,6 +791,7 @@ function render() {
     maximizeControl.title = label;
     maximizeControl.setAttribute('aria-label', label);
   }
+  document.body.classList.toggle('rail-minimized', Boolean(state.railCollapsed));
   document.body.classList.toggle('chrome-hidden', state.immersive && !state.chromeVisible);
   document.body.classList.toggle('immersive', state.immersive && !state.chromeVisible);
 }
@@ -829,10 +840,14 @@ function closeSearchEngineMenu() {
 
 searchEngineButton.onclick = () => {
   closeSiteSuggestions();
-  const opening = searchEngineMenu.classList.contains('hidden');
-  searchEngineMenu.classList.toggle('hidden', !opening);
-  searchEngineButton.setAttribute('aria-expanded', opening ? 'true' : 'false');
-  syncChromeOverlay();
+  closeSearchEngineMenu();
+  // Electron's small native popup sits above WebContentsView; no full-window
+  // rectangle is reserved underneath an HTML overlay.
+  const rect = searchEngineButton.getBoundingClientRect();
+  fire(window.quantic.searchEngineMenu(
+    Math.max(0, Math.round(rect.left)),
+    Math.max(0, Math.round(rect.top - 280))
+  ));
 };
 document.querySelectorAll('[data-search-engine]').forEach((button) => {
   button.onclick = async () => {
