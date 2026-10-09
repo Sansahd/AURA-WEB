@@ -35,11 +35,15 @@ test('GEKKO icon keeps a recognizable Earth gripped by the gecko', () => {
   assert.match(icon, /class="toe"/);
 });
 
-test('external web content reserves top tabs and bottom dock', () => {
+test('external web content starts at the top and reserves bottom dock plus tab rail', () => {
   const main = read('src/main.cjs');
-  assert.match(main, /TOP_CHROME_H\s*=\s*42/);
+  const css = read('src/renderer/gekko-24-polish.css');
+  assert.match(main, /TOP_CHROME_H\s*=\s*0/);
   assert.match(main, /BOTTOM_DOCK_H\s*=\s*66/);
   assert.match(main, /height\s*-\s*top\s*-\s*bottom/);
+  assert.match(main, /const rail = SIDESTAGE_RAIL_W/);
+  assert.match(css, /#chrome\s*\{display:none!important\}/);
+  assert.match(css, /#sidestage-rail \.gekko-rail-window-controls/);
 });
 
 test('navigation has no cinematic or fade overlay', () => {
