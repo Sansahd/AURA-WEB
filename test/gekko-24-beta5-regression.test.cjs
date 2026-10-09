@@ -16,7 +16,7 @@ test('search selector is a glossy attached bubble, never a detached OS menu', ()
   assert.match(main, /bounds\.y \+ Math\.round\(Number\(anchorY\)/);
   assert.match(main, /event\.sender !== enginePopover\.webContents/);
   assert.match(html, /class="bubble"/);
-  assert.match(html, /border-radius:21px/);
+  assert.match(html, /border-radius:23px/);
   assert.match(html, /data-engine="tor"/);
   assert.match(picker, /window\.gekkoPicker\.choose/);
   assert.match(preload, /ipcRenderer\.send\('gekko-picker-choice', engine\)/);
@@ -39,13 +39,18 @@ test('window has three explicit sizes and keeps minimize and close working', () 
   const main = read('src/main.cjs');
   const firewall = read('src/security/ipc-firewall.cjs');
   const renderer = read('src/renderer/renderer.js');
-  for(const geometry of ['960 × 640','1280 × 800','1600 × 900']) assert.ok(main.includes(geometry));
+  const picker = read('src/renderer/size-picker.html');
+  for(const size of ['small','medium','fullscreen']) assert.ok(picker.includes('data-size="' + size + '"'));
+  assert.match(picker, /class="choices"/);
+  assert.match(picker, /class="shape"/);
+  assert.match(main, /function applyWindowSize\(choice\)/);
+  assert.match(main, /win\.setFullScreen\(true\)/);
   assert.match(main, /function showWindowSizes/);
   assert.match(main, /if \(action === 'sizes'\) showWindowSizes\(\)/);
   assert.match(main, /if \(action === 'minimize'\) win\.minimize\(\)/);
   assert.match(main, /if \(action === 'close'\) win\.close\(\)/);
   assert.match(firewall, /'sizes'/);
-  assert.match(renderer, /windowControl\(button\.dataset\.win === 'maximize' \? 'sizes'/);
+  assert.match(renderer, /window\.quantic\.windowSizeMenu\(/);
 });
 
 test('Mail and ZOON never silently pretend an unavailable remote page is ready', () => {
