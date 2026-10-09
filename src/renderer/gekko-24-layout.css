@@ -514,3 +514,94 @@ body:not([data-rail-position="top"]) #sidestage-rail .tab .tab-sound{
   font-size:11px;
 }
 body:not([data-rail-position="top"]) #sidestage-rail .tab .tab-sound + .tab-x{top:auto!important;bottom:0!important}
+
+
+/* GEKKO 2.4 beta 10 — edge-integrated chrome.
+   A native WebContentsView cannot render through the rectangle reserved for
+   the dock. The former floating rounded bar exposed this reserved backing
+   behind its edges. Give the chrome a full-bleed surface instead, keeping
+   rounded SEARCH and BUTTON controls, with no mismatched corner patches. */
+#shell{border-radius:0!important}
+#bottom-dock,
+body.chrome-hidden #bottom-dock{
+  left:0!important;
+  right:0!important;
+  bottom:0!important;
+  height:66px!important;
+  min-height:66px!important;
+  padding:9px 12px!important;
+  border-radius:0!important;
+  border-left:0!important;
+  border-right:0!important;
+  border-bottom:0!important;
+  border-top:1px solid color-mix(in srgb,var(--quantic-accent) 22%,#50545f)!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+body.chrome-hidden #bottom-dock{
+  /* Only the actual dock content hides; do not animate a larger native
+     viewport gap when entering immersive mode. */
+  transform:translate3d(0,78px,0)!important;
+}
+#sidestage-rail:not(.rail-minimized),
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="right"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="top"].chrome-hidden #sidestage-rail:not(.rail-minimized){
+  border-radius:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+#sidestage-rail.rail-minimized,
+body[data-rail-position="left"] #sidestage-rail.rail-minimized,
+body[data-rail-position="right"] #sidestage-rail.rail-minimized,
+body[data-rail-position="top"] #sidestage-rail.rail-minimized{
+  border-radius:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+#sidestage-rail .tab-favicon{
+  display:block;
+  flex:0 0 22px;
+  width:22px;
+  height:22px;
+  max-width:22px;
+  max-height:22px;
+  object-fit:contain;
+  border-radius:5px;
+  pointer-events:none;
+}
+#sidestage-rail .tab-favicon[hidden],
+#sidestage-rail .tab-mark[hidden]{display:none!important}
+body:not([data-rail-position="top"]) #sidestage-rail .tab-favicon{
+  width:23px;height:23px;max-width:23px;max-height:23px;
+  justify-self:center;
+}
+body[data-rail-position="top"] #sidestage-rail .tab-favicon{
+  flex:0 0 20px;width:20px;height:20px;max-width:20px;max-height:20px;
+}
+
+/* In vertical mode the new-tab action is the last item of the scrollable
+   tab collection, not a stranded footer. */
+body:not([data-rail-position="top"]) #sidestage-rail .tabs > .plus{
+  order:999;
+  flex:0 0 34px!important;
+  align-self:center;
+  width:40px!important;
+  height:34px!important;
+  margin:3px 0 0!important;
+}
+body[data-rail-position="top"] #sidestage-rail .tabs > .plus{
+  order:999;
+  flex:0 0 34px!important;
+  align-self:center;
+  width:34px!important;
+  min-width:34px!important;
+  height:34px!important;
+  margin:0!important;
+}
+@media(max-width:760px){
+  #bottom-dock{left:0!important;right:0!important;bottom:0!important;padding:9px 7px!important}
+}
