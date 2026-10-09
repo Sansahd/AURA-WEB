@@ -689,7 +689,13 @@ impl servo::WebViewDelegate for FusionDelegate {
                     return;
                 }
                 let color = egui::ColorImage::from_rgba_unmultiplied(size, image.as_raw());
-                let texture = state.egui.borrow().egui_ctx.load_texture(
+                // Servo may call back while egui already has a mutable borrow.
+                // Missing a transition snapshot is preferable to crashing the browser.
+                let Ok(egui) = state.egui.try_borrow() else {
+                    state.window.request_redraw();
+                    return;
+                };
+                let texture = egui.egui_ctx.load_texture(
                     "gekko-last-frame",
                     color,
                     egui::TextureOptions::LINEAR,
