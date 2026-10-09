@@ -974,9 +974,6 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
       fire(window.quantic.navigate('quantic://settings'));
       return;
     }
-    if (action === 'explore-more') {
-      fire(window.quantic.navigate('Découvrir le web'));
-    }
   };
 });
 
