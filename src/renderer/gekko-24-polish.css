@@ -501,3 +501,21 @@ body.rail-minimized .ai-panel{right:28px!important}
 @media(prefers-reduced-motion:reduce){
   #sidestage-rail .gekko-rail-toggle{transition:none!important}
 }
+
+
+/* GEKKO 2.4 beta 5: visible service errors, without a ghost blank panel. */
+#sidestage-rail .side-stage-app.error{
+  border-color:rgba(255,176,144,.46)!important;
+  background:rgba(188,90,50,.13)!important;
+}
+#sidestage-rail .side-stage-app.error::after{
+  content:"!";
+  position:absolute;
+  right:2px;
+  top:1px;
+  color:#ffd7af;
+  font-size:10px;
+  font-weight:800;
+  pointer-events:none;
+}
+#sidestage-rail .side-stage-app{position:relative}
