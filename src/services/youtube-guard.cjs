@@ -68,7 +68,8 @@ function youtubeGuardSource() {
       shieldRestore: null,
       adCornerRestore: null,
       adCornerBadge: null,
-      directStatusBadge: null
+      directStatusBadge: null,
+      manualDirectRetry: false
     };
 
     function scrub(value, seen = new WeakSet()) {
@@ -296,6 +297,7 @@ function youtubeGuardSource() {
         state.directFailedFor = '';
         state.directCooldownUntil = 0;
         state.directFallbackAfter = 0;
+        state.manualDirectRetry = true;
       }
       setDirectStatus();
       state.directRequested = true;
@@ -556,6 +558,7 @@ function youtubeGuardSource() {
         state.directFailedFor = '';
         state.directFallbackAfter = 0;
         state.directCooldownUntil = 0;
+        state.manualDirectRetry = false;
         setDirectStatus();
         removeDirectShield(true);
       }
@@ -639,6 +642,7 @@ function youtubeGuardSource() {
         if (result.ok) {
           state.directFailedFor = '';
           state.directFallbackAfter = 0;
+          state.manualDirectRetry = false;
           setDirectStatus();
           removeDirectShield(false);
         }
@@ -648,7 +652,11 @@ function youtubeGuardSource() {
           state.directFallbackAfter = Date.now() + 1400;
           state.directCooldownUntil = Date.now() + 15000;
           state.adSince = 0;
-          setDirectStatus(result.error || 'Flux direct indisponible');
+          // Direct is an optional alternate player: if native YouTube still works,
+          // do not alarm the user with a failure banner after an ad is skipped.
+          if (state.manualDirectRetry) setDirectStatus(result.error || 'Flux direct indisponible');
+          else setDirectStatus();
+          state.manualDirectRetry = false;
           const button = document.getElementById('gekko-direct-button');
           if (button) {
             const original = button.textContent;
@@ -672,6 +680,7 @@ function youtubeGuardSource() {
         state.directFailedFor = '';
         state.directFallbackAfter = 0;
         state.directCooldownUntil = Date.now() + Math.max(0, Number(cooldownMs || 0));
+        state.manualDirectRetry = false;
         setDirectStatus();
       }
     };
