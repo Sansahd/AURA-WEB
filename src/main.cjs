@@ -145,6 +145,7 @@ function state() {
     aiOpen,
     aiRuntime,
     chromeVisible,
+    windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
     settings: store?.settings() || {},
     sideStage: sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, apps: [] },
@@ -1335,8 +1336,9 @@ function createWindow() {
   // Update the WebContentsView immediately: a 16ms deferred layout can expose
   // an uncovered strip while the user resizes the window with the mouse.
   win.on('resize', layout);
-  win.on('maximize', layout);
-  win.on('unmaximize', layout);
+  win.on('maximize', () => { layout(); emitState(true); });
+  win.on('unmaximize', () => { layout(); emitState(true); });
+  win.on('restore', () => { layout(); emitState(true); });
 }
 
 app.whenReady().then(async () => {
