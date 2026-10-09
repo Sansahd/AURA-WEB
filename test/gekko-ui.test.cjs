@@ -230,22 +230,22 @@ test('YouTube video pages proactively enter GEKKO Direct before ad playback', ()
 
 
 
-test('search engine picker keeps original two-column geometry while reserving WebContents space', () => {
-  const css = read('src/renderer/quantic-glide-brand.css');
+test('search engine picker is a compact native popup and never opens a full-width gap', () => {
+  const polish = read('src/renderer/gekko-24-polish.css');
   const renderer = read('src/renderer/renderer.js');
   const main = read('src/main.cjs');
   const preload = read('src/preload.cjs');
   const firewall = read('src/security/ipc-firewall.cjs');
 
-  assert.match(css, /original engine palette geometry restored/);
-  assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
-  assert.match(css, /bottom:56px!important/);
-  assert.match(renderer, /syncChromeOverlay/);
-  assert.match(renderer, /engineOpen \? 326/);
-  assert.match(main, /chromeOverlayHeight/);
+  assert.match(polish, /#search-engine-menu\{display:none!important\}/);
+  assert.match(renderer, /window\.quantic\.searchEngineMenu\(/);
+  assert.doesNotMatch(renderer, /engineOpen \? 326/);
+  assert.match(main, /function showCompactSearchEngineMenu/);
+  assert.match(main, /Menu\.buildFromTemplate\(engines\.map/);
+  assert.match(main, /menu\.popup\(\{/);
+  assert.match(preload, /searchEngineMenu: \(x,y\) => ipcRenderer\.invoke\('search-engine-menu',x,y\)/);
+  assert.match(firewall, /'search-engine-menu': \(args\)/);
   assert.match(main, /BOTTOM_DOCK_H \+ chromeOverlayHeight/);
-  assert.match(preload, /chromeOverlay: \(h\) => ipcRenderer\.invoke\('chrome-overlay-height', h\)/);
-  assert.match(firewall, /'chrome-overlay-height'/);
 });
 
 test('omnibox hypercache can prewarm several likely destinations on the first keystroke', () => {
@@ -266,16 +266,15 @@ test('favorites use the heart-eyes control requested for bookmarking', () => {
   assert.match(css, /#fav\.active/);
 });
 
-test('immersive chrome uses soft CSS and native bounds animation', () => {
+test('immersive dock snaps browser bounds and cannot uncover an animated empty gutter', () => {
   const main = read('src/main.cjs');
-  const css = read('src/renderer/quantic-glide-brand.css');
-  assert.match(main, /CHROME_LAYOUT_ANIM_MS = 280/);
+  const polish = read('src/renderer/gekko-24-polish.css');
   assert.match(main, /function setTabViewBounds/);
-  assert.match(main, /layout\(\{ animateChrome: true \}\)/);
-  assert.match(main, /setInterval\(frame, 16\)/);
-  assert.match(css, /GEKKO 2\.1 — softer immersive chrome/);
-  assert.match(css, /transform \.32s cubic-bezier\(\.16,1,\.3,1\)/);
-  assert.match(css, /filter:blur\(4px\)/);
+  assert.match(main, /function showChrome\(focusAddress = false\)/);
+  assert.doesNotMatch(main, /layout\(\{ animateChrome: true \}\)/);
+  assert.match(main, /function startImmersionWatcher/);
+  assert.match(polish, /#bottom-dock\{[^}]*transition:none!important/s);
+  assert.match(polish, /body\.chrome-hidden #bottom-dock\{[^}]*transition:none!important/s);
 });
 
 test('YouTube Direct is primed before DOM-ready when navigation starts', () => {
