@@ -105,7 +105,12 @@ let aiRuntime = {
 };
 let chromeVisible = true;
 let chromeOverlayHeight = 0;
-let railCollapsed = false;
+let railCollapsed = true;
+let railPinned = false;
+let railLastHover = 0;
+let railHoverTimer = null;
+let enginePopover = null;
+let enginePopoverReady = false;
 let revealUntil = 0;
 let immersiveTimer = null;
 let tabLifecycleTimer = null;
@@ -148,6 +153,7 @@ function state() {
     aiRuntime,
     chromeVisible,
     railCollapsed,
+    railPinned,
     windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
     settings: store?.settings() || {},
@@ -1050,37 +1056,109 @@ function startImmersionWatcher() {
   immersiveTimer.unref?.();
 }
 
+function closeEnginePopover() {
+  if (enginePopover && !enginePopover.isDestroyed()) enginePopover.hide();
+}
 function showCompactSearchEngineMenu(anchorX = 180, anchorY = 320) {
   if (!win || win.isDestroyed() || !store) return false;
-  const active = normalizeEngine(store.settings().searchEngine);
-  const engines = [
-    ['gekko', 'GEKKO Search'],
-    ['duckduckgo', 'DuckDuckGo'],
-    ['qwant', 'Qwant'],
-    ['startpage', 'Startpage'],
-    ['brave', 'Brave Search'],
-    ['searxng', 'SearXNG'],
-    ['tor', 'Tor · Veil']
+  if (enginePopover?.isVisible()) { closeEnginePopover(); return true; }
+  if (!enginePopover || enginePopover.isDestroyed()) {
+    enginePopoverReady = false;
+    enginePopover = new BrowserWindow({
+      parent: win, modal: false, width: 326, height: 322, show: false,
+      frame: false, transparent: true, resizable: false, movable: false,
+      minimizable: false, maximizable: false, skipTaskbar: true,
+      hasShadow: true, backgroundColor: '#00000000',
+      webPreferences: {
+        preload: path.join(__dirname, 'engine-picker-preload.cjs'),
+        contextIsolation: true, nodeIntegration: false, sandbox: true,
+        webSecurity: true
+      }
+    });
+    const picker = enginePopover;
+    picker.setMenuBarVisibility(false);
+    picker.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    picker.on('blur', () => { if (!picker.isDestroyed()) picker.hide(); });
+    picker.on('closed', () => {
+      if (enginePopover === picker) { enginePopover = null; enginePopoverReady = false; }
+    });
+    picker.webContents.on('did-finish-load', () => {
+      if (enginePopover !== picker || picker.isDestroyed()) return;
+      enginePopoverReady = true;
+      picker.show();
+    });
+  }
+  const bounds = win.getBounds();
+  const display = screen.getDisplayMatching(bounds).workArea;
+  const x = Math.min(display.x + display.width - 326,
+    Math.max(display.x, bounds.x + Math.round(Number(anchorX) || 180) - 10));
+  const y = Math.min(display.y + display.height - 322,
+    Math.max(display.y, bounds.y + Math.round(Number(anchorY) || 320) - 308));
+  enginePopover.setPosition(x, y);
+  // The dedicated bubble is its own compact, rounded, trusted window: it never
+  // changes the entire WebContentsView's bounds or pushes the page upward.
+  enginePopoverReady = false;
+  enginePopover.loadFile(path.join(__dirname, 'renderer', 'engine-picker.html'), {
+    query: { active: normalizeEngine(store.settings().searchEngine) }
+  }).catch(() => closeEnginePopover());
+  return true;
+}
+
+function setRailCollapsed(next) {
+  if (railCollapsed === Boolean(next)) return false;
+  railCollapsed = Boolean(next);
+  if (railCollapsed) sideStage?.hideAll();
+  layout();
+  emitState(true);
+  return true;
+}
+function startRailHoverWatcher() {
+  clearInterval(railHoverTimer);
+  railHoverTimer = setInterval(() => {
+    if (!win || win.isDestroyed() || !win.isVisible() || win.isMinimized() || railPinned) return;
+    const bounds = win.getBounds();
+    const pointer = screen.getCursorScreenPoint();
+    const vertical = pointer.y >= bounds.y && pointer.y <= bounds.y + bounds.height;
+    const stage = sideStage?.state({ privateMode: isPrivateMode() }) || {};
+    const additional = !railCollapsed && stage.open && !stage.collapsed
+      ? Number(stage.width || 420) : 0;
+    const reach = railCollapsed ? 30 : SIDESTAGE_RAIL_W + additional + 16;
+    const inside = vertical && pointer.x >= bounds.x + bounds.width - reach &&
+      pointer.x <= bounds.x + bounds.width;
+    if (inside) {
+      railLastHover = Date.now();
+      setRailCollapsed(false);
+    } else if (!railCollapsed && Date.now() - railLastHover >= 950) {
+      setRailCollapsed(true);
+    }
+  }, 130);
+  railHoverTimer.unref?.();
+}
+
+function showWindowSizes() {
+  if (!win || win.isDestroyed()) return;
+  const options = [
+    { label: 'Compacte · 960 × 640', width: 960, height: 640 },
+    { label: 'Moyenne · 1280 × 800', width: 1280, height: 800 },
+    { label: 'Grande · 1600 × 900', width: 1600, height: 900 }
   ];
-  const menu = Menu.buildFromTemplate(engines.map(([id, label]) => ({
+  const menu = Menu.buildFromTemplate(options.map(({ label, width, height }) => ({
     label,
-    type: 'radio',
-    checked: active === id,
     click() {
-      store.setSetting('searchEngine', id);
+      const display = screen.getDisplayMatching(win.getBounds()).workArea;
+      const targetW = Math.min(width, display.width);
+      const targetH = Math.min(height, display.height);
+      if (win.isMaximized()) win.unmaximize();
+      win.setBounds({
+        x: display.x + Math.round((display.width - targetW) / 2),
+        y: display.y + Math.round((display.height - targetH) / 2),
+        width: targetW, height: targetH
+      });
+      layout();
       emitState(true);
-      win?.webContents?.send('focus-address');
     }
   })));
-  const [width, height] = win.getContentSize();
-  // Native context menu floats only near the engine icon, rather than
-  // resizing the entire tab view for a 326px-tall HTML overlay.
-  menu.popup({
-    window: win,
-    x: Math.max(0, Math.min(Math.round(Number(anchorX) || 180), width - 240)),
-    y: Math.max(0, Math.min(Math.round(Number(anchorY) || 320), height - 280))
-  });
-  return true;
+  menu.popup({ window: win });
 }
 
 function menuForPlus() {
@@ -1461,12 +1539,28 @@ app.whenReady().then(async () => {
 
   createWindow();
   startImmersionWatcher();
+  startRailHoverWatcher();
   startTabLifecycleWatcher();
 
   // Finish normal networking after the shell is already visible.
   if (!isPrivateMode()) void normalProxyReady;
 });
 
+// Unlike general browser IPC, this channel is exclusively owned by the
+// isolated, local engine-picker child window. Untrusted pages cannot invoke it.
+ipcMain.on('gekko-picker-choice', (event, engine) => {
+  if (!enginePopover || enginePopover.isDestroyed() ||
+      event.sender !== enginePopover.webContents ||
+      !['gekko','duckduckgo','qwant','startpage','brave','searxng','tor'].includes(engine)) return;
+  store.setSetting('searchEngine', engine);
+  closeEnginePopover();
+  emitState(true);
+  win?.webContents?.send('focus-address');
+});
+ipcMain.on('gekko-picker-dismiss', (event) => {
+  if (enginePopover && !enginePopover.isDestroyed() && event.sender === enginePopover.webContents)
+    closeEnginePopover();
+});
 ipcMain.handle('get-state', () => state());
 ipcMain.handle('navigate', async (_event, value) => loadTab(activeTab(), value));
 ipcMain.handle('prewarm-site', (_event, url) => prewarmPopularSite(url));
@@ -1481,11 +1575,11 @@ ipcMain.handle('close-tab', (_event, id) => closeTab(Number(id)));
 ipcMain.handle('plus-menu', () => menuForPlus());
 ipcMain.handle('search-engine-menu', (_event, x, y) => showCompactSearchEngineMenu(x, y));
 ipcMain.handle('toggle-rail-collapse', () => {
-  railCollapsed = !railCollapsed;
-  if (railCollapsed) sideStage?.hideAll();
-  layout();
+  railPinned = !railPinned;
+  railLastHover = Date.now();
+  setRailCollapsed(false);
   emitState(true);
-  return railCollapsed;
+  return railPinned;
 });
 ipcMain.handle('main-menu', () => mainMenu());
 ipcMain.handle('extension-install', async () => {
@@ -1619,6 +1713,7 @@ ipcMain.handle('career-import', async () => {
 ipcMain.handle('window-control', (_event, action) => {
   if (action === 'minimize') win.minimize();
   if (action === 'maximize') win.isMaximized() ? win.unmaximize() : win.maximize();
+  if (action === 'sizes') showWindowSizes();
   if (action === 'close') win.close();
 });
 ipcMain.handle('set-chrome-lock', (_event, locked) => { revealUntil = Date.now() + (locked ? 60000 : 700); });
@@ -1684,6 +1779,7 @@ app.on('before-quit', (event) => {
 });
 app.on('will-quit', () => {
   clearInterval(immersiveTimer);
+  clearInterval(railHoverTimer);
   clearInterval(tabLifecycleTimer);
   clearInterval(careerTimer);
   clearTimeout(stateEmitTimer);
