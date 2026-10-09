@@ -110,6 +110,8 @@ let chromeOverlayHeight = 0;
 let railCollapsed = true;
 let railPinned = false;
 let railLastHover = 0;
+let railManualUntil = 0;
+let railDragUntil = 0;
 let railHoverTimer = null;
 let enginePopover = null;
 let enginePopoverReady = false;
@@ -1118,9 +1120,11 @@ function showCompactSearchEngineMenu(anchorX = 180, anchorY = 320) {
 }
 
 function setRailCollapsed(next) {
-  if (railCollapsed === Boolean(next)) return false;
-  railCollapsed = Boolean(next);
-  if (railCollapsed) sideStage?.hideAll();
+  const shouldCollapse = railPinned ? false : Boolean(next);
+  if (railCollapsed === shouldCollapse) return false;
+  railCollapsed = shouldCollapse;
+  // Never tear down a remote app just because the pointer leaves the rail.
+  // Native pane visibility is managed by SideStage, not hover state.
   layout();
   emitState(true);
   return true;
@@ -1128,7 +1132,9 @@ function setRailCollapsed(next) {
 function startRailHoverWatcher() {
   clearInterval(railHoverTimer);
   railHoverTimer = setInterval(() => {
-    if (!win || win.isDestroyed() || !win.isVisible() || win.isMinimized() || railPinned) return;
+    if (!win || win.isDestroyed() || !win.isVisible() || win.isMinimized()) return;
+    if (railPinned) { setRailCollapsed(false); return; }
+    if (Date.now() < railManualUntil || Date.now() < railDragUntil) return;
     const bounds = win.getBounds();
     const pointer = screen.getCursorScreenPoint();
     const vertical = pointer.y >= bounds.y && pointer.y <= bounds.y + bounds.height;
@@ -1147,7 +1153,7 @@ function startRailHoverWatcher() {
     if (inside) {
       railLastHover = Date.now();
       setRailCollapsed(false);
-    } else if (!railCollapsed && Date.now() - railLastHover >= 950) {
+    } else if (!railCollapsed && Date.now() - railLastHover >= 1000) {
       setRailCollapsed(true);
     }
   }, 130);
@@ -1491,6 +1497,7 @@ function createWindow() {
   // Update the WebContentsView immediately: a 16ms deferred layout can expose
   // an uncovered strip while the user resizes the window with the mouse.
   win.on('resize', layout);
+  win.on('move', () => { railDragUntil = Date.now() + 1200; });
   win.on('maximize', () => { layout(); emitState(true); });
   win.on('unmaximize', () => { layout(); emitState(true); });
   win.on('restore', () => { layout(); emitState(true); });
@@ -1616,9 +1623,20 @@ ipcMain.handle('plus-menu', () => menuForPlus());
 ipcMain.handle('search-engine-menu', (_event, x, y) => showCompactSearchEngineMenu(x, y));
 ipcMain.handle('rail-position-menu', () => showRailPositionMenu());
 ipcMain.handle('toggle-rail-collapse', () => {
-  railPinned = !railPinned;
+  // Chevron = manual expand/collapse. It never changes the pin preference.
+  if (railPinned) railPinned = false;
+  const next = !railCollapsed;
+  railManualUntil = Date.now() + 1100;
   railLastHover = Date.now();
-  setRailCollapsed(false);
+  setRailCollapsed(next);
+  emitState(true);
+  return railCollapsed;
+});
+ipcMain.handle('toggle-rail-pin', () => {
+  railPinned = !railPinned;
+  railManualUntil = Date.now() + 1200;
+  railLastHover = Date.now();
+  if (railPinned) setRailCollapsed(false);
   emitState(true);
   return railPinned;
 });
