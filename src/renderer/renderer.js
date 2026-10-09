@@ -690,7 +690,7 @@ function renderSideStage() {
       : (minimized ? '‹' : '›');
   const railToggle = el('button', 'gekko-rail-toggle', arrows);
   railToggle.type = 'button';
-  railToggle.title = state.railPinned ? 'Rétraction automatique (désépingler)' : 'Garder la barre latérale déployée';
+  railToggle.title = minimized ? 'Ouvrir la barre' : 'Rétracter la barre';
   railToggle.setAttribute('aria-label', railToggle.title);
   railToggle.onclick = () => fire(window.quantic.toggleRailCollapse());
   sideStageRail.append(railToggle);
@@ -702,6 +702,14 @@ function renderSideStage() {
   grip.title = 'Déplacer la fenêtre';
   grip.setAttribute('aria-hidden', 'true');
   sideStageRail.append(grip);
+
+  const pinButton = el('button', 'gekko-rail-pin' + (state.railPinned ? ' is-pinned' : ''), state.railPinned ? '📌' : '♧');
+  pinButton.type = 'button';
+  pinButton.title = state.railPinned ? 'Désépingler · rétraction automatique' : 'Épingler la barre ouverte';
+  pinButton.setAttribute('aria-label', pinButton.title);
+  pinButton.setAttribute('aria-pressed', String(Boolean(state.railPinned)));
+  pinButton.onclick = () => fire(window.quantic.toggleRailPin());
+  sideStageRail.append(pinButton);
 
   // Three-position layout chooser is always visible in the expanded rail.
   const positionButton = el('button', 'gekko-rail-position', '◫');
@@ -765,7 +773,7 @@ function renderSideStage() {
     windowControls.setAttribute('role', 'group');
     windowControls.setAttribute('aria-label', 'Commandes de fenêtre');
     for (const button of windowControls.querySelectorAll('[data-win]')) {
-      button.title = ({ minimize: 'Réduire', maximize: 'Agrandir ou restaurer', close: 'Fermer GEKKO' })[button.dataset.win] || 'Fenêtre';
+      button.title = ({ minimize: 'Réduire', maximize: 'Choisir la taille de fenêtre', close: 'Fermer GEKKO' })[button.dataset.win] || 'Fenêtre';
     }
     sideStageRail.append(windowControls);
   }
@@ -805,7 +813,7 @@ function render() {
   const maximizeControl = windowControls?.querySelector('[data-win="maximize"]');
   if (maximizeControl) {
     const maximized = Boolean(state.windowMaximized);
-    const label = maximized ? 'Choisir une des trois tailles · clic droit pour restaurer' : 'Choisir une des trois tailles de fenêtre';
+    const label = maximized ? 'Changer la taille (Petit, Moyen, Plein écran)' : 'Changer la taille (Petit, Moyen, Plein écran)';
     maximizeControl.textContent = '▣';
     maximizeControl.title = label;
     maximizeControl.setAttribute('aria-label', label);
@@ -886,7 +894,14 @@ $('#ai').onclick = () => fire(window.quantic.toggleAi());
 $('#ai-close').onclick = () => fire(window.quantic.toggleAi());
 
 document.querySelectorAll('[data-win]').forEach((button) => {
-  button.onclick = () => fire(window.quantic.windowControl(button.dataset.win === 'maximize' ? 'sizes' : button.dataset.win));
+  button.onclick = () => {
+    if (button.dataset.win === 'maximize') {
+      const box = button.getBoundingClientRect();
+      fire(window.quantic.windowSizeMenu(Math.round(box.left), Math.round(box.top)));
+    } else {
+      fire(window.quantic.windowControl(button.dataset.win));
+    }
+  };
   if (button.dataset.win === 'maximize') {
     button.oncontextmenu = (event) => { event.preventDefault(); fire(window.quantic.windowControl('maximize')); };
   }
