@@ -27,6 +27,7 @@ const TOP_CHROME_H = 0;
 const BOTTOM_DOCK_H = 66;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 58;
+const SIDESTAGE_RAIL_MIN_W = 18;
 const SIDESTAGE_COLLAPSED_W = 22;
 const EDGE_TRIGGER = 24;
 const HOLD_MS = 1600;
@@ -104,6 +105,7 @@ let aiRuntime = {
 };
 let chromeVisible = true;
 let chromeOverlayHeight = 0;
+let railCollapsed = false;
 let revealUntil = 0;
 let immersiveTimer = null;
 let tabLifecycleTimer = null;
@@ -145,6 +147,7 @@ function state() {
     aiOpen,
     aiRuntime,
     chromeVisible,
+    railCollapsed,
     windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
     settings: store?.settings() || {},
@@ -999,16 +1002,16 @@ function layout(options = {}) {
   const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H + chromeOverlayHeight;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
   // The compact open-tab shelf is always available, including in private mode.
-  const rail = SIDESTAGE_RAIL_W;
-  const stageWidth = stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
+  const rail = railCollapsed ? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;
+  const stageWidth = !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
     ? Number(stageState.width || 420) : 0;
-  const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed) ? AI_W : 0;
+  const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
   const right = rail + stageWidth + aiWidth;
   if (tab?.view && isExternal(tab.url)) {
     const bounds = { x: 0, y: top, width: Math.max(1, width - right), height: Math.max(1, height - top - bottom) };
     setTabViewBounds(tab, bounds, Boolean(options?.animateChrome));
   }
-  sideStage?.layout({ x: Math.max(0, width - rail - stageWidth), y: top, width: stageWidth, height: Math.max(1, height - top - bottom), privateMode: isPrivateMode() });
+  sideStage?.layout({ x: Math.max(0, width - rail - stageWidth), y: top, width: stageWidth, height: Math.max(1, height - top - bottom), privateMode: isPrivateMode() || railCollapsed });
 }
 
 function scheduleLayout() {
@@ -1019,7 +1022,9 @@ function scheduleLayout() {
 function showChrome(focusAddress = false) {
   chromeVisible = true;
   revealUntil = Date.now() + HOLD_MS;
-  layout({ animateChrome: true });
+  // Never interpolate the native page bounds while the dock appears: the
+  // empty uncovered compositor strip looked like an extra blank toolbar.
+  layout();
   emitState();
   if (focusAddress) win.webContents.send('focus-address');
 }
@@ -1039,7 +1044,7 @@ function startImmersionWatcher() {
     if (chromeVisible && Date.now() > revealUntil && pointer.y > bounds.y + TOP_CHROME_H + 36 && pointer.y < bounds.y + bounds.height - BOTTOM_DOCK_H - 36) {
       chromeVisible = false;
       aiOpen = false;
-      layout({ animateChrome: true });
+      layout();
       emitState();
     }
   }, 120);
