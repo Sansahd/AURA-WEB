@@ -12,8 +12,8 @@ test('one actual rail contains the old dock DOM, navigation commands and search 
  assert.ok(unified);
  assert.match(ui,/const unifiedDock = \$\('#bottom-dock'\)/);
  assert.match(ui,/sideStageRail\.append\(unifiedDock\)/);
- assert.match(ui,/sideStageRail\.append\(searchLaunch\)/);
- assert.match(ui,/sideStageRail\.append\(toolsToggle\)/);
+ assert.match(ui,/sideStageRail\.append\(unifiedDock\)/);
+ assert.match(ui,/headerActions\.append\(toolsToggle\)/);
  assert.match(unified,/#sidestage-rail #bottom-dock/);
  assert.match(unified,/position:static!important/);
  assert.match(unified,/background:transparent!important/);
