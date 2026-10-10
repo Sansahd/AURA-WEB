@@ -26,7 +26,7 @@ test('search selector is a glossy attached bubble, never a detached OS menu', ()
 test('rail automatically contracts on leave and expands on right-edge hover', () => {
   const main = read('src/main.cjs');
   const renderer = read('src/renderer/renderer.js');
-  assert.match(main, /let railCollapsed = true;/);
+  assert.match(main, /let railCollapsed = false;/);
   assert.match(main, /function startRailHoverWatcher/);
   assert.match(main, /setInterval\(\(\) => \{/);
   assert.match(main, /setRailCollapsed\(false\)/);
