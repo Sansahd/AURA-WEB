@@ -115,6 +115,7 @@ let aiRuntime = {
 };
 let chromeVisible = true;
 let chromeOverlayHeight = 0;
+let railSearchFocused = false;
 let railCollapsed = true;
 let railPinned = false;
 let railLastHover = 0;
@@ -1371,7 +1372,7 @@ function startRailHoverWatcher() {
   clearInterval(railHoverTimer);
   railHoverTimer = setInterval(() => {
     if (!win || win.isDestroyed() || !win.isVisible() || win.isMinimized()) return;
-    if (railPinned) { setRailCollapsed(false); return; }
+    if (railPinned || railSearchFocused) { setRailCollapsed(false); return; }
     if (Date.now() < railManualUntil || Date.now() < railDragUntil) return;
     const bounds = win.getBounds();
     const pointer = screen.getCursorScreenPoint();
@@ -2098,7 +2099,11 @@ ipcMain.handle('window-control', (_event, action) => {
   if (action === 'sizes') showWindowSizes();
   if (action === 'close') win.close();
 });
-ipcMain.handle('set-chrome-lock', (_event, locked) => { revealUntil = Date.now() + (locked ? 60000 : 700); });
+ipcMain.handle('set-chrome-lock', (_event, locked) => {
+  railSearchFocused = Boolean(locked);
+  if (railSearchFocused) setRailCollapsed(false);
+  revealUntil = Date.now() + (locked ? 60000 : 700);
+ });
 ipcMain.handle('set-setting', async (_event, key, value) => {
   if (key === 'searchEngine') value = normalizeEngine(value);
   if (key === 'networkMode') return setNetworkMode(value);
