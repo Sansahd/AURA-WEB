@@ -13,7 +13,7 @@ test('custom accent controls the entire bottom and side bars through linear grad
   assert.match(last, /#sidestage-rail:not\(\.rail-minimized\)/);
   assert.match(last, /--quantic-accent/);
   assert.doesNotMatch(last, /radial-gradient\(/);
-  assert.doesNotMatch(last, /filter:blur\(/);
+  assert.doesNotMatch(last, /^\s*filter:blur\(/m); // backdrop-filter is valid frosted glass
 });
 
 test('settings, favorites and app launchers toggle instead of creating duplicate tabs', () => {
