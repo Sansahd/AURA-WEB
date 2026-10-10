@@ -9,7 +9,7 @@ const SIDE_APPS = Object.freeze({
   spotify: Object.freeze({ id: 'spotify', label: 'Spotify', short: 'SP', icon: '../assets/brands/spotify.svg', url: 'https://open.spotify.com/', media: true }),
   netflix: Object.freeze({ id: 'netflix', label: 'Netflix', short: 'NF', icon: '../assets/brands/netflix.svg', url: 'https://www.netflix.com/', media: true, drm: true }),
   quanticmail: Object.freeze({ id: 'quanticmail', label: 'Quantic Mail', short: 'QM', icon: '../assets/brands/quantic-mail.svg', url: 'https://quanticmail.onrender.com/', media: false, privacy: true, localFirst: true }),
-  quanticpulse: Object.freeze({ id: 'quanticpulse', label: 'ZOON · Pulse', short: 'QP', icon: '../assets/brands/quantic-pulse.svg', url: `${QUANTIC_PORTAL_ORIGIN}/zoon.html`, media: false, social: true, privacy: true })
+  quanticpulse: Object.freeze({ id: 'quanticpulse', label: 'SOCIAL', short: 'SO', icon: '../assets/brands/quantic-pulse.svg', url: `${QUANTIC_PORTAL_ORIGIN}/zoon.html`, media: false, social: true, privacy: true })
 });
 
 const DEFAULT_SIDESTAGE = Object.freeze({
@@ -47,7 +47,7 @@ function normalizePinnedApps(value) {
     unique.push(id);
   }
 
-  // Existing default profiles from pre-Pulse builds should receive Pulse once,
+  // Existing default profiles from pre-SOCIAL builds receive the preserved ID once,
   // while custom SideStage selections remain untouched.
   if (provided && isLegacyDefaultPinned(unique) && !unique.includes('quanticpulse')) {
     unique.push('quanticpulse');
