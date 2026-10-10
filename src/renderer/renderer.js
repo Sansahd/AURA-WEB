@@ -799,8 +799,12 @@ function renderSideStage() {
       sideStageRail.append(el('div', 'side-stage-brand', 'FIXES'));
       for (const app of data.apps || []) {
         const fullAppTab = app.id === 'quanticmail' || app.id === 'quanticpulse';
-        const fullAppActive = fullAppTab && state.tabs?.some(
-          tab => tab.id === state.activeId && tab.url === app.url);
+        const fullAppActive = fullAppTab && state.tabs?.some(tab =>
+          tab.id === state.activeId && (
+            tab.url === app.url ||
+            (app.id === 'quanticmail' && tab.url.startsWith('https://quanticmail.onrender.com/')) ||
+            (app.id === 'quanticpulse' && /^https:\/\/xdsawyerlol\.github\.io\/QuanticSillage\/zoon(?:\.html)?(?:[?#]|$)/i.test(tab.url))
+          ));
         const button = el('button', 'side-stage-app ' +
           ((data.open && data.activeApp === app.id) || fullAppActive ? 'active ' : '') +
           (!fullAppTab && app.status === 'loading' ? 'loading' : ''));
