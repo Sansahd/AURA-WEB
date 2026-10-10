@@ -1219,6 +1219,14 @@ function startRailHoverWatcher() {
     const vertical = pointer.y >= bounds.y && pointer.y <= bounds.y + bounds.height;
     const horizontal = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width;
     const stage = sideStage?.state({ privateMode: isPrivateMode() }) || {};
+    // An opened SideStage app is a persistent panel, not a hover tooltip.
+    // Keep it visible as the pointer moves into the player, especially when
+    // the main rail is horizontal at the top of the window.
+    if (stage.open && !stage.collapsed) {
+      railLastHover = Date.now();
+      setRailCollapsed(false);
+      return;
+    }
     const position = store?.settings().railPosition || 'right';
     const additional = !railCollapsed && stage.open && !stage.collapsed
       ? Number(stage.width || 420) : 0;
