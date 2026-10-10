@@ -11,13 +11,13 @@ test('the shell offers a real persisted top/right/left rail position preference'
  const renderer=read('src/renderer/renderer.js');
  const firewall=read('src/security/ipc-firewall.cjs');
  const preload=read('src/preload.cjs');
- assert.match(store,/railPosition: 'right'/);
- assert.match(store,/railPosition: \['top', 'left', 'right'\]\.includes\(existingSettings\.railPosition\)/);
+ assert.match(store,/railPosition: 'bottom'/);
+ assert.match(store,/railPosition: existingSettings\.railPosition === 'top' \? 'top' : 'bottom'/);
  assert.match(store,/key === 'railPosition'/);
  assert.match(main,/function chooseRailPosition\(position\)/);
  assert.match(main,/store\.setSetting\('railPosition', position\)/);
  assert.match(main,/function showRailPositionMenu\(\)/);
- for(const position of ['top','left','right']) assert.match(main,new RegExp(`selected === '${position}'`));
+ for(const position of ['top','bottom']) assert.match(main,new RegExp(`selected === '${position}'`));
  assert.match(main,/ipcMain\.handle\('rail-position-menu'/);
  assert.match(preload,/railPositionMenu: \(\) => ipcRenderer\.invoke\('rail-position-menu'\)/);
  assert.match(firewall,/'rail-position-menu': noArgs/);
@@ -28,8 +28,8 @@ test('the shell offers a real persisted top/right/left rail position preference'
 
 test('native external-page and SideStage geometry respects the position',()=>{
  const main=read('src/main.cjs');
- assert.match(main,/const horizontal = railPosition === 'top'/);
- assert.match(main,/const topRail = horizontal\s*\?/);
+ assert.match(main,/const horizontal = railPosition === 'top' \|\| railPosition === 'bottom'/);
+ assert.match(main,/const topRail = railPosition === 'top'/);
  assert.match(main,/const sideLeft = railPosition === 'left' \? rail \+ searchExtra \+ stageWidth : 0/);
  assert.match(main,/const sideRight = railPosition === 'right' \?/);
  assert.match(main,/const bounds = \{ x: sideLeft, y: viewTop, width: Math\.max\(1, width - sideLeft - sideRight\), height: availableHeight \}/);
