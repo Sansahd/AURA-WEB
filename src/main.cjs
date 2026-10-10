@@ -115,8 +115,8 @@ let aiRuntime = {
 };
 let chromeVisible = true;
 let chromeOverlayHeight = 0;
-let railCollapsed = true;
-let railPinned = false;
+let railCollapsed = false; // Glass Corner toolbar is always visible.
+let railPinned = true; // Do not hide the sole navigation toolbar on pointer exit.
 let railLastHover = 0;
 let railManualUntil = 0;
 let railDragUntil = 0;
@@ -210,7 +210,7 @@ function state() {
     railCollapsed,
     railPinned,
     quanticIdentity: { ...quanticIdentityStatus, error: quanticSocialError },
-    railPosition: store?.settings().railPosition || 'right',
+    railPosition: store?.settings().railPosition || 'bottom',
     windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
     settings: store?.settings() || {},
@@ -1246,22 +1246,23 @@ function layout(options = {}) {
   const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H + chromeOverlayHeight;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
   // The compact open-tab shelf is always available, including in private mode.
-  const railPosition = store?.settings().railPosition || 'right';
+  const railPosition = store?.settings().railPosition || 'bottom';
   const horizontal = railPosition === 'top';
   const rail = railCollapsed ? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;
   const topRail = horizontal ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
   const stageWidth = !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
     ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
-  const sideLeft = railPosition === 'left' ? rail + stageWidth : 0;
-  const sideRight = railPosition === 'right' ? rail + stageWidth + aiWidth : (horizontal ? stageWidth + aiWidth : aiWidth);
+  // The original Glass Corner rail is now IN the bottom dock: no side gutter.
+  const sideLeft = 0;
+  const sideRight = stageWidth + aiWidth;
   const viewTop = top + topRail;
   const availableHeight = Math.max(1, height - viewTop - bottom);
   if (tab?.view && isExternal(tab.url)) {
     const bounds = { x: sideLeft, y: viewTop, width: Math.max(1, width - sideLeft - sideRight), height: availableHeight };
     setTabViewBounds(tab, bounds, Boolean(options?.animateChrome));
   }
-  const stageX = railPosition === 'left' ? rail : Math.max(0, width - (horizontal ? 0 : rail) - stageWidth);
+  const stageX = Math.max(0, width - stageWidth);
   const focusEnabled = Boolean(!isPrivateMode() && !railCollapsed && stageWidth > 0 &&
     stageState.open && !stageState.collapsed &&
     stageState.apps?.some(app => app.id === stageState.activeApp && app.media));
@@ -1411,7 +1412,7 @@ function startRailHoverWatcher() {
 }
 
 function chooseRailPosition(position) {
-  if (!store || !['top', 'left', 'right'].includes(position)) return false;
+  if (!store || position !== 'bottom') return false;
   store.setSetting('railPosition', position);
   railLastHover = Date.now();
   // Keep the new location visible briefly so the switch is discoverable.
@@ -1422,11 +1423,9 @@ function chooseRailPosition(position) {
 }
 function showRailPositionMenu() {
   if (!win || win.isDestroyed() || !store) return false;
-  const selected = store.settings().railPosition || 'right';
+  const selected = store.settings().railPosition || 'bottom';
   Menu.buildFromTemplate([
-    { label: 'En haut', type: 'radio', checked: selected === 'top', click: () => chooseRailPosition('top') },
-    { label: 'À droite', type: 'radio', checked: selected === 'right', click: () => chooseRailPosition('right') },
-    { label: 'À gauche', type: 'radio', checked: selected === 'left', click: () => chooseRailPosition('left') }
+    { label: 'En bas · barre pleine largeur', type: 'radio', checked: selected === 'bottom', click: () => chooseRailPosition('bottom') }
   ]).popup({ window: win });
   return true;
 }
