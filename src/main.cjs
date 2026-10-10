@@ -32,9 +32,9 @@ const { writeEncryptedFile, readEncryptedFile } = require('./services/sync-vault
 const HOME = 'quantic://newtab';
 // 2.4: no top title/tab bar. Native WebContentsViews reach the top edge.
 const TOP_CHROME_H = 0;
-const BOTTOM_DOCK_H = 66;
+const BOTTOM_DOCK_H = 60;
 const AI_W = 300;
-const SIDESTAGE_RAIL_W = 58;
+const SIDESTAGE_RAIL_W = 54;
 const SIDESTAGE_RAIL_MIN_W = 18;
 const HORIZONTAL_RAIL_H = 58;
 const HORIZONTAL_RAIL_MIN_H = 18;
