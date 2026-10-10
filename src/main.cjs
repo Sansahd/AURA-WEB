@@ -17,6 +17,7 @@ const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { NativeMediaFocus } = require('./services/media-focus.cjs');
+const { enableVideoSpotlightScript, disableVideoSpotlightScript } = require('./services/video-spotlight.cjs');
 const { appDefinition } = require('./services/sidestage.cjs');
 const { installQuanticUiProtocol, verifyQuanticUiShell, SHELL_URL: QUANTIC_UI_URL } = require('./services/ui-protocol.cjs');
 const { QuanticAuraClient } = require('./services/aura-client.cjs');
@@ -124,6 +125,27 @@ let sizePopover = null;
 let revealUntil = 0;
 let immersiveTimer = null;
 const mediaFocus = new NativeMediaFocus();
+const pageSpotlightByView = new WeakMap();
+let spotlightTab = null;
+
+function setPageSpotlight(tab, enabled) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  if (pageSpotlightByView.get(wc) === enabled) return;
+  pageSpotlightByView.set(wc, enabled);
+  const js = enabled ? enableVideoSpotlightScript() : disableVideoSpotlightScript;
+  wc.executeJavaScript(js, true).catch(() => {
+    if (pageSpotlightByView.get(wc) === enabled) pageSpotlightByView.delete(wc);
+  });
+}
+function syncPageSpotlight(tab, sideReaderActive = false) {
+  if (spotlightTab && spotlightTab !== tab) setPageSpotlight(spotlightTab, false);
+  const active = Boolean(tab && tab.id === activeId && tab.mediaPlaying &&
+    !sideReaderActive && store?.settings().immersiveMode !== false);
+  setPageSpotlight(tab, active);
+  spotlightTab = active ? tab : null;
+}
+
 let tabLifecycleTimer = null;
 let tabLifecycleSweepRunning = false;
 let cacheQuitDone = false;
@@ -712,8 +734,14 @@ function createView(tab) {
   wc.setAudioMuted(Boolean(tab.muted));
   attachBrowserShortcuts(wc);
 
-  wc.on('media-started-playing', () => { tab.mediaPlaying = true; });
-  wc.on('media-paused', () => { tab.mediaPlaying = false; });
+  wc.on('media-started-playing', () => {
+    tab.mediaPlaying = true;
+    if (tab.id === activeId) syncPageSpotlight(tab, Boolean(sideStage?.state()?.open));
+  });
+  wc.on('media-paused', () => {
+    tab.mediaPlaying = false;
+    if (tab.id === activeId) syncPageSpotlight(tab, false);
+  });
   wc.on('audio-state-changed', (_event, audible) => {
     const next = Boolean(audible);
     if (next !== Boolean(tab.audible)) { tab.audible = next; emitState(); }
@@ -755,6 +783,8 @@ function createView(tab) {
     tab.awaitingPage = false;
     tab.favicon = '';
     tab.faviconRequest = (tab.faviconRequest || 0) + 1;
+    pageSpotlightByView.delete(wc);
+    if (spotlightTab === tab) spotlightTab = null;
     if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
     emitState();
   });
@@ -1125,6 +1155,7 @@ function layout(options = {}) {
     stageState.open && !stageState.collapsed &&
     stageState.apps?.some(app => app.id === stageState.activeApp && app.media));
   mediaFocus.sync(tab?.view?.webContents, focusEnabled);
+  syncPageSpotlight(tab, focusEnabled);
   sideStage?.layout({
     x: stageX, y: viewTop, width: stageWidth, height: availableHeight,
     privateMode: isPrivateMode() || railCollapsed
