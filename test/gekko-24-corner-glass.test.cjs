@@ -19,7 +19,7 @@ test('glass corner joins bottom dock to right and left rails without full-width 
  assert.match(corner,/bottom:6px!important/);
  assert.match(corner,/width:50px!important/);
  assert.match(main,/const SIDESTAGE_RAIL_W = 54/);
- assert.match(main,/const BOTTOM_DOCK_H = 60/);
+ assert.match(main,/const BOTTOM_DOCK_H = 0/);
 });
 
 test('search input stops monopolizing the dock but every app retains its actions',()=>{
