@@ -24,6 +24,19 @@ const fav = $('#fav');
 const reload = $('#reload');
 const appsPanel = $('#apps-panel');
 const sideStageRail = $('#sidestage-rail');
+const unifiedDock = $('#bottom-dock');
+function openRailSearch(select = true) {
+  document.body.classList.add('rail-search-open');
+  document.body.classList.remove('rail-tools-open');
+  if (state.railCollapsed) fire(window.quantic.toggleRailCollapse());
+  const focus = () => { address.focus(); if (select) address.select(); };
+  // When the rail is minimized, give the native shell a frame to expand.
+  if (state.railCollapsed) setTimeout(focus, 120); else requestAnimationFrame(focus);
+}
+function closeRailSearch() {
+  document.body.classList.remove('rail-search-open');
+}
+
 const searchEngineButton = $('#search-engine-button');
 const searchEngineMenu = $('#search-engine-menu');
 const searchEngineMark = $('#search-engine-mark');
@@ -796,6 +809,8 @@ function renderSideStage() {
     const reveal = el('div', 'gekko-rail-reveal');
     reveal.setAttribute('aria-hidden', 'true');
     sideStageRail.append(reveal);
+    // The unified navigation stays inside the rail even when minimized.
+    sideStageRail.append(unifiedDock);
     return;
   }
 
@@ -805,6 +820,16 @@ function renderSideStage() {
   grip.title = 'Déplacer la fenêtre';
   grip.setAttribute('aria-hidden', 'true');
   sideStageRail.append(grip);
+  // The omnibox is physically hosted in this rail: no second permanent dock.
+  // A magnifier opens the same address input as Ctrl+L / the home search.
+  const searchLaunch = el('button', 'gekko-rail-search', '⌕');
+  searchLaunch.type = 'button';
+  searchLaunch.title = 'Rechercher ou saisir une adresse (Ctrl+L)';
+  searchLaunch.setAttribute('aria-label', searchLaunch.title);
+  searchLaunch.onclick = () => document.body.classList.contains('rail-search-open')
+    ? (address.blur(), closeRailSearch()) : openRailSearch();
+  sideStageRail.append(searchLaunch);
+
 
   const pinButton = el('button', 'gekko-rail-pin' + (state.railPinned ? ' is-pinned' : ''), '📌');
   pinButton.type = 'button';
@@ -891,6 +916,21 @@ function renderSideStage() {
   plusButton.title = 'Nouvel onglet';
   tabsEl.append(plusButton);
   sideStageRail.append(shelf);
+  const toolsToggle = el('button', 'gekko-rail-tools', '⋯');
+  toolsToggle.title = 'Afficher ou masquer les autres commandes du navigateur';
+  toolsToggle.type = 'button';
+  toolsToggle.setAttribute('aria-label', toolsToggle.title);
+  toolsToggle.setAttribute('aria-expanded', String(document.body.classList.contains('rail-tools-open')));
+  toolsToggle.onclick = () => {
+    document.body.classList.toggle('rail-tools-open');
+    closeRailSearch();
+    toolsToggle.setAttribute('aria-expanded', String(document.body.classList.contains('rail-tools-open')));
+  };
+  sideStageRail.append(toolsToggle);
+  // Move the actual dock DOM; its already-wired navigation and settings handlers
+  // remain intact. It is no longer a separate bottom bar.
+  sideStageRail.append(unifiedDock);
+
 
   // Move the real Electron window controls, retaining their existing IPC handlers.
   // Keep these persistent DOM nodes across SideStage refreshes.
@@ -1074,12 +1114,14 @@ address.onkeydown = (event) => {
 };
 $('#address-go').onclick = () => navigateAddressValue();
 address.onfocus = () => {
+  document.body.classList.add('rail-search-open');
   fire(window.quantic.chromeLock(true));
   const value = address.value;
   maybePrewarmPopularSite(value);
   if (!maybeInstantLaunch(value)) updateSiteSuggestions();
 };
 address.onblur = () => {
+  closeRailSearch();
   closeSiteSuggestions();
   prewarmKeys.clear();
   fire(window.quantic.chromeLock(false));
@@ -1088,8 +1130,7 @@ address.onblur = () => {
 document.querySelectorAll('[data-q]').forEach((button) => {
   button.onclick = () => {
     address.value = button.dataset.q;
-    address.focus();
-    address.select();
+    openRailSearch();
   };
 });
 
@@ -1098,8 +1139,7 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
     const action = button.dataset.homeAction;
     if (action === 'private-search') {
       address.value = '';
-      address.focus();
-      address.select();
+      openRailSearch();
       return;
     }
     if (action === 'secure-tabs') {
@@ -1113,8 +1153,8 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
   };
 });
 
-window.quantic.onFocusAddress(() => { address.focus(); address.select(); });
-window.quantic.onFocusHomeSearch(() => { address.focus(); address.select(); });
+window.quantic.onFocusAddress(() => openRailSearch());
+window.quantic.onFocusHomeSearch(() => openRailSearch());
 
 async function runAi(action, prompt = '') {
   if (aiBusy) return;
