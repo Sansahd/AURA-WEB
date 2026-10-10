@@ -751,7 +751,7 @@ function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
   const minimized = Boolean(state.railCollapsed);
   const position = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
-  const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned);
+  const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned) + ':' + state.activeId;
   if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-reveal')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
 
@@ -817,6 +817,7 @@ function renderSideStage() {
             : (app.label || app.id) + ' · clic milieu pour ouvrir dans un onglet';
         button.classList.toggle('error', !fullAppTab && app.status === 'error');
         button.setAttribute('aria-label', button.title);
+        button.setAttribute('aria-pressed', String(Boolean((data.open && data.activeApp === app.id) || fullAppActive)));
         if (app.icon) {
           const icon = document.createElement('img');
           icon.className = 'side-stage-icon';
