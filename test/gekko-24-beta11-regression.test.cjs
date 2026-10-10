@@ -101,9 +101,9 @@ test('focus belongs to normal webContents CSS and never blocks media viewer',()=
  const renderer=read('src/renderer/renderer.js');
  const css=read('src/renderer/gekko-24-layout.css');
  assert.doesNotMatch(manager,/focusOverlay\(\)/);
- assert.match(main,/function syncNativeMediaFocus\(tab, enabled\)/);
- assert.match(main,/wanted\.insertCSS\(MEDIA_FOCUS_CSS/);
- assert.match(main,/prior\.removeInsertedCSS\(priorKey\)/);
+ assert.match(main,/mediaFocus\.sync\(tab\?\.view\?\.webContents, focusEnabled\)/);
+ assert.match(read('src/services/media-focus.cjs'),/desired\.insertCSS\(this\.style/);
+ assert.match(read('src/services/media-focus.cjs'),/old\.removeInsertedCSS\(oldKey\)/);
  assert.match(main,/focusEnabled = Boolean/);
  assert.match(main,/setRailCollapsed\(false\)/);
  assert.match(main,/if \(stage\.open && !stage\.collapsed\) \{/);
