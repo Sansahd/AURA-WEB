@@ -89,11 +89,11 @@ test('truncated overlarge icon payloads are rejected safely', async () => {
   assert.equal(got,'');
 });
 
-test('new-tab plus lives within the tabs list and follows the last open tab',()=>{
+test('new-tab plus remains adjacent and visible beside the horizontal tabs',()=>{
   const ui=read('src/renderer/renderer.js');
   const css=read('src/renderer/gekko-24-layout.css');
   assert.match(ui,/shelf\.append\(plusButton\)/);
-  assert.doesNotMatch(ui,/shelf\.append\(plusButton\)/);
+  assert.match(ui,/sideStageRail\.querySelector\('\.gekko-tab-shelf'\)/);
   assert.match(css, /#sidestage-rail \.tabs > \.plus/);
   assert.match(css, /body\[data-rail-position="top"\] #sidestage-rail \.tabs > \.plus/);
 });
