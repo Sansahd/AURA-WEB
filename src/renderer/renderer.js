@@ -824,15 +824,10 @@ function renderSideStage() {
   grip.title = 'Déplacer la fenêtre';
   grip.setAttribute('aria-hidden', 'true');
   sideStageRail.append(grip);
-  // The omnibox is physically hosted in this rail: no second permanent dock.
-  // A magnifier opens the same address input as Ctrl+L / the home search.
-  const searchLaunch = el('button', 'gekko-rail-search', '⌕');
-  searchLaunch.type = 'button';
-  searchLaunch.title = 'Rechercher ou saisir une adresse (Ctrl+L)';
-  searchLaunch.setAttribute('aria-label', searchLaunch.title);
-  searchLaunch.onclick = () => document.body.classList.contains('rail-search-open')
-    ? (address.blur(), closeRailSearch()) : openRailSearch();
-  sideStageRail.append(searchLaunch);
+  // The real omnibox is now visible at all times inside the only rail.
+  // Its original search, history, favorites and settings handlers remain wired.
+  sideStageRail.append(unifiedDock);
+  const headerActions = el('div', 'gekko-rail-header-actions');
 
 
   const pinButton = el('button', 'gekko-rail-pin' + (state.railPinned ? ' is-pinned' : ''), '📌');
@@ -841,7 +836,7 @@ function renderSideStage() {
   pinButton.setAttribute('aria-label', pinButton.title);
   pinButton.setAttribute('aria-pressed', String(Boolean(state.railPinned)));
   pinButton.onclick = () => fire(window.quantic.toggleRailPin());
-  sideStageRail.append(pinButton);
+  headerActions.append(pinButton);
 
   // Three-position layout chooser is always visible in the expanded rail.
   const positionButton = el('button', 'gekko-rail-position', '◫');
@@ -849,7 +844,7 @@ function renderSideStage() {
   positionButton.title = 'Position de la barre : en haut, à droite ou à gauche';
   positionButton.setAttribute('aria-label', positionButton.title);
   positionButton.onclick = () => fire(window.quantic.railPositionMenu());
-  sideStageRail.append(positionButton);
+  headerActions.append(positionButton);
 
   const identity=state.quanticIdentity||{};
   const identityButton=el('button','gekko-identity-indicator'+(identity.unlocked?' is-unlocked':''),'ID');
@@ -858,12 +853,13 @@ function renderSideStage() {
     'Quantic Secure indisponible · connecter ma clé USB';
   identityButton.setAttribute('aria-label',identityButton.title);
   identityButton.onclick=()=>fire(window.quantic.togglePanelTab('quantic://identity'));
-  sideStageRail.append(identityButton);
+  headerActions.append(identityButton);
 
+  const appRow = el('div', 'gekko-side-app-row');
   if (data.enabled && !data.privateDisabled) {
     // Fixed application shortcuts are always present; no redundant collapse control.
     {
-      sideStageRail.append(el('div', 'side-stage-brand', 'FIXES'));
+      appRow.append(el('div', 'side-stage-brand', 'FIXES'));
       for (const app of data.apps || []) {
         const fullAppTab = app.id === 'quanticmail' || app.id === 'quanticpulse';
         const fullAppActive = fullAppTab && state.tabs?.some(tab =>
@@ -902,17 +898,18 @@ function renderSideStage() {
           e.preventDefault();
           fire(window.quantic.setSetting('sideStageAction', 'reload:' + app.id));
         };
-        sideStageRail.append(button);
+        appRow.append(button);
       }
       if (data.open) {
         const close = el('button', 'side-stage-close', '×');
         close.title = 'Masquer le lecteur';
         close.onclick = () => fire(window.quantic.setSetting('sideStageAction', 'close'));
-        sideStageRail.append(close);
+        appRow.append(close);
       }
     }
   }
 
+  sideStageRail.append(appRow);
   const shelf = el('div', 'gekko-tab-shelf');
   shelf.setAttribute('aria-label', 'Onglets ouverts');
   shelf.append(el('div', 'gekko-tab-shelf-label', 'PAGES'));
@@ -930,10 +927,9 @@ function renderSideStage() {
     closeRailSearch();
     toolsToggle.setAttribute('aria-expanded', String(document.body.classList.contains('rail-tools-open')));
   };
-  sideStageRail.append(toolsToggle);
-  // Move the actual dock DOM; its already-wired navigation and settings handlers
-  // remain intact. It is no longer a separate bottom bar.
-  sideStageRail.append(unifiedDock);
+  headerActions.append(toolsToggle);
+  // Compact header controls share one row, rather than overlapping tabs.
+  sideStageRail.insertBefore(headerActions, appRow);
 
 
   // Move the real Electron window controls, retaining their existing IPC handlers.
