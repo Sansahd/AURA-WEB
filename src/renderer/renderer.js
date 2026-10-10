@@ -86,7 +86,9 @@ function syncChromeOverlay() {
   // Search engine choices are opened as a compact native popup.
   // Only local site suggestions need any additional WebContentsView room.
   const sitesOpen = Boolean(siteSuggestions && !siteSuggestions.classList.contains('hidden'));
-  fire(window.quantic.chromeOverlay(sitesOpen ? 248 : 0));
+  // Glass Corner wide: never shrink a website into a blank 248px footer.
+  // Suggestions remain available on internal pages; no extra web viewport strip.
+  fire(window.quantic.chromeOverlay(0));
 }
 
 function closeSiteSuggestions() {
