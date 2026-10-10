@@ -4,8 +4,7 @@
 // surround the video, avoiding filters on the player and its controls.
 function setupVideoSpotlight() {
   if (window.__gekkoVideoSpotlightV1) {
-    window.__gekkoVideoSpotlightV1.enable();
-    return true;
+    return window.__gekkoVideoSpotlightV1.enable();
   }
   const root = document.documentElement;
   if (!root) return false;
@@ -42,7 +41,7 @@ function setupVideoSpotlight() {
     return {left,top,right,bottom,W,H,area:Math.max(0,right-left)*Math.max(0,bottom-top)};
   };
   function update() {
-    if (!enabled || !root.isConnected) { holder.style.display='none'; return; }
+    if (!enabled || !root.isConnected) { holder.style.display='none'; return false; }
     let selection = null;
     for (const video of document.querySelectorAll('video')) {
       if (video.paused || video.ended || video.readyState < 2) continue;
@@ -58,19 +57,21 @@ function setupVideoSpotlight() {
         if (b && (!selection || b.area>selection.area)) selection=b;
       }
     }
-    if (!selection) { holder.style.display='none'; return; }
+    if (!selection) { holder.style.display='none'; return false; }
     const {left,top,right,bottom,W,H}=selection;
     holder.style.display='block';
     put(rects[0],0,0,W,top);
     put(rects[1],0,top,left,bottom-top);
     put(rects[2],right,top,W-right,bottom-top);
     put(rects[3],0,bottom,W,H-bottom);
+    return true;
   }
   const api = {
     enable() {
       enabled=true;
-      update();
+      const visibleVideo = update();
       if (!clock) clock=setInterval(update,260);
+      return visibleVideo;
     },
     disable() {
       enabled=false;
@@ -80,8 +81,7 @@ function setupVideoSpotlight() {
     }
   };
   window.__gekkoVideoSpotlightV1=api;
-  api.enable();
-  return true;
+  return api.enable();
 }
 function enableVideoSpotlightScript() { return '('+setupVideoSpotlight.toString()+')()'; }
 const disableVideoSpotlightScript =
