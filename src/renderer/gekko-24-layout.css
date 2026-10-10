@@ -1165,3 +1165,17 @@ body[data-rail-position="top"] #sidestage-rail #bottom-dock .dock-control{
 body:not(.rail-tools-open)[data-rail-position="top"] #sidestage-rail #bottom-dock .dock-control:not(#home-button):not(#menu){
   display:none!important;
 }
+
+
+/* Site-adaptive glass: only an averaged RGB tint is used. The native page
+   stays in its separate WebContentsView; no image is cached or replicated. */
+:root{--gekko-site-edge-color:rgba(12,18,24,.05)}
+body.rail-site-tinted[data-rail-position="right"] #sidestage-rail:not(.rail-minimized),
+body.rail-site-tinted[data-rail-position="left"] #sidestage-rail:not(.rail-minimized){
+  background:
+    linear-gradient(180deg,rgba(9,13,18,.20),rgba(9,13,18,.12)),
+    color-mix(in srgb,var(--gekko-site-edge-color) 56%,rgba(12,18,24,.07))!important;
+  border-color:rgba(252,255,250,.16)!important;
+  backdrop-filter:blur(18px) saturate(110%)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(110%)!important;
+}
