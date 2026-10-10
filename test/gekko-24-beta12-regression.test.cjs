@@ -76,7 +76,7 @@ test('SOCIAL and Mail use full GEKKO browser tabs instead of failing small WebCo
  assert.match(main,/\['quanticmail', 'quanticpulse'\]\.includes\(appId\)/);
  assert.match(main,/togglePanelTab\(appDefinition\(appId\)\.url\)/);
  assert.match(main,/normalized === 'https:\/\/quanticmail\.onrender\.com\/'/);
- assert.match(main,/return activateTab\(existing\.id\)/);
+ assert.match(main,/const activated = activateTab\(existing\.id\)/);
  assert.match(main,/existing\.id === activeId\) return closeTab\(existing\.id\)/);
  assert.match(ui,/fullAppActive/);
  assert.match(ui,/second clic pour fermer/);
