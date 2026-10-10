@@ -65,7 +65,8 @@ test('Mail and ZOON never silently pretend an unavailable remote page is ready',
   assert.match(read('src/renderer/index.html'), /quanticmail\.onrender\.com/);
   assert.match(read('src/renderer/index.html'), /QuanticSillage\/zoon\.html/);
   assert.match(manager, /showFailure/);
-  assert.match(manager, /this\.status\.get\(appId\) !== 'error'/);
+  assert.match(manager, /this\.failures\.has\(appId\)/);
+  assert.match(manager, /this\.clearLoadTimer\(appId\)/);
   assert.match(manager, /indisponible/);
   assert.match(manager, /Ouvrir dans un onglet/);
   assert.match(renderer, /app\.status === 'error'/);
