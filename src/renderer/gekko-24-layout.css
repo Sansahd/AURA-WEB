@@ -1566,3 +1566,28 @@ body[data-rail-position="top"] .navigation-transition{
     min-height:29px!important;height:29px!important;flex-basis:29px!important;
   }
 }
+
+
+/* Resolve prior floating-search selectors for every rail orientation. */
+body[data-rail-position="left"] #sidestage-rail #bottom-dock .address-wrap,
+body[data-rail-position="right"] #sidestage-rail #bottom-dock .address-wrap,
+body[data-rail-position="top"] #sidestage-rail #bottom-dock .address-wrap{
+  position:relative!important;
+  top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;
+  transform:none!important;
+  display:block!important;
+}
+body[data-rail-position="left"] #sidestage-rail #bottom-dock .address-wrap,
+body[data-rail-position="right"] #sidestage-rail #bottom-dock .address-wrap{
+  order:-1!important;
+  flex:0 0 42px!important;
+}
+body:not([data-rail-position="top"]) #sidestage-rail .gekko-tab-shelf .tab{
+  display:flex!important;
+  align-items:center!important;
+  min-width:0!important;
+}
+/* Visible search has keyboard focus at any width: native sidebar input. */
+#sidestage-rail #bottom-dock .address:focus-within{
+  border-color:color-mix(in srgb,var(--quantic-accent) 53%,#dceee8)!important;
+}
