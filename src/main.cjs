@@ -17,6 +17,9 @@ const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { NativeMediaFocus } = require('./services/media-focus.cjs');
+const { getStatus: getQuanticIdentityStatus } = require('./services/quantic-id-bridge.cjs');
+const { authenticateQuanticSocial, installSocialSession, revokeSocialSession,
+  isSocialPage } = require('./services/quantic-social-sso.cjs');
 const { enableVideoSpotlightScript, disableVideoSpotlightScript } = require('./services/video-spotlight.cjs');
 const { appDefinition } = require('./services/sidestage.cjs');
 const { installQuanticUiProtocol, verifyQuanticUiShell, SHELL_URL: QUANTIC_UI_URL } = require('./services/ui-protocol.cjs');
@@ -119,6 +122,14 @@ let railManualUntil = 0;
 let railDragUntil = 0;
 let railAwaitPointerExit = false;
 let railHoverTimer = null;
+let quanticIdentityTimer = null;
+let quanticSocialLeaseTimer = null;
+let quanticIdentityStatus = { connected: false, available: false, unlocked: false, reason: 'companion_offline' };
+let quanticSocialError = '';
+let quanticSocialLease = null;
+let quanticSocialAuthenticating = false;
+let quanticIdentityChecking = false;
+
 let enginePopover = null;
 let enginePopoverReady = false;
 let sizePopover = null;
@@ -198,6 +209,7 @@ function state() {
     chromeVisible,
     railCollapsed,
     railPinned,
+    quanticIdentity: { ...quanticIdentityStatus, error: quanticSocialError },
     railPosition: store?.settings().railPosition || 'right',
     windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
@@ -990,11 +1002,92 @@ function createTab(url = HOME, activate = true) {
   return tab.id;
 }
 
+function findSocialTab() {
+  return [...tabs.values()].find(tab => isSocialPage(tab.url));
+}
+async function waitForSocialPage(tab) {
+  const wc = tab?.view?.webContents;
+  if (!wc || wc.isDestroyed()) return null;
+  if (isSocialPage(wc.getURL()) && !wc.isLoadingMainFrame()) return wc;
+  await new Promise(resolve => {
+    const done=() => { clearTimeout(timeout); wc.removeListener('did-finish-load',done); resolve(); };
+    const timeout=setTimeout(done,14000);
+    wc.once('did-finish-load',done);
+  });
+  return !wc.isDestroyed() && isSocialPage(wc.getURL()) ? wc : null;
+}
+async function updateQuanticIdentityStatus() {
+  if (quanticIdentityChecking || !store || isPrivateMode()) return quanticIdentityStatus;
+  quanticIdentityChecking = true;
+  try{
+    const latest = await getQuanticIdentityStatus();
+    if(JSON.stringify(latest)!==JSON.stringify(quanticIdentityStatus)){
+      quanticIdentityStatus=latest;
+      emitState(true);
+    }
+    if(quanticSocialLease && !latest.unlocked){
+      const lease=quanticSocialLease;
+      quanticSocialLease=null;
+      const tab=tabs.get(lease.tabId);
+      if(tab?.view?.webContents)revokeSocialSession(tab.view.webContents,lease.token).catch(()=>{});
+    }
+    return latest;
+  }finally{quanticIdentityChecking=false}
+}
+async function loginSocialWithQuanticId() {
+  if (quanticSocialAuthenticating || !store || isPrivateMode()) return false;
+  const tab=findSocialTab();
+  if(!tab)return false;
+  quanticSocialAuthenticating=true;
+  try{
+    const wc=await waitForSocialPage(tab);
+    if(!wc || !tabs.has(tab.id))return false;
+    const identity=await updateQuanticIdentityStatus();
+    if(!identity.unlocked){
+      quanticSocialError=identity.connected?'Quantic ID verrouillée ou état non confirmé':'Quantic Secure indisponible sur 127.0.0.1:47621';
+      emitState(true);
+      return false;
+    }
+    const remembered=await wc.executeJavaScript("localStorage.getItem('zoon_token')",true).catch(()=>'');
+    const existingToken=remembered===quanticSocialLease?.token?'':String(remembered||'');
+    const assertion=await authenticateQuanticSocial({existingToken});
+    if(!assertion.ok){
+      quanticSocialError=assertion.error;
+      emitState(true);
+      return false;
+    }
+    if(!tabs.has(tab.id) || tab.view?.webContents!==wc || !isSocialPage(wc.getURL())) return false;
+    const stored=await installSocialSession(wc,assertion);
+    if(!stored){quanticSocialError='Impossible de transmettre la session au véritable onglet SOCIAL';emitState(true);return false;}
+    quanticSocialLease={tabId:tab.id,token:assertion.token,keyId:assertion.keyId};
+    quanticSocialError='';
+    emitState(true);
+    return true;
+  }catch(error){
+    quanticSocialError=String(error?.message||'Quantic ID indisponible').slice(0,130);
+    emitState(true);
+    return false;
+  }finally{quanticSocialAuthenticating=false}
+}
+function startQuanticIdentityWatcher(){
+  void updateQuanticIdentityStatus();
+  quanticIdentityTimer=setInterval(()=>void updateQuanticIdentityStatus(),3500);
+  quanticIdentityTimer.unref?.();
+  quanticSocialLeaseTimer=setInterval(()=>{
+    if(quanticSocialLease && !quanticSocialAuthenticating) {
+      if(!tabs.has(quanticSocialLease.tabId)){
+        quanticSocialLease=null;
+      }else void loginSocialWithQuanticId();
+    }
+  },6500);
+  quanticSocialLeaseTimer.unref?.();
+}
+
 function togglePanelTab(url) {
   const normalized = String(url || '').trim();
   const allowedInternal = new Set([
     'quantic://settings', 'quantic://favorites', 'quantic://history',
-    'quantic://career', 'quantic://downloads'
+    'quantic://career', 'quantic://identity', 'quantic://downloads'
   ]);
   const allowedApps = new Set([
     'https://antiquewhite-dolphin-780448.hostingersite.com/',
@@ -1792,6 +1885,7 @@ app.whenReady().then(async () => {
   startImmersionWatcher();
   startRailHoverWatcher();
   startTabLifecycleWatcher();
+  startQuanticIdentityWatcher();
 
   // Finish normal networking after the shell is already visible.
   if (!isPrivateMode()) void normalProxyReady;
@@ -1822,6 +1916,8 @@ ipcMain.on('gekko-size-dismiss', (event) => {
     closeSizePopover();
 });
 ipcMain.handle('get-state', () => state());
+ipcMain.handle('quantic-identity-refresh', () => updateQuanticIdentityStatus());
+ipcMain.handle('quantic-identity-social', () => loginSocialWithQuanticId());
 ipcMain.handle('navigate', async (_event, value) => loadTab(activeTab(), value));
 ipcMain.handle('prewarm-site', (_event, url) => prewarmPopularSite(url));
 ipcMain.handle('chrome-overlay-height', (_event, height) => {
@@ -2021,7 +2117,11 @@ ipcMain.handle('set-setting', async (_event, key, value) => {
         (action === 'toggle' || action === 'select')) {
       aiOpen = false;
       sideStage?.action('close');
+      const hadActive = isSocialPage(activeTab()?.url || '');
       togglePanelTab(appDefinition(appId).url);
+      if(appId==='quanticpulse' && !hadActive){
+        void loginSocialWithQuanticId();
+      }
       layout();
       emitState(true);
       return store.settings();
@@ -2082,6 +2182,8 @@ app.on('before-quit', (event) => {
 app.on('will-quit', () => {
   clearInterval(immersiveTimer);
   clearInterval(railHoverTimer);
+  clearInterval(quanticIdentityTimer);
+  clearInterval(quanticSocialLeaseTimer);
   clearInterval(tabLifecycleTimer);
   clearInterval(careerTimer);
   clearTimeout(stateEmitTimer);
