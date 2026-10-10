@@ -908,8 +908,9 @@ function render() {
   const stage = state.sideStage || {};
   const focusedApp = (stage.apps || []).find(app => app.id === stage.activeApp);
   // Native WebContentsView darkness is coordinated with shell chrome.
-  const mediaFocus = Boolean(stage.enabled && stage.open && !stage.collapsed &&
-    !state.railCollapsed && !stage.privateDisabled && focusedApp?.media);
+  const mediaFocus = Boolean((stage.enabled && stage.open && !stage.collapsed &&
+    !state.railCollapsed && !stage.privateDisabled && focusedApp?.media) ||
+    state.tabs?.some(tab => tab.id === state.activeId && tab.videoFocused));
   document.body.classList.toggle('focus-reader-active', mediaFocus);
   document.body.classList.toggle('rail-minimized', Boolean(state.railCollapsed));
   document.body.classList.toggle('chrome-hidden', state.immersive && !state.chromeVisible);
