@@ -102,6 +102,8 @@ const CHANNEL_VALIDATORS = Object.freeze({
   'remove-favorite': (args) => args.length === 1 && isHttpUrl(args[0]),
   'rename-favorite': (args) => args.length === 2 && isHttpUrl(args[0]) && isString(args[1], 240),
   'open-downloads': noArgs,
+  'quantic-identity-refresh': noArgs,
+  'quantic-identity-social': noArgs,
   'vpn-status': noArgs,
   'vpn-open': noArgs,
   'vpn-install-info': noArgs,
