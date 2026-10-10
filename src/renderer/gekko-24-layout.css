@@ -946,3 +946,222 @@ body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized){
   }
   #bottom-dock .address-wrap{min-width:125px!important;max-width:380px!important}
 }
+
+
+/* GEKKO 2.4 beta 16 — ONE RAIL. The old dock DOM is relocated into
+   #sidestage-rail by renderer.js. No bottom panel remains in the window.
+   Omnibox uses a temporary anchored field, not a persistent second bar. */
+#sidestage-rail #bottom-dock,
+body.chrome-hidden #sidestage-rail #bottom-dock,
+body[data-rail-position="top"] #sidestage-rail #bottom-dock{
+  position:static!important;
+  inset:auto!important;
+  transform:none!important;
+  display:flex!important;
+  flex:0 0 auto!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  overflow:visible!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+#sidestage-rail #bottom-dock .dock-drag-grip{display:none!important}
+#sidestage-rail #bottom-dock .nav-row{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex:0 0 auto!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  gap:3px!important;
+  overflow:visible!important;
+  -webkit-app-region:no-drag!important;
+}
+#sidestage-rail #bottom-dock .dock-cluster{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  gap:3px!important;
+  -webkit-app-region:no-drag!important;
+}
+#sidestage-rail #bottom-dock .dock-separator{display:none!important}
+#sidestage-rail #bottom-dock .dock-control{
+  display:grid!important;
+  place-items:center!important;
+  width:38px!important;
+  height:32px!important;
+  min-width:38px!important;
+  min-height:32px!important;
+  flex:0 0 32px!important;
+  border-radius:11px!important;
+  background:rgba(255,255,255,.018)!important;
+  border:1px solid rgba(240,255,250,.06)!important;
+  box-shadow:none!important;
+  cursor:pointer!important;
+  -webkit-app-region:no-drag!important;
+}
+#sidestage-rail #bottom-dock .dock-control:hover:not(:disabled){
+  background:rgba(255,255,255,.11)!important;
+}
+/* Common navigation stays visible. Less-used actions live behind the dots. */
+body:not(.rail-tools-open) #sidestage-rail #bottom-dock #forward,
+body:not(.rail-tools-open) #sidestage-rail #bottom-dock #apps-button,
+body:not(.rail-tools-open) #sidestage-rail #bottom-dock #fav,
+body:not(.rail-tools-open) #sidestage-rail #bottom-dock #downloads,
+body:not(.rail-tools-open) #sidestage-rail #bottom-dock #persona{display:none!important}
+#sidestage-rail .gekko-rail-search,
+#sidestage-rail .gekko-rail-tools{
+  display:grid!important;
+  place-items:center!important;
+  width:40px!important;
+  height:32px!important;
+  min-height:32px!important;
+  flex:0 0 32px!important;
+  padding:0!important;
+  margin:2px auto!important;
+  border:1px solid rgba(235,255,250,.13)!important;
+  border-radius:11px!important;
+  color:rgba(247,255,253,.94)!important;
+  background:rgba(255,255,255,.035)!important;
+  box-shadow:none!important;
+  cursor:pointer!important;
+  -webkit-app-region:no-drag!important;
+}
+#sidestage-rail .gekko-rail-search{
+  font:400 28px/1 system-ui,sans-serif!important;
+}
+#sidestage-rail .gekko-rail-tools{font:600 22px/1 system-ui,sans-serif!important}
+#sidestage-rail .gekko-rail-search:hover,
+#sidestage-rail .gekko-rail-tools:hover,
+body.rail-search-open #sidestage-rail .gekko-rail-search{
+  background:rgba(255,255,255,.14)!important;
+  border-color:rgba(242,255,247,.32)!important;
+}
+/* Browser popover is part of the rail's command surface, not another bar. */
+#sidestage-rail #bottom-dock .address-wrap{
+  display:none!important;
+  position:fixed!important;
+  top:42px!important;
+  right:calc(100% + 10px)!important;
+  left:auto!important;
+  bottom:auto!important;
+  z-index:100!important;
+  flex:none!important;
+  width:min(410px,calc(100vw - 86px))!important;
+  max-width:min(410px,calc(100vw - 86px))!important;
+  min-width:240px!important;
+  height:auto!important;
+  border:0!important;
+  overflow:visible!important;
+  -webkit-app-region:no-drag!important;
+}
+body.rail-search-open #sidestage-rail:not(.rail-minimized) #bottom-dock .address-wrap{
+  display:block!important;
+}
+body[data-rail-position="left"] #sidestage-rail #bottom-dock .address-wrap{
+  left:calc(100% + 10px)!important;
+  right:auto!important;
+}
+body[data-rail-position="top"] #sidestage-rail #bottom-dock .address-wrap{
+  top:calc(100% + 8px)!important;
+  left:auto!important;
+  right:12px!important;
+}
+#sidestage-rail #bottom-dock .address{
+  height:44px!important;
+  border-radius:16px!important;
+  padding:0 9px!important;
+  background:rgba(18,25,31,.72)!important;
+  border:1px solid rgba(230,251,244,.34)!important;
+  box-shadow:0 4px 14px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.10)!important;
+  backdrop-filter:blur(22px) saturate(112%)!important;
+  -webkit-backdrop-filter:blur(22px) saturate(112%)!important;
+}
+#sidestage-rail #bottom-dock .address input{
+  min-width:0!important;
+  font-size:14px!important;
+  -webkit-app-region:no-drag!important;
+}
+/* Genuine one visible chrome surface: very little pigment on the main rail.
+   The native page currently stops at the 54px rail reservation, so this does
+   not yet claim website content is composited UNDER the glass. */
+body[data-rail-position="right"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized){
+  background:rgba(12,18,24,.07)!important;
+  border-color:rgba(244,255,252,.13)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07)!important;
+  backdrop-filter:blur(17px) saturate(105%)!important;
+  -webkit-backdrop-filter:blur(17px) saturate(105%)!important;
+}
+body[data-rail-position="right"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized){
+  bottom:7px!important;
+  top:7px!important;
+  padding:5px 3px!important;
+  gap:3px!important;
+  overflow:visible!important;
+}
+#sidestage-rail .gekko-tab-shelf{
+  min-height:32px!important;
+  margin-top:1px!important;
+  padding-top:3px!important;
+  gap:3px!important;
+}
+/* The previously reserved bottom 60px is returned to the actual web view. */
+body:not([data-rail-position="top"]) .home,
+body:not([data-rail-position="top"]) .internal-page,
+body:not([data-rail-position="top"]) .navigation-transition{
+  bottom:0!important;
+}
+body:not([data-rail-position="top"]) .ai-panel{bottom:8px!important}
+/* Avoid CSS collisions with the old L layout for a collapsed rail. */
+#sidestage-rail.rail-minimized #bottom-dock{display:none!important}
+body.rail-minimized .rail-search-open{display:none!important}
+@media(max-height:770px){
+  #sidestage-rail #bottom-dock .dock-control{height:28px!important;min-height:28px!important;flex-basis:28px!important}
+  #sidestage-rail #bottom-dock .dock-cluster{gap:1px!important}
+  #sidestage-rail .gekko-rail-search,
+  #sidestage-rail .gekko-rail-tools{height:28px!important;min-height:28px!important;flex-basis:28px!important}
+  #sidestage-rail .side-stage-brand{display:none!important}
+}
+/* Top orientation is one row too: search icon plus tabs, not an old dock. */
+body[data-rail-position="top"] #sidestage-rail #bottom-dock{
+  flex:0 0 auto!important;width:auto!important;max-width:180px!important;
+}
+body[data-rail-position="top"] #sidestage-rail #bottom-dock .nav-row,
+body[data-rail-position="top"] #sidestage-rail #bottom-dock .dock-cluster{
+  flex-direction:row!important;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-rail-search,
+body[data-rail-position="top"] #sidestage-rail .gekko-rail-tools{
+  width:31px!important;min-width:31px!important;height:32px!important;
+  flex:0 0 31px!important;
+}
+body[data-rail-position="top"] #sidestage-rail #bottom-dock .dock-control{
+  width:29px!important;min-width:29px!important;flex:0 0 29px!important;
+}
+body:not(.rail-tools-open)[data-rail-position="top"] #sidestage-rail #bottom-dock .dock-control:not(#home-button):not(#menu){
+  display:none!important;
+}
