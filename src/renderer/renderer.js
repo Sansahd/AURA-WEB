@@ -798,15 +798,20 @@ function renderSideStage() {
     {
       sideStageRail.append(el('div', 'side-stage-brand', 'FIXES'));
       for (const app of data.apps || []) {
+        const fullAppTab = app.id === 'quanticmail' || app.id === 'quanticpulse';
+        const fullAppActive = fullAppTab && state.tabs?.some(
+          tab => tab.id === state.activeId && tab.url === app.url);
         const button = el('button', 'side-stage-app ' +
-          (data.open && data.activeApp === app.id ? 'active ' : '') +
-          (app.status === 'loading' ? 'loading' : ''));
-        button.title = app.status === 'error'
+          ((data.open && data.activeApp === app.id) || fullAppActive ? 'active ' : '') +
+          (!fullAppTab && app.status === 'loading' ? 'loading' : ''));
+        button.title = fullAppTab
+          ? (app.label || app.id) + ' · onglet complet · second clic pour fermer'
+          : app.status === 'error'
           ? (app.label || app.id) + ' indisponible · cliquer pour réessayer, clic milieu pour onglet'
           : app.status === 'loading'
             ? (app.label || app.id) + ' · connexion au service…'
             : (app.label || app.id) + ' · clic milieu pour ouvrir dans un onglet';
-        button.classList.toggle('error', app.status === 'error');
+        button.classList.toggle('error', !fullAppTab && app.status === 'error');
         button.setAttribute('aria-label', button.title);
         if (app.icon) {
           const icon = document.createElement('img');
