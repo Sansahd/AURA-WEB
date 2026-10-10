@@ -27,6 +27,19 @@ jobs:
         run: |
           npm run check
           if ($LASTEXITCODE -ne 0) { throw 'GEKKO checks failed' }
+      - name: Test actual Electron layout on Windows
+        shell: pwsh
+        run: |
+          npm run smoke:ui
+          if ($LASTEXITCODE -ne 0) { throw 'GEKKO visual geometry smoke failed' }
+      - name: Upload visual smoke screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GEKKO-Glass-Wide-Screenshot
+          path: dist/gekko-glass-wide-smoke.png
+          if-no-files-found: warn
+          retention-days: 7
       - name: Build Windows installer
         shell: pwsh
         run: |
