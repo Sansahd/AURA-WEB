@@ -605,3 +605,34 @@ body[data-rail-position="top"] #sidestage-rail .tabs > .plus{
 @media(max-width:760px){
   #bottom-dock{left:0!important;right:0!important;bottom:0!important;padding:9px 7px!important}
 }
+
+
+/* GEKKO 2.4 beta 11 — Focus cinema: the EXTERNAL WEB page is darkened by
+   a native transparent WebContentsView scrim. These rules only dim the shell
+   controls, not the selected native media view. */
+body.focus-reader-active #bottom-dock{
+  filter:brightness(.57) saturate(.63)!important;
+  transition:filter .18s ease!important;
+}
+body.focus-reader-active #sidestage-rail .tab,
+body.focus-reader-active #sidestage-rail .side-stage-app:not(.active),
+body.focus-reader-active #sidestage-rail .gekko-rail-position,
+body.focus-reader-active #sidestage-rail .gekko-rail-pin{
+  opacity:.49!important;
+  transition:opacity .18s ease!important;
+}
+body.focus-reader-active #sidestage-rail .side-stage-app.active{
+  opacity:1!important;
+  filter:saturate(1.12)!important;
+}
+body.focus-reader-active .home,
+body.focus-reader-active .internal-page{
+  filter:brightness(.36)!important;
+}
+@media(prefers-reduced-motion:reduce){
+  body.focus-reader-active #bottom-dock,
+  body.focus-reader-active #sidestage-rail .tab,
+  body.focus-reader-active #sidestage-rail .side-stage-app{
+    transition:none!important;
+  }
+}
