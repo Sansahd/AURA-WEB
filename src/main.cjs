@@ -1113,9 +1113,18 @@ function togglePanelTab(url) {
   });
   if (existing) {
     if (existing.id === activeId) return closeTab(existing.id);
-    return activateTab(existing.id);
+    const activated = activateTab(existing.id);
+    // Opening SOCIAL from the rail also starts the real cryptographic login.
+    // The service itself confirms key unlock and signs a server challenge.
+    if (activated && isSocialPage(normalized) && !isPrivateMode()) {
+      void loginSocialWithQuanticId();
+    }
+    return activated;
   }
   createTab(normalized, true);
+  if (isSocialPage(normalized) && !isPrivateMode()) {
+    void loginSocialWithQuanticId();
+  }
   return true;
 }
 
