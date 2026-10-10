@@ -2141,6 +2141,19 @@ ipcMain.handle('set-setting', async (_event, key, value) => {
       emitState(true);
       return store.settings();
     }
+    // From the home screen, a native SideStage would otherwise cover the
+    // homepage (and on some Windows drivers, the dock) with a blank dark pane.
+    // Open the selected service as a normal tab instead. From an external site,
+    // the persistent SideStage reader is still available as before.
+    if ((action === 'toggle' || action === 'select') &&
+        !isExternal(activeTab()?.url || '') && appDefinition(appId)) {
+      aiOpen = false;
+      sideStage?.action('close');
+      createTab(appDefinition(appId).url, true);
+      layout();
+      emitState(true);
+      return store.settings();
+    }
     if (action === 'toggle' || action === 'select') {
       aiOpen = false;
       // Clicking an app must make its real native reader visible immediately,
