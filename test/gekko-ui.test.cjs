@@ -39,9 +39,9 @@ test('external web content starts at the top and reserves bottom dock plus tab r
   const main = read('src/main.cjs');
   const css = read('src/renderer/gekko-24-polish.css');
   assert.match(main, /TOP_CHROME_H\s*=\s*0/);
-  assert.match(main, /BOTTOM_DOCK_H\s*=\s*0/);
+  assert.match(main, /BOTTOM_DOCK_H\s*=\s*60/);
   assert.match(main, /height\s*-\s*viewTop\s*-\s*bottom/);
-  assert.match(main, /const topRail = railPosition === 'top'/);
+  assert.match(main, /const topRail = horizontal \?/);
   assert.match(main, /const rail = railCollapsed \? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W/);
   assert.match(css, /#chrome\s*\{display:none!important\}/);
   assert.match(css, /#sidestage-rail \.gekko-rail-window-controls/);

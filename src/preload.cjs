@@ -33,6 +33,5 @@ contextBridge.exposeInMainWorld('quantic', {
   extensionRemove: (id) => ipcRenderer.invoke('extension-remove', id),
   syncExport: (passphrase) => ipcRenderer.invoke('sync-export', passphrase),
   syncImport: (passphrase) => ipcRenderer.invoke('sync-import', passphrase),
-  onFocusAddress: (fn) => ipcRenderer.on('focus-address', fn), onFocusHomeSearch: (fn) => ipcRenderer.on('focus-home-search', fn),
-  onRailSiteTint: (fn) => ipcRenderer.on('rail-site-tint', (_e, rgb) => fn(rgb))
+  onFocusAddress: (fn) => ipcRenderer.on('focus-address', fn), onFocusHomeSearch: (fn) => ipcRenderer.on('focus-home-search', fn)
 });

@@ -17,7 +17,6 @@ const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { NativeMediaFocus } = require('./services/media-focus.cjs');
-const { sampleRailColor } = require('./services/rail-tint.cjs');
 const { getStatus: getQuanticIdentityStatus } = require('./services/quantic-id-bridge.cjs');
 const { authenticateQuanticSocial, installSocialSession, revokeSocialSession,
   isSocialPage } = require('./services/quantic-social-sso.cjs');
@@ -33,11 +32,11 @@ const { writeEncryptedFile, readEncryptedFile } = require('./services/sync-vault
 const HOME = 'quantic://newtab';
 // 2.4: no top title/tab bar. Native WebContentsViews reach the top edge.
 const TOP_CHROME_H = 0;
-const BOTTOM_DOCK_H = 0; // The omnibox now lives inside the single rail.
+const BOTTOM_DOCK_H = 60;
 const AI_W = 300;
-const SIDESTAGE_RAIL_W = 54; // Legacy left/right layout only; the default is one horizontal bar.
+const SIDESTAGE_RAIL_W = 54;
 const SIDESTAGE_RAIL_MIN_W = 18;
-const HORIZONTAL_RAIL_H = 64;
+const HORIZONTAL_RAIL_H = 58;
 const HORIZONTAL_RAIL_MIN_H = 18;
 const SIDESTAGE_COLLAPSED_W = 22;
 const EDGE_TRIGGER = 24;
@@ -116,13 +115,8 @@ let aiRuntime = {
 };
 let chromeVisible = true;
 let chromeOverlayHeight = 0;
-let railSearchFocused = false;
-let railTintTimer = null;
-let railTintBusy = false;
-let railTintEpoch = 0;
-let lastRailTint = null;
-let railCollapsed = false; // The full-width search and navigation are visible on startup.
-let railPinned = true; // Keep the only navigation bar visible, not a hover-only strip.
+let railCollapsed = true;
+let railPinned = false;
 let railLastHover = 0;
 let railManualUntil = 0;
 let railDragUntil = 0;
@@ -216,7 +210,7 @@ function state() {
     railCollapsed,
     railPinned,
     quanticIdentity: { ...quanticIdentityStatus, error: quanticSocialError },
-    railPosition: store?.settings().railPosition || 'bottom',
+    railPosition: store?.settings().railPosition || 'right',
     windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
     settings: store?.settings() || {},
@@ -1150,7 +1144,6 @@ function activateTab(id) {
   if (previous) touchTab(previous, false);
   previous?.view?.setVisible(false);
   activeId = id;
-  clearRailTint();
   const tab = activeTab();
   touchTab(tab, true);
   chromeVisible = true;
@@ -1174,7 +1167,6 @@ function closeTab(id) {
     try { tab.view.webContents.close(); } catch {}
   }
   tabs.delete(id);
-  if (wasActive) clearRailTint();
   if (!tabs.size) {
     activeId = null;
     createTab(HOME, true);
@@ -1245,44 +1237,6 @@ function setTabViewBounds(tab, bounds, animate = false) {
   tab.boundsAnimation.unref?.();
 }
 
-function clearRailTint() {
-  railTintEpoch += 1;
-  if (lastRailTint !== null) {
-    lastRailTint = null;
-    if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
-      win.webContents.send('rail-site-tint', null);
-    }
-  }
-}
-
-// A strip immediately adjacent to the rail is sampled locally and reduced
-// to ONE RGB value. No screenshot or page pixels leave the main process.
-async function refreshRailTint() {
-  if (railTintBusy || !win || win.isDestroyed() || !win.isVisible() || win.isMinimized()) return;
-  const tab = activeTab();
-  const position = store?.settings().railPosition || 'right';
-  if (isPrivateMode() || !tab || !isExternal(tab.url) || !tab.view || !['right','left'].includes(position)) {
-    clearRailTint();
-    return;
-  }
-  const wc = tab.view.webContents;
-  if (!wc || wc.isDestroyed()) { clearRailTint(); return; }
-  const epoch = railTintEpoch;
-  railTintBusy = true;
-  try {
-    const rgb = await sampleRailColor(wc, tab.view.getBounds(), position);
-    if (epoch !== railTintEpoch || activeTab() !== tab || isPrivateMode() || wc.isDestroyed()) return;
-    if (rgb && rgb !== lastRailTint) {
-      lastRailTint = rgb;
-      win.webContents.send('rail-site-tint', rgb);
-    }
-  } catch {
-    // Protected media and pages may refuse capture; the UI still works.
-  } finally {
-    railTintBusy = false;
-  }
-}
-
 function layout(options = {}) {
   if (!win || win.isDestroyed()) return;
   const tab = activeTab();
@@ -1292,25 +1246,22 @@ function layout(options = {}) {
   const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H + chromeOverlayHeight;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
   // The compact open-tab shelf is always available, including in private mode.
-  const railPosition = store?.settings().railPosition || 'bottom';
-  const horizontal = railPosition === 'top' || railPosition === 'bottom';
+  const railPosition = store?.settings().railPosition || 'right';
+  const horizontal = railPosition === 'top';
   const rail = railCollapsed ? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;
-  const searchExtra = railSearchFocused && !railCollapsed && !horizontal
-    ? Math.min(428, Math.max(220, width - rail - 290)) : 0;
-  const topRail = railPosition === 'top' ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
-  const bottomRail = railPosition === 'bottom' ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
+  const topRail = horizontal ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
   const stageWidth = !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
     ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
-  const sideLeft = railPosition === 'left' ? rail + searchExtra + stageWidth : 0;
-  const sideRight = railPosition === 'right' ? rail + searchExtra + stageWidth + aiWidth : (horizontal ? stageWidth + aiWidth : aiWidth);
+  const sideLeft = railPosition === 'left' ? rail + stageWidth : 0;
+  const sideRight = railPosition === 'right' ? rail + stageWidth + aiWidth : (horizontal ? stageWidth + aiWidth : aiWidth);
   const viewTop = top + topRail;
-  const availableHeight = Math.max(1, height - viewTop - bottom - bottomRail);
+  const availableHeight = Math.max(1, height - viewTop - bottom);
   if (tab?.view && isExternal(tab.url)) {
     const bounds = { x: sideLeft, y: viewTop, width: Math.max(1, width - sideLeft - sideRight), height: availableHeight };
     setTabViewBounds(tab, bounds, Boolean(options?.animateChrome));
   }
-  const stageX = railPosition === 'left' ? rail + searchExtra : Math.max(0, width - (horizontal ? 0 : rail) - searchExtra - stageWidth);
+  const stageX = railPosition === 'left' ? rail : Math.max(0, width - (horizontal ? 0 : rail) - stageWidth);
   const focusEnabled = Boolean(!isPrivateMode() && !railCollapsed && stageWidth > 0 &&
     stageState.open && !stageState.collapsed &&
     stageState.apps?.some(app => app.id === stageState.activeApp && app.media));
@@ -1339,7 +1290,7 @@ function showChrome(focusAddress = false) {
 function startImmersionWatcher() {
   clearInterval(immersiveTimer);
   immersiveTimer = setInterval(() => {
-    if (!win || win.isDestroyed() || !isImmersive() || railPinned) return;
+    if (!win || win.isDestroyed() || !isImmersive()) return;
     const bounds = win.getBounds();
     const pointer = screen.getCursorScreenPoint();
     const insideX = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width;
@@ -1420,7 +1371,7 @@ function startRailHoverWatcher() {
   clearInterval(railHoverTimer);
   railHoverTimer = setInterval(() => {
     if (!win || win.isDestroyed() || !win.isVisible() || win.isMinimized()) return;
-    if (railPinned || railSearchFocused) { setRailCollapsed(false); return; }
+    if (railPinned) { setRailCollapsed(false); return; }
     if (Date.now() < railManualUntil || Date.now() < railDragUntil) return;
     const bounds = win.getBounds();
     const pointer = screen.getCursorScreenPoint();
@@ -1435,14 +1386,12 @@ function startRailHoverWatcher() {
       setRailCollapsed(false);
       return;
     }
-    const position = store?.settings().railPosition || 'bottom';
+    const position = store?.settings().railPosition || 'right';
     const additional = !railCollapsed && stage.open && !stage.collapsed
       ? Number(stage.width || 420) : 0;
     const reach = railCollapsed ? 30 : SIDESTAGE_RAIL_W + additional + 16;
-    const edge = position === 'bottom'
-      ? (horizontal && pointer.y >= bounds.y + bounds.height - (railCollapsed ? 30 : HORIZONTAL_RAIL_H + 12) && pointer.y <= bounds.y + bounds.height)
-      : position === 'top'
-        ? (horizontal && pointer.y >= bounds.y && pointer.y <= bounds.y + (railCollapsed ? 30 : HORIZONTAL_RAIL_H + 12))
+    const edge = position === 'top'
+      ? (horizontal && pointer.y >= bounds.y && pointer.y <= bounds.y + (railCollapsed ? 30 : HORIZONTAL_RAIL_H + 12))
       : position === 'left'
         ? (vertical && pointer.x >= bounds.x && pointer.x <= bounds.x + reach)
         : (vertical && pointer.x >= bounds.x + bounds.width - reach && pointer.x <= bounds.x + bounds.width);
@@ -1462,7 +1411,7 @@ function startRailHoverWatcher() {
 }
 
 function chooseRailPosition(position) {
-  if (!store || !['top', 'bottom'].includes(position)) return false;
+  if (!store || !['top', 'left', 'right'].includes(position)) return false;
   store.setSetting('railPosition', position);
   railLastHover = Date.now();
   // Keep the new location visible briefly so the switch is discoverable.
@@ -1473,10 +1422,11 @@ function chooseRailPosition(position) {
 }
 function showRailPositionMenu() {
   if (!win || win.isDestroyed() || !store) return false;
-  const selected = store.settings().railPosition || 'bottom';
+  const selected = store.settings().railPosition || 'right';
   Menu.buildFromTemplate([
-    { label: 'En bas · largeur entière', type: 'radio', checked: selected === 'bottom', click: () => chooseRailPosition('bottom') },
-    { label: 'En haut · largeur entière', type: 'radio', checked: selected === 'top', click: () => chooseRailPosition('top') }
+    { label: 'En haut', type: 'radio', checked: selected === 'top', click: () => chooseRailPosition('top') },
+    { label: 'À droite', type: 'radio', checked: selected === 'right', click: () => chooseRailPosition('right') },
+    { label: 'À gauche', type: 'radio', checked: selected === 'left', click: () => chooseRailPosition('left') }
   ]).popup({ window: win });
   return true;
 }
@@ -1943,10 +1893,6 @@ app.whenReady().then(async () => {
   createWindow();
   startImmersionWatcher();
   startRailHoverWatcher();
-  clearInterval(railTintTimer);
-  railTintTimer = setInterval(() => { void refreshRailTint(); }, 2800);
-  railTintTimer.unref?.();
-  void refreshRailTint();
   startTabLifecycleWatcher();
   startQuanticIdentityWatcher();
 
@@ -1984,8 +1930,7 @@ ipcMain.handle('quantic-identity-social', () => loginSocialWithQuanticId());
 ipcMain.handle('navigate', async (_event, value) => loadTab(activeTab(), value));
 ipcMain.handle('prewarm-site', (_event, url) => prewarmPopularSite(url));
 ipcMain.handle('chrome-overlay-height', (_event, height) => {
-  // Suggestions now live inside the single rail, never in a reserved bottom strip.
-  chromeOverlayHeight = 0;
+  chromeOverlayHeight = Math.max(0, Math.min(360, Math.round(Number(height) || 0)));
   layout();
   return chromeOverlayHeight;
 });
@@ -2153,13 +2098,7 @@ ipcMain.handle('window-control', (_event, action) => {
   if (action === 'sizes') showWindowSizes();
   if (action === 'close') win.close();
 });
-ipcMain.handle('set-chrome-lock', (_event, locked) => {
-  const previous = railSearchFocused;
-  railSearchFocused = Boolean(locked);
-  if (railSearchFocused) setRailCollapsed(false);
-  if (railSearchFocused !== previous) layout(); // reveal native chrome space for the omnibox
-  revealUntil = Date.now() + (locked ? 60000 : 700);
- });
+ipcMain.handle('set-chrome-lock', (_event, locked) => { revealUntil = Date.now() + (locked ? 60000 : 700); });
 ipcMain.handle('set-setting', async (_event, key, value) => {
   if (key === 'searchEngine') value = normalizeEngine(value);
   if (key === 'networkMode') return setNetworkMode(value);
@@ -2252,7 +2191,6 @@ app.on('before-quit', (event) => {
 app.on('will-quit', () => {
   clearInterval(immersiveTimer);
   clearInterval(railHoverTimer);
-  clearInterval(railTintTimer);
   clearInterval(quanticIdentityTimer);
   clearInterval(quanticSocialLeaseTimer);
   clearInterval(tabLifecycleTimer);

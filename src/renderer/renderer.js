@@ -24,19 +24,6 @@ const fav = $('#fav');
 const reload = $('#reload');
 const appsPanel = $('#apps-panel');
 const sideStageRail = $('#sidestage-rail');
-const unifiedDock = $('#bottom-dock');
-function openRailSearch(select = true) {
-  document.body.classList.add('rail-search-open');
-  document.body.classList.remove('rail-tools-open');
-  if (state.railCollapsed) fire(window.quantic.toggleRailCollapse());
-  const focus = () => { address.focus(); if (select) address.select(); };
-  // When the rail is minimized, give the native shell a frame to expand.
-  if (state.railCollapsed) setTimeout(focus, 120); else requestAnimationFrame(focus);
-}
-function closeRailSearch() {
-  document.body.classList.remove('rail-search-open');
-}
-
 const searchEngineButton = $('#search-engine-button');
 const searchEngineMenu = $('#search-engine-menu');
 const searchEngineMark = $('#search-engine-mark');
@@ -792,11 +779,7 @@ function applyAppearance(){const a=state.settings?.appearance||{},root=document.
 function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
   const minimized = Boolean(state.railCollapsed);
-  const position = ['top', 'bottom'].includes(state.railPosition) ? state.railPosition : 'bottom';
-  // Avoid tearing down the address input mid-typing when background tab state
-  // or a pinned reader updates the rail.
-  if (!minimized && !sideStageRail.classList.contains('rail-minimized') &&
-      document.activeElement === address && sideStageRail.contains(unifiedDock)) return;
+  const position = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
   const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned) + ':' + state.activeId + ':' + Boolean(state.quanticIdentity?.unlocked);
   if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-reveal')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
@@ -813,8 +796,6 @@ function renderSideStage() {
     const reveal = el('div', 'gekko-rail-reveal');
     reveal.setAttribute('aria-hidden', 'true');
     sideStageRail.append(reveal);
-    // The unified navigation stays inside the rail even when minimized.
-    sideStageRail.append(unifiedDock);
     return;
   }
 
@@ -824,11 +805,6 @@ function renderSideStage() {
   grip.title = 'Déplacer la fenêtre';
   grip.setAttribute('aria-hidden', 'true');
   sideStageRail.append(grip);
-  // The real omnibox is now visible at all times inside the only rail.
-  // Its original search, history, favorites and settings handlers remain wired.
-  sideStageRail.append(unifiedDock);
-  const headerActions = el('div', 'gekko-rail-header-actions');
-
 
   const pinButton = el('button', 'gekko-rail-pin' + (state.railPinned ? ' is-pinned' : ''), '📌');
   pinButton.type = 'button';
@@ -836,15 +812,15 @@ function renderSideStage() {
   pinButton.setAttribute('aria-label', pinButton.title);
   pinButton.setAttribute('aria-pressed', String(Boolean(state.railPinned)));
   pinButton.onclick = () => fire(window.quantic.toggleRailPin());
-  headerActions.append(pinButton);
+  sideStageRail.append(pinButton);
 
   // Three-position layout chooser is always visible in the expanded rail.
   const positionButton = el('button', 'gekko-rail-position', '◫');
   positionButton.type = 'button';
-  positionButton.title = 'Position de la barre horizontale : en haut ou en bas';
+  positionButton.title = 'Position de la barre : en haut, à droite ou à gauche';
   positionButton.setAttribute('aria-label', positionButton.title);
   positionButton.onclick = () => fire(window.quantic.railPositionMenu());
-  headerActions.append(positionButton);
+  sideStageRail.append(positionButton);
 
   const identity=state.quanticIdentity||{};
   const identityButton=el('button','gekko-identity-indicator'+(identity.unlocked?' is-unlocked':''),'ID');
@@ -853,14 +829,13 @@ function renderSideStage() {
     'Quantic Secure indisponible · connecter ma clé USB';
   identityButton.setAttribute('aria-label',identityButton.title);
   identityButton.onclick=()=>fire(window.quantic.togglePanelTab('quantic://identity'));
-  headerActions.append(identityButton);
+  sideStageRail.append(identityButton);
 
-  const appRow = el('div', 'gekko-side-app-row');
   if (data.enabled && !data.privateDisabled) {
     // Fixed application shortcuts are always present; no redundant collapse control.
     {
-      appRow.append(el('div', 'side-stage-brand', 'FIXES'));
-      for (const app of [...(data.apps || [])].sort((a,b) => Number(['quanticmail','quanticpulse'].includes(b.id)) - Number(['quanticmail','quanticpulse'].includes(a.id)))) {
+      sideStageRail.append(el('div', 'side-stage-brand', 'FIXES'));
+      for (const app of data.apps || []) {
         const fullAppTab = app.id === 'quanticmail' || app.id === 'quanticpulse';
         const fullAppActive = fullAppTab && state.tabs?.some(tab =>
           tab.id === state.activeId && (
@@ -898,18 +873,17 @@ function renderSideStage() {
           e.preventDefault();
           fire(window.quantic.setSetting('sideStageAction', 'reload:' + app.id));
         };
-        appRow.append(button);
+        sideStageRail.append(button);
       }
       if (data.open) {
         const close = el('button', 'side-stage-close', '×');
         close.title = 'Masquer le lecteur';
         close.onclick = () => fire(window.quantic.setSetting('sideStageAction', 'close'));
-        appRow.append(close);
+        sideStageRail.append(close);
       }
     }
   }
 
-  sideStageRail.append(appRow);
   const shelf = el('div', 'gekko-tab-shelf');
   shelf.setAttribute('aria-label', 'Onglets ouverts');
   shelf.append(el('div', 'gekko-tab-shelf-label', 'PAGES'));
@@ -917,20 +891,6 @@ function renderSideStage() {
   plusButton.title = 'Nouvel onglet';
   tabsEl.append(plusButton);
   sideStageRail.append(shelf);
-  const toolsToggle = el('button', 'gekko-rail-tools', '⋯');
-  toolsToggle.title = 'Afficher ou masquer les autres commandes du navigateur';
-  toolsToggle.type = 'button';
-  toolsToggle.setAttribute('aria-label', toolsToggle.title);
-  toolsToggle.setAttribute('aria-expanded', String(document.body.classList.contains('rail-tools-open')));
-  toolsToggle.onclick = () => {
-    document.body.classList.toggle('rail-tools-open');
-    closeRailSearch();
-    toolsToggle.setAttribute('aria-expanded', String(document.body.classList.contains('rail-tools-open')));
-  };
-  headerActions.append(toolsToggle);
-  // Compact header controls share one row, rather than overlapping tabs.
-  sideStageRail.insertBefore(headerActions, appRow);
-
 
   // Move the real Electron window controls, retaining their existing IPC handlers.
   // Keep these persistent DOM nodes across SideStage refreshes.
@@ -946,7 +906,7 @@ function renderSideStage() {
 }
 
 function render() {
-  document.body.dataset.railPosition = ['top', 'bottom'].includes(state.railPosition) ? state.railPosition : 'bottom';
+  document.body.dataset.railPosition = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
   applyAppearance();
   renderSearchEngineControl();
   renderSideStage();
@@ -1114,14 +1074,12 @@ address.onkeydown = (event) => {
 };
 $('#address-go').onclick = () => navigateAddressValue();
 address.onfocus = () => {
-  document.body.classList.add('rail-search-open');
   fire(window.quantic.chromeLock(true));
   const value = address.value;
   maybePrewarmPopularSite(value);
   if (!maybeInstantLaunch(value)) updateSiteSuggestions();
 };
 address.onblur = () => {
-  closeRailSearch();
   closeSiteSuggestions();
   prewarmKeys.clear();
   fire(window.quantic.chromeLock(false));
@@ -1130,7 +1088,8 @@ address.onblur = () => {
 document.querySelectorAll('[data-q]').forEach((button) => {
   button.onclick = () => {
     address.value = button.dataset.q;
-    openRailSearch();
+    address.focus();
+    address.select();
   };
 });
 
@@ -1139,7 +1098,8 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
     const action = button.dataset.homeAction;
     if (action === 'private-search') {
       address.value = '';
-      openRailSearch();
+      address.focus();
+      address.select();
       return;
     }
     if (action === 'secure-tabs') {
@@ -1153,15 +1113,8 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
   };
 });
 
-window.quantic.onFocusAddress(() => openRailSearch());
-window.quantic.onFocusHomeSearch(() => openRailSearch());
-window.quantic.onRailSiteTint((rgb) => {
-  const safe = typeof rgb === 'string' && /^rgb\(\d{1,3}, \d{1,3}, \d{1,3}\)$/.test(rgb);
-  document.documentElement.style.setProperty('--gekko-site-edge-color',
-    safe ? rgb : 'rgba(12,18,24,.05)');
-  document.body.classList.toggle('rail-site-tinted', safe);
-});
-
+window.quantic.onFocusAddress(() => { address.focus(); address.select(); });
+window.quantic.onFocusHomeSearch(() => { address.focus(); address.select(); });
 
 async function runAi(action, prompt = '') {
   if (aiBusy) return;
