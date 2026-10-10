@@ -966,7 +966,19 @@ function togglePanelTab(url) {
   ]);
   if (!allowedInternal.has(normalized) && !allowedApps.has(normalized)) return false;
   // Reusing existing tabs avoids multiplying settings and app windows.
-  const existing = [...tabs.values()].find(tab => tab.url === normalized);
+  const existing = [...tabs.values()].find(tab => {
+    if (tab.url === normalized) return true;
+    // Mail redirects to authentication and device subpages. Those are the
+    // SAME application, so clicking Mail again must not spawn a duplicate.
+    if (normalized === 'https://quanticmail.onrender.com/') {
+      try { return new URL(tab.url).origin === 'https://quanticmail.onrender.com'; }
+      catch { return false; }
+    }
+    // SOCIAL lives on the shared Sillage origin; do not accidentally match
+    // other Quantic Sillage pages by hostname alone.
+    return normalized.endsWith('/zoon.html') &&
+      /^https:\/\/xdsawyerlol\.github\.io\/QuanticSillage\/zoon(?:\.html)?(?:[?#]|$)/i.test(tab.url);
+  });
   if (existing) {
     if (existing.id === activeId) return closeTab(existing.id);
     return activateTab(existing.id);
