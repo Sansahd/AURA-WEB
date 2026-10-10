@@ -91,6 +91,6 @@ test('media focus works on real external website content for all bar positions',
  assert.match(main,/stageState\.apps\?\.some\(app => app\.id === stageState\.activeApp && app\.media\)/);
  assert.match(main,/mediaFocus\.sync\(tab\?\.view\?\.webContents, focusEnabled\)/);
  assert.match(main,/mediaFocus\.refresh\(wc\)/);
- assert.match(main,/const railPosition = store\?\.settings\(\)\.railPosition \|\| 'right'/);
+ assert.match(main,/const railPosition = store\?\.settings\(\)\.railPosition \|\| 'bottom'/);
  assert.match(ui,/focus-reader-active/);
 });
