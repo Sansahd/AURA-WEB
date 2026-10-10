@@ -813,3 +813,136 @@ body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized){
   }
   #bottom-dock .nav-row{gap:3px!important}
 }
+
+
+/* GEKKO glass corner (beta 15): the bottom command capsule meets the
+   vertical tab rail as one L-shaped chrome. Only shell chrome is changed;
+   native WebContentsView remains outside the reserved 60/54px strips. */
+:root{
+  --gekko-chrome-alpha:clamp(.10,calc(var(--quantic-glass-opacity, .72) * .26),.28);
+  --gekko-chrome-background:linear-gradient(115deg,
+    color-mix(in srgb,var(--quantic-accent) 4%,rgba(12,21,28,var(--gekko-chrome-alpha))),
+    rgba(22,25,32,var(--gekko-chrome-alpha)) 68%,
+    color-mix(in srgb,var(--quantic-accent) 3%,rgba(12,21,28,var(--gekko-chrome-alpha))));
+  --gekko-chrome-edge:rgba(235,250,245,.15);
+}
+body[data-rail-position="right"] #bottom-dock,
+body[data-rail-position="left"] #bottom-dock{
+  width:min(885px,calc(100vw - 65px))!important;
+  max-width:calc(100vw - 65px)!important;
+  left:auto!important;
+  right:51px!important;
+  bottom:6px!important;
+  height:54px!important;
+  min-height:54px!important;
+  border-radius:19px 5px 5px 19px!important;
+  border:1px solid var(--gekko-chrome-edge)!important;
+  background:var(--gekko-chrome-background)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11)!important;
+  backdrop-filter:blur(24px) saturate(118%)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(118%)!important;
+}
+body[data-rail-position="left"] #bottom-dock{
+  left:51px!important;right:auto!important;
+  border-radius:5px 19px 19px 5px!important;
+}
+/* The join is flush on the left edge of the 50px right rail, and mirrored on
+   left placement. No detached band or unrelated colored background. */
+body[data-rail-position="right"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized){
+  top:10px!important;
+  bottom:6px!important;
+  width:50px!important;
+  min-width:50px!important;
+  border:1px solid var(--gekko-chrome-edge)!important;
+  background:var(--gekko-chrome-background)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11)!important;
+  backdrop-filter:blur(24px) saturate(118%)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(118%)!important;
+}
+body[data-rail-position="right"] #sidestage-rail:not(.rail-minimized){
+  border-radius:18px 18px 18px 4px!important;
+}
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized){
+  border-radius:18px 18px 4px 18px!important;
+}
+#bottom-dock .nav-row{
+  height:44px!important;
+  width:100%!important;
+  gap:4px!important;
+}
+/* The omnibox was taking all remaining width: cap it without hiding the
+   history, favorites, menu, Quantic apps, or accessibility controls. */
+#bottom-dock .address-wrap{
+  flex:1 1 260px!important;
+  width:auto!important;
+  max-width:380px!important;
+  min-width:155px!important;
+}
+#bottom-dock .address{
+  background:rgba(12,20,26,.24)!important;
+  border-color:rgba(244,255,252,.18)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06)!important;
+}
+#bottom-dock .dock-control{
+  background:rgba(247,255,252,.035)!important;
+  border-color:rgba(248,255,253,.09)!important;
+  box-shadow:none!important;
+}
+#bottom-dock .dock-control:hover:not(:disabled){
+  background:rgba(247,255,252,.13)!important;
+}
+/* Keep title-bar dragging and the original button/input hit regions. */
+#bottom-dock .dock-drag-grip{
+  width:120px!important;
+  height:8px!important;
+}
+/* Minimal rail and top-position mode must remain useful, not visually broken. */
+body.rail-minimized[data-rail-position="right"] #bottom-dock{
+  right:17px!important;width:min(885px,calc(100vw - 30px))!important;
+  max-width:calc(100vw - 30px)!important;
+}
+body.rail-minimized[data-rail-position="left"] #bottom-dock{
+  left:17px!important;width:min(885px,calc(100vw - 30px))!important;
+  max-width:calc(100vw - 30px)!important;
+}
+body[data-rail-position="top"] #bottom-dock{
+  width:min(885px,calc(100vw - 20px))!important;
+  max-width:calc(100vw - 20px)!important;
+  left:50%!important;right:auto!important;
+  transform:translateX(-50%)!important;
+  background:var(--gekko-chrome-background)!important;
+  border-color:var(--gekko-chrome-edge)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11)!important;
+  backdrop-filter:blur(24px) saturate(118%)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(118%)!important;
+}
+body[data-rail-position="top"].chrome-hidden #bottom-dock{
+  transform:translate3d(-50%,74px,0)!important;
+  opacity:0!important;pointer-events:none!important;
+}
+body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized){
+  background:var(--gekko-chrome-background)!important;
+  border-color:var(--gekko-chrome-edge)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11)!important;
+}
+/* Compact mode on small screens retains the real actions; no giant bar. */
+@media(max-width:760px){
+  body[data-rail-position="right"] #bottom-dock{
+    width:calc(100vw - 57px)!important;max-width:calc(100vw - 57px)!important;
+    right:51px!important;
+  }
+  body[data-rail-position="left"] #bottom-dock{
+    width:calc(100vw - 57px)!important;max-width:calc(100vw - 57px)!important;
+    left:51px!important;
+  }
+  body.rail-minimized[data-rail-position="right"] #bottom-dock{
+    width:calc(100vw - 23px)!important;max-width:calc(100vw - 23px)!important;
+    right:17px!important;
+  }
+  body.rail-minimized[data-rail-position="left"] #bottom-dock{
+    width:calc(100vw - 23px)!important;max-width:calc(100vw - 23px)!important;
+    left:17px!important;
+  }
+  #bottom-dock .address-wrap{min-width:125px!important;max-width:380px!important}
+}
