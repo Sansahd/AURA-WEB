@@ -17,6 +17,7 @@ const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { NativeMediaFocus } = require('./services/media-focus.cjs');
+const { sampleRailColor } = require('./services/rail-tint.cjs');
 const { getStatus: getQuanticIdentityStatus } = require('./services/quantic-id-bridge.cjs');
 const { authenticateQuanticSocial, installSocialSession, revokeSocialSession,
   isSocialPage } = require('./services/quantic-social-sso.cjs');
@@ -116,6 +117,10 @@ let aiRuntime = {
 let chromeVisible = true;
 let chromeOverlayHeight = 0;
 let railSearchFocused = false;
+let railTintTimer = null;
+let railTintBusy = false;
+let railTintEpoch = 0;
+let lastRailTint = null;
 let railCollapsed = true;
 let railPinned = false;
 let railLastHover = 0;
@@ -1145,6 +1150,7 @@ function activateTab(id) {
   if (previous) touchTab(previous, false);
   previous?.view?.setVisible(false);
   activeId = id;
+  clearRailTint();
   const tab = activeTab();
   touchTab(tab, true);
   chromeVisible = true;
@@ -1168,6 +1174,7 @@ function closeTab(id) {
     try { tab.view.webContents.close(); } catch {}
   }
   tabs.delete(id);
+  if (wasActive) clearRailTint();
   if (!tabs.size) {
     activeId = null;
     createTab(HOME, true);
@@ -1236,6 +1243,44 @@ function setTabViewBounds(tab, bounds, animate = false) {
   frame();
   tab.boundsAnimation = setInterval(frame, 16);
   tab.boundsAnimation.unref?.();
+}
+
+function clearRailTint() {
+  railTintEpoch += 1;
+  if (lastRailTint !== null) {
+    lastRailTint = null;
+    if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send('rail-site-tint', null);
+    }
+  }
+}
+
+// A strip immediately adjacent to the rail is sampled locally and reduced
+// to ONE RGB value. No screenshot or page pixels leave the main process.
+async function refreshRailTint() {
+  if (railTintBusy || !win || win.isDestroyed() || !win.isVisible() || win.isMinimized()) return;
+  const tab = activeTab();
+  const position = store?.settings().railPosition || 'right';
+  if (isPrivateMode() || !tab || !isExternal(tab.url) || !tab.view || !['right','left'].includes(position)) {
+    clearRailTint();
+    return;
+  }
+  const wc = tab.view.webContents;
+  if (!wc || wc.isDestroyed()) { clearRailTint(); return; }
+  const epoch = railTintEpoch;
+  railTintBusy = true;
+  try {
+    const rgb = await sampleRailColor(wc, tab.view.getBounds(), position);
+    if (epoch !== railTintEpoch || activeTab() !== tab || isPrivateMode() || wc.isDestroyed()) return;
+    if (rgb && rgb !== lastRailTint) {
+      lastRailTint = rgb;
+      win.webContents.send('rail-site-tint', rgb);
+    }
+  } catch {
+    // Protected media and pages may refuse capture; the UI still works.
+  } finally {
+    railTintBusy = false;
+  }
 }
 
 function layout(options = {}) {
@@ -1898,6 +1943,10 @@ app.whenReady().then(async () => {
   createWindow();
   startImmersionWatcher();
   startRailHoverWatcher();
+  clearInterval(railTintTimer);
+  railTintTimer = setInterval(() => { void refreshRailTint(); }, 2800);
+  railTintTimer.unref?.();
+  void refreshRailTint();
   startTabLifecycleWatcher();
   startQuanticIdentityWatcher();
 
@@ -2202,6 +2251,7 @@ app.on('before-quit', (event) => {
 app.on('will-quit', () => {
   clearInterval(immersiveTimer);
   clearInterval(railHoverTimer);
+  clearInterval(railTintTimer);
   clearInterval(quanticIdentityTimer);
   clearInterval(quanticSocialLeaseTimer);
   clearInterval(tabLifecycleTimer);
