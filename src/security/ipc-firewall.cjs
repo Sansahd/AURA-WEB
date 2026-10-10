@@ -20,7 +20,7 @@ function isAppearancePatch(value) {
   if ('radius' in value && (!Number.isFinite(value.radius) || value.radius < 6 || value.radius > 28)) return false;
   return true;
 }
-function isSideAction(value) { if (!isString(value, 64)) return false; const [action, app = ''] = value.split(':', 2); return SIDE_ACTIONS.has(action) && (app === '' || SIDE_APPS.has(app)); }
+function isSideAction(value) { if (!isString(value, 64)) return false; const parts = value.split(':'); if (parts.length > 2) return false; const [action, app = ''] = parts; return SIDE_ACTIONS.has(action) && (app === '' || SIDE_APPS.has(app)); }
 function isPlainObject(value) { return Boolean(value) && typeof value === 'object' && !Array.isArray(value); }
 function isCareerSettingsPatch(value) {
   if (!isPlainObject(value)) return false;
