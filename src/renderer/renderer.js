@@ -24,6 +24,9 @@ const fav = $('#fav');
 const reload = $('#reload');
 const appsPanel = $('#apps-panel');
 const sideStageRail = $('#sidestage-rail');
+// Keep Glass Corner's real controls and move them inside the single bottom bar.
+const glassDock = $('#bottom-dock');
+glassDock.append(sideStageRail);
 const searchEngineButton = $('#search-engine-button');
 const searchEngineMenu = $('#search-engine-menu');
 const searchEngineMark = $('#search-engine-mark');
@@ -276,8 +279,8 @@ function renderTabs() {
     if (tab.id === state.activeId) activeNode = node;
   }
 
-  // The + belongs to the scrollable tab strip, immediately after the last tab.
-  tabsEl.append(plusButton);
+  // Keep + adjacent to the tab strip and visible outside its clipped title area.
+  (sideStageRail.querySelector('.gekko-tab-shelf') || tabsEl).append(plusButton);
 
   for (const [id, node] of tabNodes) {
     if (!seen.has(id)) {
@@ -779,7 +782,7 @@ function applyAppearance(){const a=state.settings?.appearance||{},root=document.
 function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
   const minimized = Boolean(state.railCollapsed);
-  const position = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
+  const position = 'bottom';
   const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned) + ':' + state.activeId + ':' + Boolean(state.quanticIdentity?.unlocked);
   if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-reveal')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
@@ -817,7 +820,7 @@ function renderSideStage() {
   // Three-position layout chooser is always visible in the expanded rail.
   const positionButton = el('button', 'gekko-rail-position', '◫');
   positionButton.type = 'button';
-  positionButton.title = 'Position de la barre : en haut, à droite ou à gauche';
+  positionButton.title = 'Barre inférieure · pleine largeur';
   positionButton.setAttribute('aria-label', positionButton.title);
   positionButton.onclick = () => fire(window.quantic.railPositionMenu());
   sideStageRail.append(positionButton);
@@ -835,7 +838,7 @@ function renderSideStage() {
     // Fixed application shortcuts are always present; no redundant collapse control.
     {
       sideStageRail.append(el('div', 'side-stage-brand', 'FIXES'));
-      for (const app of data.apps || []) {
+      for (const app of [...(data.apps || [])].sort((a,b) => Number(['quanticmail','quanticpulse'].includes(b.id)) - Number(['quanticmail','quanticpulse'].includes(a.id)))) {
         const fullAppTab = app.id === 'quanticmail' || app.id === 'quanticpulse';
         const fullAppActive = fullAppTab && state.tabs?.some(tab =>
           tab.id === state.activeId && (
@@ -846,6 +849,7 @@ function renderSideStage() {
         const button = el('button', 'side-stage-app ' +
           ((data.open && data.activeApp === app.id) || fullAppActive ? 'active ' : '') +
           (!fullAppTab && app.status === 'loading' ? 'loading' : ''));
+        button.dataset.appId = app.id;
         button.title = fullAppTab
           ? (app.label || app.id) + ' · onglet complet · second clic pour fermer'
           : app.status === 'error'
@@ -889,7 +893,7 @@ function renderSideStage() {
   shelf.append(el('div', 'gekko-tab-shelf-label', 'PAGES'));
   shelf.append(tabsEl);
   plusButton.title = 'Nouvel onglet';
-  tabsEl.append(plusButton);
+  shelf.append(plusButton);
   sideStageRail.append(shelf);
 
   // Move the real Electron window controls, retaining their existing IPC handlers.
@@ -906,7 +910,7 @@ function renderSideStage() {
 }
 
 function render() {
-  document.body.dataset.railPosition = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
+  document.body.dataset.railPosition = 'bottom';
   applyAppearance();
   renderSearchEngineControl();
   renderSideStage();
