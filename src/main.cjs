@@ -35,9 +35,9 @@ const HOME = 'quantic://newtab';
 const TOP_CHROME_H = 0;
 const BOTTOM_DOCK_H = 0; // The omnibox now lives inside the single rail.
 const AI_W = 300;
-const SIDESTAGE_RAIL_W = 220; // Single rail: permanent searchable omnibox, grouped controls and scrollable tabs.
+const SIDESTAGE_RAIL_W = 54; // Legacy left/right layout only; the default is one horizontal bar.
 const SIDESTAGE_RAIL_MIN_W = 18;
-const HORIZONTAL_RAIL_H = 70;
+const HORIZONTAL_RAIL_H = 64;
 const HORIZONTAL_RAIL_MIN_H = 18;
 const SIDESTAGE_COLLAPSED_W = 22;
 const EDGE_TRIGGER = 24;
@@ -121,8 +121,8 @@ let railTintTimer = null;
 let railTintBusy = false;
 let railTintEpoch = 0;
 let lastRailTint = null;
-let railCollapsed = true;
-let railPinned = false;
+let railCollapsed = false; // The full-width search and navigation are visible on startup.
+let railPinned = true; // Keep the only navigation bar visible, not a hover-only strip.
 let railLastHover = 0;
 let railManualUntil = 0;
 let railDragUntil = 0;
@@ -216,7 +216,7 @@ function state() {
     railCollapsed,
     railPinned,
     quanticIdentity: { ...quanticIdentityStatus, error: quanticSocialError },
-    railPosition: store?.settings().railPosition || 'right',
+    railPosition: store?.settings().railPosition || 'bottom',
     windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
     settings: store?.settings() || {},
@@ -1292,21 +1292,20 @@ function layout(options = {}) {
   const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H + chromeOverlayHeight;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
   // The compact open-tab shelf is always available, including in private mode.
-  const railPosition = store?.settings().railPosition || 'right';
-  const horizontal = railPosition === 'top';
+  const railPosition = store?.settings().railPosition || 'bottom';
+  const horizontal = railPosition === 'top' || railPosition === 'bottom';
   const rail = railCollapsed ? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;
   const searchExtra = railSearchFocused && !railCollapsed && !horizontal
     ? Math.min(428, Math.max(220, width - rail - 290)) : 0;
-  const topRail = horizontal
-    ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) + (railSearchFocused ? 290 : 0)
-    : 0;
+  const topRail = railPosition === 'top' ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
+  const bottomRail = railPosition === 'bottom' ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
   const stageWidth = !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
     ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
   const sideLeft = railPosition === 'left' ? rail + searchExtra + stageWidth : 0;
   const sideRight = railPosition === 'right' ? rail + searchExtra + stageWidth + aiWidth : (horizontal ? stageWidth + aiWidth : aiWidth);
   const viewTop = top + topRail;
-  const availableHeight = Math.max(1, height - viewTop - bottom);
+  const availableHeight = Math.max(1, height - viewTop - bottom - bottomRail);
   if (tab?.view && isExternal(tab.url)) {
     const bounds = { x: sideLeft, y: viewTop, width: Math.max(1, width - sideLeft - sideRight), height: availableHeight };
     setTabViewBounds(tab, bounds, Boolean(options?.animateChrome));
@@ -1340,7 +1339,7 @@ function showChrome(focusAddress = false) {
 function startImmersionWatcher() {
   clearInterval(immersiveTimer);
   immersiveTimer = setInterval(() => {
-    if (!win || win.isDestroyed() || !isImmersive()) return;
+    if (!win || win.isDestroyed() || !isImmersive() || railPinned) return;
     const bounds = win.getBounds();
     const pointer = screen.getCursorScreenPoint();
     const insideX = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width;
@@ -1436,12 +1435,14 @@ function startRailHoverWatcher() {
       setRailCollapsed(false);
       return;
     }
-    const position = store?.settings().railPosition || 'right';
+    const position = store?.settings().railPosition || 'bottom';
     const additional = !railCollapsed && stage.open && !stage.collapsed
       ? Number(stage.width || 420) : 0;
     const reach = railCollapsed ? 30 : SIDESTAGE_RAIL_W + additional + 16;
-    const edge = position === 'top'
-      ? (horizontal && pointer.y >= bounds.y && pointer.y <= bounds.y + (railCollapsed ? 30 : HORIZONTAL_RAIL_H + 12))
+    const edge = position === 'bottom'
+      ? (horizontal && pointer.y >= bounds.y + bounds.height - (railCollapsed ? 30 : HORIZONTAL_RAIL_H + 12) && pointer.y <= bounds.y + bounds.height)
+      : position === 'top'
+        ? (horizontal && pointer.y >= bounds.y && pointer.y <= bounds.y + (railCollapsed ? 30 : HORIZONTAL_RAIL_H + 12))
       : position === 'left'
         ? (vertical && pointer.x >= bounds.x && pointer.x <= bounds.x + reach)
         : (vertical && pointer.x >= bounds.x + bounds.width - reach && pointer.x <= bounds.x + bounds.width);
@@ -1461,7 +1462,7 @@ function startRailHoverWatcher() {
 }
 
 function chooseRailPosition(position) {
-  if (!store || !['top', 'left', 'right'].includes(position)) return false;
+  if (!store || !['top', 'bottom'].includes(position)) return false;
   store.setSetting('railPosition', position);
   railLastHover = Date.now();
   // Keep the new location visible briefly so the switch is discoverable.
@@ -1472,11 +1473,10 @@ function chooseRailPosition(position) {
 }
 function showRailPositionMenu() {
   if (!win || win.isDestroyed() || !store) return false;
-  const selected = store.settings().railPosition || 'right';
+  const selected = store.settings().railPosition || 'bottom';
   Menu.buildFromTemplate([
-    { label: 'En haut', type: 'radio', checked: selected === 'top', click: () => chooseRailPosition('top') },
-    { label: 'À droite', type: 'radio', checked: selected === 'right', click: () => chooseRailPosition('right') },
-    { label: 'À gauche', type: 'radio', checked: selected === 'left', click: () => chooseRailPosition('left') }
+    { label: 'En bas · largeur entière', type: 'radio', checked: selected === 'bottom', click: () => chooseRailPosition('bottom') },
+    { label: 'En haut · largeur entière', type: 'radio', checked: selected === 'top', click: () => chooseRailPosition('top') }
   ]).popup({ window: win });
   return true;
 }
