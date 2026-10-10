@@ -35,9 +35,9 @@ const HOME = 'quantic://newtab';
 const TOP_CHROME_H = 0;
 const BOTTOM_DOCK_H = 0; // The omnibox now lives inside the single rail.
 const AI_W = 300;
-const SIDESTAGE_RAIL_W = 54;
+const SIDESTAGE_RAIL_W = 220; // Single rail: permanent searchable omnibox, grouped controls and scrollable tabs.
 const SIDESTAGE_RAIL_MIN_W = 18;
-const HORIZONTAL_RAIL_H = 58;
+const HORIZONTAL_RAIL_H = 70;
 const HORIZONTAL_RAIL_MIN_H = 18;
 const SIDESTAGE_COLLAPSED_W = 22;
 const EDGE_TRIGGER = 24;
@@ -1984,7 +1984,8 @@ ipcMain.handle('quantic-identity-social', () => loginSocialWithQuanticId());
 ipcMain.handle('navigate', async (_event, value) => loadTab(activeTab(), value));
 ipcMain.handle('prewarm-site', (_event, url) => prewarmPopularSite(url));
 ipcMain.handle('chrome-overlay-height', (_event, height) => {
-  chromeOverlayHeight = Math.max(0, Math.min(360, Math.round(Number(height) || 0)));
+  // Suggestions now live inside the single rail, never in a reserved bottom strip.
+  chromeOverlayHeight = 0;
   layout();
   return chromeOverlayHeight;
 });
