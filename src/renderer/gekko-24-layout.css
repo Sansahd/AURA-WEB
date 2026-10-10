@@ -1591,3 +1591,12 @@ body:not([data-rail-position="top"]) #sidestage-rail .gekko-tab-shelf .tab{
 #sidestage-rail #bottom-dock .address:focus-within{
   border-color:color-mix(in srgb,var(--quantic-accent) 53%,#dceee8)!important;
 }
+
+
+/* Collapsed rail is an 18px reveal hotspot, never a clipped full toolbar. */
+body[data-rail-position="right"] #sidestage-rail.rail-minimized #bottom-dock,
+body[data-rail-position="left"] #sidestage-rail.rail-minimized #bottom-dock,
+body[data-rail-position="top"] #sidestage-rail.rail-minimized #bottom-dock{
+  display:none!important;
+  pointer-events:none!important;
+}
