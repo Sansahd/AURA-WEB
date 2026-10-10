@@ -1160,7 +1160,7 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
 window.quantic.onFocusAddress(() => openRailSearch());
 window.quantic.onFocusHomeSearch(() => openRailSearch());
 window.quantic.onRailSiteTint((rgb) => {
-  const safe = typeof rgb === 'string' && /^rgb\\(\\d{1,3}, \\d{1,3}, \\d{1,3}\\)$/.test(rgb);
+  const safe = typeof rgb === 'string' && /^rgb\(\d{1,3}, \d{1,3}, \d{1,3}\)$/.test(rgb);
   document.documentElement.style.setProperty('--gekko-site-edge-color',
     safe ? rgb : 'rgba(12,18,24,.05)');
   document.body.classList.toggle('rail-site-tinted', safe);
