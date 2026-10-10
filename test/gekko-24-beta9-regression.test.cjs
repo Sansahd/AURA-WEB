@@ -21,7 +21,7 @@ test('settings, favorites and app launchers toggle instead of creating duplicate
   const preload = source('src/preload.cjs'), firewall = source('src/security/ipc-firewall.cjs');
   assert.match(main, /function togglePanelTab\(url\)/);
   assert.match(main, /existing\.id === activeId\) return closeTab\(existing\.id\)/);
-  assert.match(main, /return activateTab\(existing\.id\)/);
+  assert.match(main, /const activated = activateTab\(existing\.id\)/);
   assert.match(main, /createTab\(normalized, true\)/);
   assert.match(main, /allowedInternal/);
   assert.match(main, /allowedApps/);
