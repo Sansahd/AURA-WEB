@@ -106,7 +106,7 @@ test('Apps button opens a real Quantic launcher', () => {
   assert.match(html, /id="apps-button"/);
   assert.match(html, />AURA</);
   assert.match(html, />Mail</);
-  assert.match(html, />ZOON</);
+  assert.match(html, />SOCIAL</);
   assert.match(html, />News</);
   assert.match(html, />Providence</);
   assert.match(renderer, /data-app-url/);
