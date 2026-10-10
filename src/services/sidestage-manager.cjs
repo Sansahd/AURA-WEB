@@ -14,8 +14,6 @@ class SideStageManager {
     this.status = new Map();
     this.failures = new Set();
     this.loadTimers = new Map();
-    this.focusView = null;
-    this.focusReady = false;
   }
 
   settings() {
@@ -46,40 +44,6 @@ class SideStageManager {
   clearLoadTimer(id) {
     clearTimeout(this.loadTimers.get(id));
     this.loadTimers.delete(id);
-  }
-
-  focusOverlay() {
-    const win = this.getWindow();
-    if (!win || win.isDestroyed()) return null;
-    if (this.focusView && !this.focusView.webContents.isDestroyed()) return this.focusView;
-    const overlay = new WebContentsView({
-      webPreferences: {
-        nodeIntegration: false, contextIsolation: true, sandbox: true,
-        webSecurity: true, javascript: false, backgroundThrottling: false
-      }
-    });
-    overlay.setBackgroundColor('#00000000');
-    win.contentView.addChildView(overlay);
-    overlay.setVisible(false);
-    this.focusView = overlay;
-    this.focusReady = false;
-    // Native view overlays native web content (an HTML overlay in the shell
-    // cannot cover a WebContentsView). This is an inert, local, transparent
-    // scrim, not a captured screenshot, and it has no network access.
-    const html = `<!doctype html><html><head><meta charset="utf-8">
-      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
-      <style>html,body{margin:0;width:100%;height:100%;background:rgba(5,8,17,.68)}
-      body{box-shadow:inset 0 0 90px rgba(2,5,12,.14)}</style></head><body></body></html>`;
-    overlay.webContents.on('did-finish-load', () => {
-      if (this.focusView === overlay && !overlay.webContents.isDestroyed()) {
-        this.focusReady = true;
-        this.onChange();
-      }
-    });
-    overlay.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)).catch(() => {
-      this.focusReady = false;
-    });
-    return overlay;
   }
 
   ensureView(appId) {
@@ -223,30 +187,10 @@ class SideStageManager {
     return this.setSettings({ width });
   }
 
-  layout({ x, y, width, height, privateMode = false, focusBounds = null }) {
+  layout({ x, y, width, height, privateMode = false }) {
     const settings = this.settings();
     const active = settings.enabled && settings.open && !settings.collapsed &&
       settings.activeApp && !privateMode && width > 0 ? settings.activeApp : '';
-    const app = appDefinition(active);
-    const focusActive = Boolean(active && app?.media && focusBounds?.width > 0 &&
-      focusBounds?.height > 0);
-    const focus = focusActive ? this.focusOverlay() : this.focusView;
-    if (focus && !focus.webContents.isDestroyed()) {
-      focus.setVisible(focusActive && this.focusReady);
-      if (focusActive) {
-        focus.setBounds({
-          x: focusBounds.x, y: focusBounds.y,
-          width: Math.max(1, focusBounds.width),
-          height: Math.max(1, focusBounds.height)
-        });
-        const win = this.getWindow();
-        if (this.focusReady && win && !win.isDestroyed()) {
-          // Reorder above the main page, but below the reader. The Electron
-          // API explicitly moves existing views to the top on addChildView.
-          win.contentView.addChildView(focus);
-        }
-      }
-    }
     for (const [id, view] of this.views) {
       if (view.webContents.isDestroyed()) continue;
       const visible = id === active;
@@ -260,7 +204,6 @@ class SideStageManager {
   }
 
   hideAll() {
-    if (this.focusView && !this.focusView.webContents.isDestroyed()) this.focusView.setVisible(false);
     for (const view of this.views.values()) {
       if (!view.webContents.isDestroyed()) view.setVisible(false);
     }
@@ -271,12 +214,6 @@ class SideStageManager {
     for (const timeout of this.loadTimers.values()) clearTimeout(timeout);
     this.loadTimers.clear();
     this.failures.clear();
-    if (this.focusView) {
-      try { win?.contentView?.removeChildView(this.focusView); } catch {}
-      try { this.focusView.webContents.close(); } catch {}
-      this.focusView = null;
-      this.focusReady = false;
-    }
     for (const view of this.views.values()) {
       try { win?.contentView?.removeChildView(view); } catch {}
       try { view.webContents.close(); } catch {}
