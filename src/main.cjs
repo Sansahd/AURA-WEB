@@ -1105,6 +1105,11 @@ function layout(options = {}) {
   const stageX = railPosition === 'left' ? rail : Math.max(0, width - (horizontal ? 0 : rail) - stageWidth);
   sideStage?.layout({
     x: stageX, y: viewTop, width: stageWidth, height: availableHeight,
+    focusBounds: tab?.view && isExternal(tab.url) ? {
+      x: sideLeft, y: viewTop,
+      width: Math.max(1, width - sideLeft - sideRight),
+      height: availableHeight
+    } : null,
     privateMode: isPrivateMode() || railCollapsed
   });
 }
@@ -1943,7 +1948,14 @@ ipcMain.handle('set-setting', async (_event, key, value) => {
   } else if (key === 'sideStageAction') {
     if (isPrivateMode()) return store.settings();
     const [action, appId = ''] = String(value || '').split(':', 2);
-    if (action === 'toggle' || action === 'select') aiOpen = false;
+    if (action === 'toggle' || action === 'select') {
+      aiOpen = false;
+      // Clicking an app must make its real native reader visible immediately,
+      // even when the auto-hide rail was collapsed one moment earlier.
+      railLastHover = Date.now();
+      railManualUntil = Date.now() + 1300;
+      setRailCollapsed(false);
+    }
     sideStage?.action(action, appId); layout();
   } else if (key === 'sideStageWidth') {
     sideStage?.setWidth(value); layout();
