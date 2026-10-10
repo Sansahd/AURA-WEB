@@ -262,3 +262,66 @@ body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .gekko-rail-win
   flex:0 0 90px!important;
   margin-left:auto!important;
 }
+
+
+/* Real Windows screenshot check: input was only 35px at 1024px.
+   Use an icon-only search-engine selector and give the omnibox priority.
+   Preserve the engine selection popup and every existing click handler. */
+body[data-rail-position="bottom"] #bottom-dock > .nav-row {
+  flex:1 1 58%!important;
+}
+body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail:not(.rail-minimized) {
+  flex:1 1 42%!important;
+}
+body[data-rail-position="bottom"] #bottom-dock .address-wrap {
+  flex:1 1 240px!important;
+  min-width:150px!important;
+  max-width:400px!important;
+}
+#bottom-dock .search-engine-button {
+  box-sizing:border-box!important;
+  flex:0 0 32px!important;
+  width:32px!important;
+  min-width:32px!important;
+  max-width:32px!important;
+  height:32px!important;
+  padding:1px!important;
+  gap:0!important;
+}
+#bottom-dock .search-engine-label,
+#bottom-dock .engine-chevron,
+#bottom-dock .address-divider,
+#bottom-dock .address-search{
+  display:none!important;
+}
+#bottom-dock .search-engine-mark{
+  flex:0 0 26px!important;
+  width:26px!important;
+  min-width:26px!important;
+  max-width:26px!important;
+  height:26px!important;
+  margin:0!important;
+}
+#bottom-dock .address input{
+  box-sizing:border-box!important;
+  flex:1 1 auto!important;
+  min-width:0!important;
+  width:100%!important;
+  padding:0 4px!important;
+  font-size:13px!important;
+  text-overflow:ellipsis!important;
+}
+#bottom-dock .address-go{
+  flex:0 0 28px!important;
+  width:28px!important;
+  min-width:28px!important;
+  padding:4px!important;
+}
+@media(max-width:960px){
+  body[data-rail-position="bottom"] #bottom-dock > .nav-row{
+    flex:1 1 61%!important;
+  }
+  body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail:not(.rail-minimized){
+    flex:1 1 39%!important;
+  }
+}
