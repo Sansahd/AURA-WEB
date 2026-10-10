@@ -16,6 +16,7 @@ const { buildInternalState, internalTitle } = require('./core/internal-state.cjs
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
+const { appDefinition } = require('./services/sidestage.cjs');
 const { installQuanticUiProtocol, verifyQuanticUiShell, SHELL_URL: QUANTIC_UI_URL } = require('./services/ui-protocol.cjs');
 const { QuanticAuraClient } = require('./services/aura-client.cjs');
 const { AuraEverywherePresence } = require('./services/aura-everywhere.cjs');
@@ -1956,6 +1957,19 @@ ipcMain.handle('set-setting', async (_event, key, value) => {
   } else if (key === 'sideStageAction') {
     if (isPrivateMode()) return store.settings();
     const [action, appId = ''] = String(value || '').split(':', 2);
+    // Mail and SOCIAL are complete interactive apps (login, storage,
+    // navigation). The small reader WebContentsView caused blank screens,
+    // broken authentication and missing error UI. Open them in the normal
+    // GEKKO tab runtime instead: second click closes, existing tab is reused.
+    if (['quanticmail', 'quanticpulse'].includes(appId) &&
+        (action === 'toggle' || action === 'select')) {
+      aiOpen = false;
+      sideStage?.action('close');
+      togglePanelTab(appDefinition(appId).url);
+      layout();
+      emitState(true);
+      return store.settings();
+    }
     if (action === 'toggle' || action === 'select') {
       aiOpen = false;
       // Clicking an app must make its real native reader visible immediately,
