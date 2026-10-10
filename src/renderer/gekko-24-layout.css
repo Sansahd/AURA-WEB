@@ -636,3 +636,33 @@ body.focus-reader-active .internal-page{
     transition:none!important;
   }
 }
+
+
+/* GEKKO beta 13 Quantic ID: a minimal identity presence indicator in every
+   rail orientation, with no USB key content ever rendered into the shell. */
+#sidestage-rail .gekko-identity-indicator{
+ display:grid;place-items:center;
+ width:40px;height:35px;flex:0 0 35px;
+ margin:2px auto;
+ border-radius:12px;
+ border:1px solid rgba(200,217,215,.23);
+ background:linear-gradient(115deg,rgba(52,62,67,.72),rgba(40,47,62,.86));
+ color:#c4ccd1;
+ font:700 12px/1 system-ui,sans-serif;
+ cursor:pointer;
+ -webkit-app-region:no-drag!important;
+}
+#sidestage-rail .gekko-identity-indicator.is-unlocked{
+ border-color:rgba(156,250,194,.64)!important;
+ background:linear-gradient(122deg,rgba(24,105,69,.77),rgba(35,79,73,.75))!important;
+ color:#eaffee!important;
+}
+#sidestage-rail .gekko-identity-indicator:focus-visible{
+ outline:2px solid var(--quantic-accent,#80deb1);outline-offset:2px;
+}
+body[data-rail-position="top"] #sidestage-rail .gekko-identity-indicator{
+ width:34px!important;height:34px!important;flex:0 0 34px!important;margin:0!important;
+}
+.quantic-identity-page p{max-width:670px;line-height:1.65}
+.quantic-identity-page .engine-row{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0}
+.quantic-identity-page .pill-button:disabled{opacity:.43;cursor:not-allowed}
