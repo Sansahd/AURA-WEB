@@ -85,5 +85,5 @@ function setupVideoSpotlight() {
 }
 function enableVideoSpotlightScript() { return '('+setupVideoSpotlight.toString()+')()'; }
 const disableVideoSpotlightScript =
-  'globalThis.__gekkoVideoSpotlightV1?.disable(); true';
+  'window.__gekkoVideoSpotlightV1?.disable(); true';
 module.exports = { enableVideoSpotlightScript,disableVideoSpotlightScript };
