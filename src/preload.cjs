@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('quantic', {
   careerImport: () => ipcRenderer.invoke('career-import'),
   windowControl: (a) => ipcRenderer.invoke('window-control', a), chromeLock: (v) => ipcRenderer.invoke('set-chrome-lock', v),
   setSetting: (k,v) => ipcRenderer.invoke('set-setting', k, v), pickWallpaper: () => ipcRenderer.invoke('pick-wallpaper'), wallpaperData: () => ipcRenderer.invoke('wallpaper-data'), removeFavorite: (u) => ipcRenderer.invoke('remove-favorite', u),
+  quanticIdentityRefresh: () => ipcRenderer.invoke('quantic-identity-refresh'),
+  quanticIdentitySocial: () => ipcRenderer.invoke('quantic-identity-social'),
   vpnStatus: () => ipcRenderer.invoke('vpn-status'),
   vpnOpen: () => ipcRenderer.invoke('vpn-open'),
   vpnInstallInfo: () => ipcRenderer.invoke('vpn-install-info'),
