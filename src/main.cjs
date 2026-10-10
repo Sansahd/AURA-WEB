@@ -1250,7 +1250,10 @@ function layout(options = {}) {
   const horizontal = railPosition === 'top';
   const rail = railCollapsed ? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;
   const topRail = horizontal ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
-  const stageWidth = !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
+  // SideStage is a native WebContentsView layered ABOVE the shell. On GEKKO
+  // home/internal pages it must never cover the homepage or its full-width dock.
+  const homeOrInternal = !tab || !isExternal(tab.url);
+  const stageWidth = !homeOrInternal && !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
     ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
   // The original Glass Corner rail is now IN the bottom dock: no side gutter.
@@ -1270,7 +1273,7 @@ function layout(options = {}) {
   syncPageSpotlight(tab, focusEnabled);
   sideStage?.layout({
     x: stageX, y: viewTop, width: stageWidth, height: availableHeight,
-    privateMode: isPrivateMode() || railCollapsed
+    privateMode: isPrivateMode() || railCollapsed || homeOrInternal
   });
 }
 
@@ -1291,7 +1294,7 @@ function showChrome(focusAddress = false) {
 function startImmersionWatcher() {
   clearInterval(immersiveTimer);
   immersiveTimer = setInterval(() => {
-    if (!win || win.isDestroyed() || !isImmersive()) return;
+    if (!win || win.isDestroyed() || !isImmersive() || railPinned) return;
     const bounds = win.getBounds();
     const pointer = screen.getCursorScreenPoint();
     const insideX = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width;
