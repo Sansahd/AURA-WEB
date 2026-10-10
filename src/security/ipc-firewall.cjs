@@ -6,7 +6,7 @@ const AI_ACTIONS = new Set(['summarize', 'compare', 'plan', 'chat']);
 const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close', 'sizes']);
 const NETWORK_MODES = new Set(['balanced', 'private']);
 const SIDE_ACTIONS = new Set(['toggle', 'select', 'close', 'reload', 'collapse']);
-const SIDE_APPS = new Set(['youtube', 'twitch', 'spotify', 'netflix', 'proton']);
+const SIDE_APPS = new Set(['youtube', 'twitch', 'spotify', 'netflix', 'proton', 'quanticmail', 'quanticpulse']);
 function isString(value, max = 8192) { return typeof value === 'string' && value.length <= max; }
 function isPositiveId(value) { return Number.isSafeInteger(value) && value > 0; }
 function isHttpUrl(value) { if (!isString(value, 8192)) return false; try { const url = new URL(value); return url.protocol === 'http:' || url.protocol === 'https:'; } catch { return false; } }
