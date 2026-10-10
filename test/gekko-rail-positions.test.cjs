@@ -29,8 +29,8 @@ test('the shell offers a real persisted top/right/left rail position preference'
 test('native external-page and SideStage geometry respects the position',()=>{
  const main=read('src/main.cjs');
  assert.match(main,/const horizontal = railPosition === 'top'/);
- assert.match(main,/const topRail = horizontal \?/);
- assert.match(main,/const sideLeft = railPosition === 'left' \? rail \+ stageWidth : 0/);
+ assert.match(main,/const topRail = horizontal\s*\?/);
+ assert.match(main,/const sideLeft = railPosition === 'left' \? rail \+ searchExtra \+ stageWidth : 0/);
  assert.match(main,/const sideRight = railPosition === 'right' \?/);
  assert.match(main,/const bounds = \{ x: sideLeft, y: viewTop, width: Math\.max\(1, width - sideLeft - sideRight\), height: availableHeight \}/);
  assert.match(main,/const stageX = railPosition === 'left' \? rail/);
