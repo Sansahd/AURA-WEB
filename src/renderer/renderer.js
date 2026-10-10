@@ -792,7 +792,7 @@ function applyAppearance(){const a=state.settings?.appearance||{},root=document.
 function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
   const minimized = Boolean(state.railCollapsed);
-  const position = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
+  const position = ['top', 'bottom'].includes(state.railPosition) ? state.railPosition : 'bottom';
   // Avoid tearing down the address input mid-typing when background tab state
   // or a pinned reader updates the rail.
   if (!minimized && !sideStageRail.classList.contains('rail-minimized') &&
@@ -841,7 +841,7 @@ function renderSideStage() {
   // Three-position layout chooser is always visible in the expanded rail.
   const positionButton = el('button', 'gekko-rail-position', '◫');
   positionButton.type = 'button';
-  positionButton.title = 'Position de la barre : en haut, à droite ou à gauche';
+  positionButton.title = 'Position de la barre horizontale : en haut ou en bas';
   positionButton.setAttribute('aria-label', positionButton.title);
   positionButton.onclick = () => fire(window.quantic.railPositionMenu());
   headerActions.append(positionButton);
@@ -860,7 +860,7 @@ function renderSideStage() {
     // Fixed application shortcuts are always present; no redundant collapse control.
     {
       appRow.append(el('div', 'side-stage-brand', 'FIXES'));
-      for (const app of data.apps || []) {
+      for (const app of [...(data.apps || [])].sort((a,b) => Number(['quanticmail','quanticpulse'].includes(b.id)) - Number(['quanticmail','quanticpulse'].includes(a.id)))) {
         const fullAppTab = app.id === 'quanticmail' || app.id === 'quanticpulse';
         const fullAppActive = fullAppTab && state.tabs?.some(tab =>
           tab.id === state.activeId && (
@@ -946,7 +946,7 @@ function renderSideStage() {
 }
 
 function render() {
-  document.body.dataset.railPosition = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
+  document.body.dataset.railPosition = ['top', 'bottom'].includes(state.railPosition) ? state.railPosition : 'bottom';
   applyAppearance();
   renderSearchEngineControl();
   renderSideStage();
