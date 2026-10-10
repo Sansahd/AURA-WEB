@@ -730,9 +730,37 @@ function renderError(data) {
   internalContent.append(box);
 }
 
+function renderQuanticIdentity() {
+  const identity=state.quanticIdentity||{};
+  const section=el('section','internal-section quantic-identity-page');
+  const title=el('h2','','QUANTIC ID');
+  const status=identity.unlocked?'Déverrouillée sur cet appareil':
+    identity.connected ? identity.available?'Identité détectée · à déverrouiller':'Coffre USB non détecté':
+    'Quantic Secure non connecté';
+  section.append(title,el('p','',status));
+  const details=identity.unlocked ? 'Clé disponible pour signer une connexion SOCIAL sans saisir le mot de passe.'
+    : identity.connected ? 'Déverrouille Quantic ID depuis ta clé USB et laisse Quantic Secure actif.'
+    : 'Démarre Quantic Secure depuis ta clé USB ; GEKKO vérifiera son état automatiquement.';
+  section.append(el('p','muted',details));
+  if(identity.keyId && identity.unlocked){
+    section.append(el('p','persona-note','Identité active : '+identity.keyId));
+  }
+  if(identity.error)section.append(el('p','persona-note','Dernière connexion SOCIAL : '+identity.error));
+  const row=el('div','engine-row');
+  const refresh=el('button','pill-button','Actualiser Quantic ID');
+  refresh.onclick=()=>fire(window.quantic.quanticIdentityRefresh());
+  const social=el('button','pill-button','Entrer dans SOCIAL avec Quantic ID');
+  social.disabled=!identity.unlocked;
+  social.onclick=()=>fire(window.quantic.togglePanelTab('https://xdsawyerlol.github.io/QuanticSillage/zoon.html')
+    .then(()=>window.quantic.quanticIdentitySocial()));
+  row.append(refresh,social);
+  section.append(row,el('p','muted','Aucune clé privée n’est transmise au navigateur ou à SOCIAL. Une signature locale sert à prouver l’identité. Verrouiller ou retirer la clé invalide rapidement la session Quantic ID.'));
+  internalContent.append(section);
+}
+
 function renderInternal() {
   const data = state.internal;
-  const key = JSON.stringify(data || null);
+  const key = JSON.stringify(data || null) + (data?.kind==='identity' ? JSON.stringify(state.quanticIdentity||{}) : '');
   if (key === lastInternalKey) return;
   lastInternalKey = key;
   internalContent.replaceChildren();
@@ -742,6 +770,7 @@ function renderInternal() {
   else if (data.kind === 'favorites') renderFavorites(data);
   else if (data.kind === 'history') renderHistory(data);
   else if (data.kind === 'settings') renderSettings(data);
+  else if (data.kind === 'identity') renderQuanticIdentity();
   else if (data.kind === 'career') renderCareer(data);
   else renderError(data);
 }
@@ -751,7 +780,7 @@ function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
   const minimized = Boolean(state.railCollapsed);
   const position = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
-  const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned) + ':' + state.activeId;
+  const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned) + ':' + state.activeId + ':' + Boolean(state.quanticIdentity?.unlocked);
   if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-reveal')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
 
@@ -792,6 +821,15 @@ function renderSideStage() {
   positionButton.setAttribute('aria-label', positionButton.title);
   positionButton.onclick = () => fire(window.quantic.railPositionMenu());
   sideStageRail.append(positionButton);
+
+  const identity=state.quanticIdentity||{};
+  const identityButton=el('button','gekko-identity-indicator'+(identity.unlocked?' is-unlocked':''),'ID');
+  identityButton.title=identity.unlocked?'Quantic ID déverrouillée · voir mon identité':
+    identity.connected?'Quantic ID détectée · verrouillée ou état non confirmé':
+    'Quantic Secure indisponible · connecter ma clé USB';
+  identityButton.setAttribute('aria-label',identityButton.title);
+  identityButton.onclick=()=>fire(window.quantic.togglePanelTab('quantic://identity'));
+  sideStageRail.append(identityButton);
 
   if (data.enabled && !data.privateDisabled) {
     // Fixed application shortcuts are always present; no redundant collapse control.
