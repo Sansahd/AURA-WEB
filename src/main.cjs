@@ -1788,6 +1788,10 @@ function createWindow() {
     shellReady = true;
     if (!tabs.size) createTab(HOME, true);
     if (!win.isVisible()) win.show();
+    if (process.env.GEKKO_LAYOUT_SMOKE === '1') {
+      const { scheduleGeometrySmoke } = require('./services/ui-geometry-smoke.cjs');
+      scheduleGeometrySmoke(win, app);
+    }
   });
   win.loadURL(QUANTIC_UI_URL).catch((error) => {
     console.error('[quantic-ui] shell load rejected', error);
