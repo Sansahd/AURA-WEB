@@ -38,15 +38,15 @@ test('app buttons, tab list and window controls occupy separate nonoverlapping r
  assert.match(fix,/body:not\(\[data-rail-position="top"\]\) #sidestage-rail \.gekko-tab-shelf \.tab-title/);
 });
 
-test('native and internal pages get the full bottom height; suggestions never create a blank band',()=>{
+test('full-width toolbar uses exactly its occupied 64px — no 220px column or empty footer',()=>{
+ const horizontal=read('src/renderer/gekko-horizontal-bar.css');
  assert.match(main,/const BOTTOM_DOCK_H = 0/);
- assert.match(main,/const SIDESTAGE_RAIL_W = 220/);
- assert.match(main,/const HORIZONTAL_RAIL_H = 70/);
+ assert.match(main,/const HORIZONTAL_RAIL_H = 64/);
+ assert.match(main,/const bottomRail = railPosition === 'bottom'/);
+ assert.match(main,/height - viewTop - bottom - bottomRail/);
  assert.match(main,/ipcMain\.handle\('chrome-overlay-height'/);
- assert.match(main,/Suggestions now live inside the single rail/);
  assert.match(main,/chromeOverlayHeight = 0;/);
- assert.match(fix,/inset:0 220px 0 0!important/);
- assert.match(fix,/inset:0 0 0 220px!important/);
- assert.match(fix,/inset:70px 0 0 0!important/);
- assert.match(fix,/max-height:245px!important/);
+ assert.match(horizontal,/inset:0 0 64px 0!important/);
+ assert.match(horizontal,/width:100%!important/);
+ assert.match(horizontal,/scrollbar-width:none!important/);
 });
