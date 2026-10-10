@@ -128,7 +128,7 @@ class SideStageManager {
       this.onChange();
       const label = definition.label.replace(/[&<>"]/g, (s) =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[s]);
-      const cause = reason === 'timeout' ? 'Délai de connexion dépassé'
+      const cause = reason === 'timeout' ? 'Délai de connexion dépassé après 45 secondes'
         : 'Erreur réseau ' + (Number(reason) || 'inconnue');
       const page = `<!doctype html><html lang="fr"><meta charset="utf-8">
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
@@ -145,7 +145,7 @@ class SideStageManager {
       this.clearLoadTimer(appId);
       const timer = setTimeout(() => {
         if (this.status.get(appId) === 'loading') showFailure('timeout');
-      }, 18000);
+      }, 45000);
       timer.unref?.();
       this.loadTimers.set(appId, timer);
     };
