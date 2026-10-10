@@ -76,54 +76,41 @@ test('Mail failure is visible even when local fallback page fires loading and st
   manager.destroyAll();
 });
 
-test('native dimmer is raised above webpage and behind active media reader, not Mail/SOCIAL',()=>{
+test('reader is the topmost native view, with no obsolete transparent focus overlay',()=>{
   const {manager,win}=makeManager();
   manager.action('toggle','youtube');
   const youtube=manager.views.get('youtube');
-  const geometry={
-    x:100,y:58,width:420,height:690,privateMode:false,
-    focusBounds:{x:0,y:58,width:900,height:690}
-  };
+  const geometry={x:100,y:58,width:420,height:690,privateMode:false};
   manager.layout(geometry);
-  const dim=manager.focusView;
-  assert.ok(dim);
-  assert.equal(dim.color,'#00000000');
-  assert.match(dim.webContents.url,/^data:text\/html/);
-  dim.webContents.emit('did-finish-load');
-  manager.layout(geometry);
-  assert.equal(dim.visible,true);
   assert.equal(youtube.visible,true);
   assert.equal(win.contentView.children.at(-1),youtube);
-  assert.equal(win.contentView.children.at(-2),dim);
-  assert.equal(dim.bounds.width,900);
+  assert.equal(manager.focusView,undefined);
   manager.action('toggle','quanticmail');
   manager.layout(geometry);
-  assert.equal(dim.visible,false);
+  assert.equal(youtube.visible,false);
   assert.equal(manager.views.get('quanticmail').visible,true);
-  manager.action('toggle','quanticpulse');
-  manager.layout(geometry);
-  assert.equal(dim.visible,false);
   manager.action('close');
   manager.layout(geometry);
-  assert.equal(manager.views.get('quanticpulse').visible,false);
+  assert.equal(manager.views.get('quanticmail').visible,false);
   manager.destroyAll();
 });
 
-test('focus view blocks no external fetch and persists until manager destroy',()=>{
+test('focus belongs to normal webContents CSS and never blocks media viewer',()=>{
  const manager=read('src/services/sidestage-manager.cjs');
  const main=read('src/main.cjs');
  const renderer=read('src/renderer/renderer.js');
  const css=read('src/renderer/gekko-24-layout.css');
- assert.match(manager,/default-src 'none'/);
- assert.match(manager,/javascript: false/);
- assert.match(manager,/background:rgba\(5,8,17,\.68\)/);
- assert.match(main,/focusBounds: tab\?\.view/);
+ assert.doesNotMatch(manager,/focusOverlay\(\)/);
+ assert.match(main,/function syncNativeMediaFocus\(tab, enabled\)/);
+ assert.match(main,/wanted\.insertCSS\(MEDIA_FOCUS_CSS/);
+ assert.match(main,/prior\.removeInsertedCSS\(priorKey\)/);
+ assert.match(main,/focusEnabled = Boolean/);
  assert.match(main,/setRailCollapsed\(false\)/);
  assert.match(main,/if \(stage\.open && !stage\.collapsed\) \{/);
- assert.match(main,/An opened SideStage app is a persistent panel/);
  assert.match(renderer,/focus-reader-active/);
  assert.match(css,/body\.focus-reader-active #bottom-dock/);
  assert.match(css,/body\.focus-reader-active #sidestage-rail \.side-stage-app\.active/);
  assert.match(renderer,/button\.onauxclick = \(event\)/);
  assert.match(renderer,/window\.quantic\.togglePanelTab\(app\.url\)/);
 });
+
