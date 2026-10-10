@@ -793,6 +793,10 @@ function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
   const minimized = Boolean(state.railCollapsed);
   const position = ['left', 'right', 'top'].includes(state.railPosition) ? state.railPosition : 'right';
+  // Avoid tearing down the address input mid-typing when background tab state
+  // or a pinned reader updates the rail.
+  if (!minimized && !sideStageRail.classList.contains('rail-minimized') &&
+      document.activeElement === address && sideStageRail.contains(unifiedDock)) return;
   const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned) + ':' + state.activeId + ':' + Boolean(state.quanticIdentity?.unlocked);
   if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-reveal')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
@@ -1155,6 +1159,13 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
 
 window.quantic.onFocusAddress(() => openRailSearch());
 window.quantic.onFocusHomeSearch(() => openRailSearch());
+window.quantic.onRailSiteTint((rgb) => {
+  const safe = typeof rgb === 'string' && /^rgb\\(\\d{1,3}, \\d{1,3}, \\d{1,3}\\)$/.test(rgb);
+  document.documentElement.style.setProperty('--gekko-site-edge-color',
+    safe ? rgb : 'rgba(12,18,24,.05)');
+  document.body.classList.toggle('rail-site-tinted', safe);
+});
+
 
 async function runAi(action, prompt = '') {
   if (aiBusy) return;
