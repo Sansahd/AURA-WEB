@@ -1179,3 +1179,10 @@ body.rail-site-tinted[data-rail-position="left"] #sidestage-rail:not(.rail-minim
   backdrop-filter:blur(18px) saturate(110%)!important;
   -webkit-backdrop-filter:blur(18px) saturate(110%)!important;
 }
+
+
+/* Top-placement search has a temporary native viewport reservation; do not
+   clip its attached input or suggestions at the edge of the horizontal rail. */
+body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized){
+  overflow:visible!important;
+}
