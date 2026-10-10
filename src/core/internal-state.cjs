@@ -19,6 +19,7 @@ function internalTitle(url = '') {
   if (parsed.host === 'favorites') return 'Favoris';
   if (parsed.host === 'history') return 'Historique';
   if (parsed.host === 'settings') return 'Paramètres';
+  if (parsed.host === 'identity') return 'Quantic ID';
   if (parsed.host === 'career') return 'AURA Career';
   if (parsed.host === 'error') return 'Erreur';
   return 'GEKKO';
@@ -54,6 +55,8 @@ function buildInternalState(url, store, veilSnapshot = {}, careerSnapshot = null
   if (parsed.host === 'history') {
     return { kind: 'history', items: store.history(250) };
   }
+
+  if (parsed.host === 'identity') return { kind: 'identity' };
 
   if (parsed.host === 'settings') {
     const settings = store.settings();
