@@ -20,8 +20,11 @@
 .tabs-row .tabs,
 .tabs-row .window-controls,
 .tabs-row .no-drag,
-.nav-row,
-.nav-row * {
+#bottom-dock button,
+#bottom-dock button *,
+#bottom-dock input,
+#bottom-dock .address-wrap,
+#bottom-dock .address-wrap * {
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
