@@ -1,7 +1,6 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {PassThrough}=require('node:stream');
 const {EventEmitter}=require('node:events');
 const {CHANNEL_VALIDATORS}=require('../src/security/ipc-firewall.cjs');
 const {normalizeStatus,getStatus,assertChallenge}=require('../src/services/quantic-id-bridge.cjs');
@@ -17,11 +16,14 @@ function mockBridge(responses){
     req.end=()=>{queueMicrotask(()=>{
       const entry=responses.shift()||{};
       if(entry.error){req.emit('error',new Error(entry.error));return}
-      const res=new PassThrough();
+      const res=new EventEmitter();
       res.statusCode=entry.status||200;
       res.resume=()=>{};
       callback(res);
-      res.end(JSON.stringify(entry.data||{}));
+      queueMicrotask(()=>{
+        res.emit('data',Buffer.from(JSON.stringify(entry.data||{})));
+        res.emit('end');
+      });
     })};
     req.destroy=error=>req.emit('error',error);
     req.received=()=>body;
