@@ -1148,11 +1148,6 @@ function layout(options = {}) {
   syncNativeMediaFocus(tab, focusEnabled);
   sideStage?.layout({
     x: stageX, y: viewTop, width: stageWidth, height: availableHeight,
-    focusBounds: tab?.view && isExternal(tab.url) ? {
-      x: sideLeft, y: viewTop,
-      width: Math.max(1, width - sideLeft - sideRight),
-      height: availableHeight
-    } : null,
     privateMode: isPrivateMode() || railCollapsed
   });
 }
