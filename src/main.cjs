@@ -134,7 +134,14 @@ function setPageSpotlight(tab, enabled) {
   if (pageSpotlightByView.get(wc) === enabled) return;
   pageSpotlightByView.set(wc, enabled);
   const js = enabled ? enableVideoSpotlightScript() : disableVideoSpotlightScript;
-  wc.executeJavaScript(js, true).catch(() => {
+  wc.executeJavaScript(js, true).then((hasVideo) => {
+    if (pageSpotlightByView.get(wc) !== enabled) return;
+    const nowFocused = Boolean(enabled && hasVideo);
+    if (tab && tab.view?.webContents === wc && tab.videoFocused !== nowFocused) {
+      tab.videoFocused = nowFocused;
+      emitState();
+    }
+  }).catch(() => {
     if (pageSpotlightByView.get(wc) === enabled) pageSpotlightByView.delete(wc);
   });
 }
@@ -171,6 +178,7 @@ function tabState(tab) {
     audible: Boolean(tab.audible),
     muted: Boolean(tab.muted),
     favicon: tab.favicon || '',
+    videoFocused: Boolean(tab.videoFocused),
     youtubeDirect: tab.youtubeDirect || null,
     favorite: Boolean(store?.isFavorite(tab.url)),
     ...navState(isExternal(tab.url) ? tab.view?.webContents : null)
@@ -783,6 +791,7 @@ function createView(tab) {
     tab.awaitingPage = false;
     tab.favicon = '';
     tab.faviconRequest = (tab.faviconRequest || 0) + 1;
+    tab.videoFocused = false;
     pageSpotlightByView.delete(wc);
     if (spotlightTab === tab) spotlightTab = null;
     if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
