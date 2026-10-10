@@ -666,3 +666,150 @@ body[data-rail-position="top"] #sidestage-rail .gekko-identity-indicator{
 .quantic-identity-page p{max-width:670px;line-height:1.65}
 .quantic-identity-page .engine-row{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0}
 .quantic-identity-page .pill-button:disabled{opacity:.43;cursor:not-allowed}
+
+
+/* GEKKO 2.4 beta 14 — compact floating glass with a native window grab lane.
+   The main WebContentsView is inset by 60px/54px in main.cjs; the shell
+   background beneath those reserved strips remains deliberate. */
+#bottom-dock,
+body.chrome-hidden #bottom-dock{
+  left:clamp(10px,2.6vw,38px)!important;
+  right:clamp(10px,2.6vw,38px)!important;
+  bottom:6px!important;
+  height:54px!important;
+  min-height:54px!important;
+  padding:7px 9px 3px!important;
+  border:1px solid color-mix(in srgb,var(--quantic-accent) 22%,rgba(238,255,246,.19))!important;
+  border-radius:21px!important;
+  background:linear-gradient(108deg,
+    color-mix(in srgb,var(--quantic-accent) 11%,rgba(12,26,29,.44)),
+    rgba(28,27,37,.46) 53%,
+    color-mix(in srgb,var(--quantic-accent) 10%,rgba(28,26,32,.44)))!important;
+  box-shadow:0 5px 22px rgba(0,0,0,.17),inset 0 1px 0 rgba(255,255,255,.17)!important;
+  backdrop-filter: blur(22px) saturate(125%)!important;
+  -webkit-backdrop-filter: blur(22px) saturate(125%)!important;
+  overflow:visible!important;
+}
+body.chrome-hidden #bottom-dock{
+  transform:translate3d(0,74px,0)!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+#bottom-dock .nav-row{
+  height:44px!important;
+  gap:5px!important;
+  max-width:none!important;
+  padding:0!important;
+}
+#bottom-dock .address{
+  height:42px!important;
+  border-radius:15px!important;
+  background:linear-gradient(105deg,rgba(10,18,24,.51),rgba(28,28,37,.43))!important;
+  border-color:rgba(226,249,238,.22)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;
+}
+/* Windows draggable hit regions: unused glass and the short grip move GEKKO.
+   Text fields, menus, buttons and their icons always receive normal clicks. */
+#bottom-dock,
+#bottom-dock .nav-row,
+#bottom-dock .dock-cluster,
+#bottom-dock .dock-separator,
+#bottom-dock .dock-drag-grip{
+  -webkit-app-region:drag!important;
+  app-region:drag!important;
+  cursor:grab;
+}
+#bottom-dock .dock-drag-grip{
+  position:absolute;
+  z-index:1;
+  left:50%;
+  top:0;
+  transform:translateX(-50%);
+  width:100px;
+  height:7px;
+  border-radius:0 0 8px 8px;
+  -webkit-user-select:none;
+  user-select:none;
+}
+#bottom-dock .dock-drag-grip::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:2px;
+  transform:translateX(-50%);
+  width:38px;
+  height:2px;
+  border-radius:4px;
+  background:rgba(230,255,241,.28);
+  pointer-events:none;
+}
+#bottom-dock .address-wrap,
+#bottom-dock .address-wrap *,
+#bottom-dock button,
+#bottom-dock button *,
+#bottom-dock input,
+#bottom-dock [role="menu"],
+#bottom-dock [role="listbox"]{
+  -webkit-app-region:no-drag!important;
+  app-region:no-drag!important;
+  cursor:inherit;
+}
+#bottom-dock button{cursor:pointer!important}
+#bottom-dock input{cursor:text!important}
+
+/* Shorter and narrower side capsule. Do not alter the horizontal tab layout
+   or the collapsed 18px reveal hotspot, which use separate native geometry. */
+body[data-rail-position="right"] #sidestage-rail:not(.rail-minimized),
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized){
+  top:12px!important;
+  bottom:18px!important;
+  width:50px!important;
+  min-width:50px!important;
+  padding:8px 3px!important;
+  border:1px solid color-mix(in srgb,var(--quantic-accent) 22%,rgba(241,255,250,.19))!important;
+  border-radius:18px!important;
+  background:linear-gradient(163deg,
+    color-mix(in srgb,var(--quantic-accent) 11%,rgba(13,26,28,.48)),
+    rgba(29,26,36,.45) 56%,
+    color-mix(in srgb,var(--quantic-accent) 9%,rgba(30,25,31,.44)))!important;
+  box-shadow:0 5px 20px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.14)!important;
+  backdrop-filter: blur(22px) saturate(125%)!important;
+  -webkit-backdrop-filter: blur(22px) saturate(125%)!important;
+}
+body[data-rail-position="right"] #sidestage-rail:not(.rail-minimized){
+  right:4px!important;left:auto!important;
+}
+body[data-rail-position="left"] #sidestage-rail:not(.rail-minimized){
+  left:4px!important;right:auto!important;
+}
+body[data-rail-position="left"] .home,
+body[data-rail-position="left"] .internal-page,
+body[data-rail-position="left"] .navigation-transition{
+  left:54px!important;
+}
+/* Lighter individual controls let the selected website remain the focus. */
+body:not([data-rail-position="top"]) #sidestage-rail:not(.rail-minimized) .side-stage-app,
+body:not([data-rail-position="top"]) #sidestage-rail:not(.rail-minimized) .tab{
+  background:rgba(255,255,255,.035)!important;
+  border-color:rgba(245,255,250,.09)!important;
+}
+body:not([data-rail-position="top"]) #sidestage-rail:not(.rail-minimized) .side-stage-app.active,
+body:not([data-rail-position="top"]) #sidestage-rail:not(.rail-minimized) .tab.active{
+  background:color-mix(in srgb,var(--quantic-accent) 18%,rgba(255,255,255,.06))!important;
+  border-color:color-mix(in srgb,var(--quantic-accent) 35%,rgba(255,255,255,.20))!important;
+}
+body[data-rail-position="top"] #sidestage-rail:not(.rail-minimized){
+  background:linear-gradient(105deg,
+    color-mix(in srgb,var(--quantic-accent) 10%,rgba(13,24,28,.48)),
+    rgba(27,26,35,.44))!important;
+  backdrop-filter: blur(22px) saturate(125%)!important;
+  -webkit-backdrop-filter: blur(22px) saturate(125%)!important;
+}
+@media(max-width:860px){
+  #bottom-dock,
+  body.chrome-hidden #bottom-dock{
+    left:6px!important;right:6px!important;
+    padding-left:5px!important;padding-right:5px!important;
+  }
+  #bottom-dock .nav-row{gap:3px!important}
+}
