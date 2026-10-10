@@ -12,6 +12,10 @@ class SideStageManager {
     this.onChange = onChange || (() => {});
     this.views = new Map();
     this.status = new Map();
+    this.failures = new Set();
+    this.loadTimers = new Map();
+    this.focusView = null;
+    this.focusReady = false;
   }
 
   settings() {
@@ -37,6 +41,45 @@ class SideStageManager {
     this.store.setSetting('sideStage', next);
     this.onChange();
     return next;
+  }
+
+  clearLoadTimer(id) {
+    clearTimeout(this.loadTimers.get(id));
+    this.loadTimers.delete(id);
+  }
+
+  focusOverlay() {
+    const win = this.getWindow();
+    if (!win || win.isDestroyed()) return null;
+    if (this.focusView && !this.focusView.webContents.isDestroyed()) return this.focusView;
+    const overlay = new WebContentsView({
+      webPreferences: {
+        nodeIntegration: false, contextIsolation: true, sandbox: true,
+        webSecurity: true, javascript: false, backgroundThrottling: false
+      }
+    });
+    overlay.setBackgroundColor('#00000000');
+    win.contentView.addChildView(overlay);
+    overlay.setVisible(false);
+    this.focusView = overlay;
+    this.focusReady = false;
+    // Native view overlays native web content (an HTML overlay in the shell
+    // cannot cover a WebContentsView). This is an inert, local, transparent
+    // scrim, not a captured screenshot, and it has no network access.
+    const html = `<!doctype html><html><head><meta charset="utf-8">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+      <style>html,body{margin:0;width:100%;height:100%;background:rgba(5,8,17,.68)}
+      body{box-shadow:inset 0 0 90px rgba(2,5,12,.14)}</style></head><body></body></html>`;
+    overlay.webContents.on('did-finish-load', () => {
+      if (this.focusView === overlay && !overlay.webContents.isDestroyed()) {
+        this.focusReady = true;
+        this.onChange();
+      }
+    });
+    overlay.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)).catch(() => {
+      this.focusReady = false;
+    });
+    return overlay;
   }
 
   ensureView(appId) {
@@ -65,6 +108,7 @@ class SideStageManager {
     view.setVisible(false);
     this.views.set(appId, view);
     this.status.set(appId, 'loading');
+    this.failures.delete(appId);
 
     const wc = view.webContents;
     wc.setWindowOpenHandler(({ url }) => {
@@ -76,40 +120,61 @@ class SideStageManager {
       if (/^https?:\/\//i.test(url)) return;
       event.preventDefault();
     });
-    wc.on('did-start-loading', () => { this.status.set(appId, 'loading'); this.onChange(); });
-    wc.on('did-stop-loading', () => {
-      // Never erase a real remote error merely because the local failure page
-      // finished loading; otherwise Mail / ZOON appeared blank but "ready".
-      if (this.status.get(appId) !== 'error') this.status.set(appId, 'ready');
-      this.onChange();
-    });
     const showFailure = (reason) => {
-      if (this.status.get(appId) === 'error' || wc.isDestroyed()) return;
+      if (wc.isDestroyed() || this.failures.has(appId)) return;
+      this.clearLoadTimer(appId);
+      this.failures.add(appId);
       this.status.set(appId, 'error');
       this.onChange();
       const label = definition.label.replace(/[&<>"]/g, (s) =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[s]);
+      const cause = reason === 'timeout' ? 'Délai de connexion dépassé'
+        : 'Erreur réseau ' + (Number(reason) || 'inconnue');
       const page = `<!doctype html><html lang="fr"><meta charset="utf-8">
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
-      <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#07131b;color:#effff4;font-family:system-ui,sans-serif">
-      <main style="max-width:320px;padding:20px;text-align:center">
-      <h2 style="font-size:16px;margin:0 0 12px">${label} indisponible</h2>
-      <p style="color:#a9c5b8;line-height:1.5;font-size:12px">Le service distant ne répond pas (erreur ${Number(reason) || 0}). GEKKO reste fonctionnel.</p>
-      <p style="color:#a9c5b8;font-size:12px">Clique de nouveau sur l’icône pour réessayer, ou ouvre le service dans un onglet.</p>
-      <a href="${definition.url}" target="_blank" rel="noopener" style="display:inline-block;padding:9px 12px;border:1px solid #80dcb5;border-radius:12px;color:#d8ffe9;text-decoration:none;font-size:12px">Ouvrir dans un onglet</a>
+      <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#09121c;color:#effff4;font-family:system-ui,sans-serif">
+      <main style="max-width:340px;padding:22px;text-align:center">
+      <h2 style="font-size:17px;margin:0 0 12px">${label} indisponible</h2>
+      <p style="color:#b5c8bd;line-height:1.6;font-size:13px">${cause}. Le service externe ne s'est pas affiché.</p>
+      <p style="color:#b5c8bd;font-size:12px">Clique de nouveau sur SOCIAL ou Mail pour réessayer, ou utilise l’onglet normal.</p>
+      <a href="${definition.url}" target="_blank" rel="noopener" style="display:inline-block;padding:10px 14px;border:1px solid #9cddb6;border-radius:12px;color:#d8ffe9;text-decoration:none;font-size:12px">Ouvrir dans un onglet</a>
       </main></body></html>`;
       wc.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page)).catch(() => {});
     };
+    const armTimeout = () => {
+      this.clearLoadTimer(appId);
+      const timer = setTimeout(() => {
+        if (this.status.get(appId) === 'loading') showFailure('timeout');
+      }, 18000);
+      timer.unref?.();
+      this.loadTimers.set(appId, timer);
+    };
+    wc.on('did-start-loading', () => {
+      // Loading the local error page must not turn an error into false READY.
+      if (this.failures.has(appId)) return;
+      this.status.set(appId, 'loading');
+      armTimeout();
+      this.onChange();
+    });
+    wc.on('did-stop-loading', () => {
+      if (this.failures.has(appId)) return;
+      this.clearLoadTimer(appId);
+      this.status.set(appId, 'ready');
+      this.onChange();
+    });
     wc.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
       if (!isMainFrame || code === -3) return;
       showFailure(code);
     });
     wc.on('destroyed', () => {
+      this.clearLoadTimer(appId);
+      this.failures.delete(appId);
       this.views.delete(appId);
       this.status.set(appId, 'idle');
       this.onChange();
     });
 
+    armTimeout();
     wc.loadURL(definition.url).catch(() => showFailure(-2));
     return view;
   }
@@ -128,9 +193,11 @@ class SideStageManager {
       if (open) {
         const view = this.ensureView(target);
         if (failed && view) {
+          this.failures.delete(target);
           this.status.set(target, 'loading');
           view.webContents.loadURL(appDefinition(target).url).catch(() => {
             this.status.set(target, 'error');
+            this.failures.add(target);
             this.onChange();
           });
         }
@@ -142,7 +209,11 @@ class SideStageManager {
     } else if (action === 'reload') {
       const target = appDefinition(appId) ? appId : settings.activeApp;
       const view = target ? this.ensureView(target) : null;
-      view?.webContents.reload();
+      if (target) this.failures.delete(target);
+      view?.webContents.loadURL(appDefinition(target).url).catch(() => {
+        this.status.set(target, 'error');
+        this.onChange();
+      });
     }
     this.onChange();
     return this.state();
@@ -152,18 +223,44 @@ class SideStageManager {
     return this.setSettings({ width });
   }
 
-  layout({ x, y, width, height, privateMode = false }) {
+  layout({ x, y, width, height, privateMode = false, focusBounds = null }) {
     const settings = this.settings();
-    const active = settings.enabled && settings.open && !settings.collapsed && settings.activeApp && !privateMode ? settings.activeApp : '';
+    const active = settings.enabled && settings.open && !settings.collapsed &&
+      settings.activeApp && !privateMode && width > 0 ? settings.activeApp : '';
+    const app = appDefinition(active);
+    const focusActive = Boolean(active && app?.media && focusBounds?.width > 0 &&
+      focusBounds?.height > 0);
+    const focus = focusActive ? this.focusOverlay() : this.focusView;
+    if (focus && !focus.webContents.isDestroyed()) {
+      focus.setVisible(focusActive && this.focusReady);
+      if (focusActive) {
+        focus.setBounds({
+          x: focusBounds.x, y: focusBounds.y,
+          width: Math.max(1, focusBounds.width),
+          height: Math.max(1, focusBounds.height)
+        });
+        const win = this.getWindow();
+        if (this.focusReady && win && !win.isDestroyed()) {
+          // Reorder above the main page, but below the reader. The Electron
+          // API explicitly moves existing views to the top on addChildView.
+          win.contentView.addChildView(focus);
+        }
+      }
+    }
     for (const [id, view] of this.views) {
       if (view.webContents.isDestroyed()) continue;
       const visible = id === active;
       view.setVisible(visible);
-      if (visible) view.setBounds({ x, y, width: Math.max(1, width), height: Math.max(1, height) });
+      if (visible) {
+        view.setBounds({ x, y, width: Math.max(1, width), height: Math.max(1, height) });
+        const win = this.getWindow();
+        if (win && !win.isDestroyed()) win.contentView.addChildView(view);
+      }
     }
   }
 
   hideAll() {
+    if (this.focusView && !this.focusView.webContents.isDestroyed()) this.focusView.setVisible(false);
     for (const view of this.views.values()) {
       if (!view.webContents.isDestroyed()) view.setVisible(false);
     }
@@ -171,6 +268,15 @@ class SideStageManager {
 
   destroyAll() {
     const win = this.getWindow();
+    for (const timeout of this.loadTimers.values()) clearTimeout(timeout);
+    this.loadTimers.clear();
+    this.failures.clear();
+    if (this.focusView) {
+      try { win?.contentView?.removeChildView(this.focusView); } catch {}
+      try { this.focusView.webContents.close(); } catch {}
+      this.focusView = null;
+      this.focusReady = false;
+    }
     for (const view of this.views.values()) {
       try { win?.contentView?.removeChildView(view); } catch {}
       try { view.webContents.close(); } catch {}
