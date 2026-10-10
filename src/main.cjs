@@ -1250,19 +1250,23 @@ function layout(options = {}) {
   const railPosition = store?.settings().railPosition || 'right';
   const horizontal = railPosition === 'top';
   const rail = railCollapsed ? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;
-  const topRail = horizontal ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
+  const searchExtra = railSearchFocused && !railCollapsed && !horizontal
+    ? Math.min(428, Math.max(220, width - rail - 290)) : 0;
+  const topRail = horizontal
+    ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) + (railSearchFocused ? 290 : 0)
+    : 0;
   const stageWidth = !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
     ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
-  const sideLeft = railPosition === 'left' ? rail + stageWidth : 0;
-  const sideRight = railPosition === 'right' ? rail + stageWidth + aiWidth : (horizontal ? stageWidth + aiWidth : aiWidth);
+  const sideLeft = railPosition === 'left' ? rail + searchExtra + stageWidth : 0;
+  const sideRight = railPosition === 'right' ? rail + searchExtra + stageWidth + aiWidth : (horizontal ? stageWidth + aiWidth : aiWidth);
   const viewTop = top + topRail;
   const availableHeight = Math.max(1, height - viewTop - bottom);
   if (tab?.view && isExternal(tab.url)) {
     const bounds = { x: sideLeft, y: viewTop, width: Math.max(1, width - sideLeft - sideRight), height: availableHeight };
     setTabViewBounds(tab, bounds, Boolean(options?.animateChrome));
   }
-  const stageX = railPosition === 'left' ? rail : Math.max(0, width - (horizontal ? 0 : rail) - stageWidth);
+  const stageX = railPosition === 'left' ? rail + searchExtra : Math.max(0, width - (horizontal ? 0 : rail) - searchExtra - stageWidth);
   const focusEnabled = Boolean(!isPrivateMode() && !railCollapsed && stageWidth > 0 &&
     stageState.open && !stageState.collapsed &&
     stageState.apps?.some(app => app.id === stageState.activeApp && app.media));
@@ -2100,8 +2104,10 @@ ipcMain.handle('window-control', (_event, action) => {
   if (action === 'close') win.close();
 });
 ipcMain.handle('set-chrome-lock', (_event, locked) => {
+  const previous = railSearchFocused;
   railSearchFocused = Boolean(locked);
   if (railSearchFocused) setRailCollapsed(false);
+  if (railSearchFocused !== previous) layout(); // reveal native chrome space for the omnibox
   revealUntil = Date.now() + (locked ? 60000 : 700);
  });
 ipcMain.handle('set-setting', async (_event, key, value) => {
