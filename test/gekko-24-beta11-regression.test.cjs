@@ -119,6 +119,8 @@ test('focus view blocks no external fetch and persists until manager destroy',()
  assert.match(manager,/background:rgba\(5,8,17,\.68\)/);
  assert.match(main,/focusBounds: tab\?\.view/);
  assert.match(main,/setRailCollapsed\(false\)/);
+ assert.match(main,/if \(stage\.open && !stage\.collapsed\) \{/);
+ assert.match(main,/An opened SideStage app is a persistent panel/);
  assert.match(renderer,/focus-reader-active/);
  assert.match(css,/body\.focus-reader-active #bottom-dock/);
  assert.match(css,/body\.focus-reader-active #sidestage-rail \.side-stage-app\.active/);
