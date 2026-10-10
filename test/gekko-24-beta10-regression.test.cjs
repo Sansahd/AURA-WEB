@@ -92,7 +92,7 @@ test('truncated overlarge icon payloads are rejected safely', async () => {
 test('new-tab plus lives within the tabs list and follows the last open tab',()=>{
   const ui=read('src/renderer/renderer.js');
   const css=read('src/renderer/gekko-24-layout.css');
-  assert.match(ui,/tabsEl\.append\(plusButton\)/);
+  assert.match(ui,/shelf\.append\(plusButton\)/);
   assert.doesNotMatch(ui,/shelf\.append\(plusButton\)/);
   assert.match(css, /#sidestage-rail \.tabs > \.plus/);
   assert.match(css, /body\[data-rail-position="top"\] #sidestage-rail \.tabs > \.plus/);
