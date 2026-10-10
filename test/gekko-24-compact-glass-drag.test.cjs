@@ -31,7 +31,7 @@ test('all interactive dock controls stay clickable, searchable and non-draggable
 
 test('compact frosted dock and vertical rail agree with native viewport bounds', () => {
   assert.match(main, /const BOTTOM_DOCK_H = 0;/);
-  assert.match(main, /const SIDESTAGE_RAIL_W = 54;/);
+  assert.match(main, /const SIDESTAGE_RAIL_W = 220;/);
   assert.match(glass, /height:54px!important/);
   assert.match(glass, /bottom:6px!important/);
   assert.match(glass, /width:50px!important/);
