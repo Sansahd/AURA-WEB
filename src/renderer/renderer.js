@@ -802,8 +802,10 @@ function renderSideStage() {
           (data.open && data.activeApp === app.id ? 'active ' : '') +
           (app.status === 'loading' ? 'loading' : ''));
         button.title = app.status === 'error'
-          ? (app.label || app.id) + ' indisponible · cliquer pour réessayer'
-          : (app.label || app.id);
+          ? (app.label || app.id) + ' indisponible · cliquer pour réessayer, clic milieu pour onglet'
+          : app.status === 'loading'
+            ? (app.label || app.id) + ' · connexion au service…'
+            : (app.label || app.id) + ' · clic milieu pour ouvrir dans un onglet';
         button.classList.toggle('error', app.status === 'error');
         button.setAttribute('aria-label', button.title);
         if (app.icon) {
@@ -814,6 +816,11 @@ function renderSideStage() {
           button.append(icon);
         } else button.textContent = app.short || app.label.slice(0, 2);
         button.onclick = () => fire(window.quantic.setSetting('sideStageAction', 'toggle:' + app.id));
+        button.onauxclick = (event) => {
+          if (event.button !== 1) return;
+          event.preventDefault();
+          fire(window.quantic.togglePanelTab(app.url));
+        };
         button.oncontextmenu = (e) => {
           e.preventDefault();
           fire(window.quantic.setSetting('sideStageAction', 'reload:' + app.id));
