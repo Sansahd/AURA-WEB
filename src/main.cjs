@@ -16,6 +16,7 @@ const { buildInternalState, internalTitle } = require('./core/internal-state.cjs
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
+const { NativeMediaFocus } = require('./services/media-focus.cjs');
 const { appDefinition } = require('./services/sidestage.cjs');
 const { installQuanticUiProtocol, verifyQuanticUiShell, SHELL_URL: QUANTIC_UI_URL } = require('./services/ui-protocol.cjs');
 const { QuanticAuraClient } = require('./services/aura-client.cjs');
@@ -122,37 +123,7 @@ let enginePopoverReady = false;
 let sizePopover = null;
 let revealUntil = 0;
 let immersiveTimer = null;
-// The real webpage is in a separate native WebContentsView. CSS in the
-// launcher HTML cannot dim it; inject a reversible style into that view.
-let mediaFocusContents = null;
-let mediaFocusStyleKey = '';
-let mediaFocusSerial = 0;
-const MEDIA_FOCUS_CSS = 'html { filter: brightness(.36) saturate(.78) !important; }';
-
-function syncNativeMediaFocus(tab, enabled) {
-  const candidate = enabled ? tab?.view?.webContents : null;
-  const wanted = candidate && !candidate.isDestroyed() ? candidate : null;
-  if (mediaFocusContents === wanted) return;
-  const prior = mediaFocusContents;
-  const priorKey = mediaFocusStyleKey;
-  mediaFocusContents = wanted;
-  mediaFocusStyleKey = '';
-  const generation = ++mediaFocusSerial;
-  if (prior && priorKey && !prior.isDestroyed()) {
-    prior.removeInsertedCSS(priorKey).catch(() => {});
-  }
-  if (!wanted) return;
-  wanted.insertCSS(MEDIA_FOCUS_CSS, { cssOrigin: 'user' }).then((key) => {
-    if (generation !== mediaFocusSerial || wanted.isDestroyed()) {
-      if (!wanted.isDestroyed()) wanted.removeInsertedCSS(key).catch(() => {});
-      return;
-    }
-    mediaFocusStyleKey = key;
-  }).catch(() => {
-    if (generation === mediaFocusSerial) mediaFocusContents = null;
-  });
-}
-
+const mediaFocus = new NativeMediaFocus();
 let tabLifecycleTimer = null;
 let tabLifecycleSweepRunning = false;
 let cacheQuitDone = false;
@@ -798,11 +769,7 @@ function createView(tab) {
   wc.on('dom-ready', async () => {
     // Navigation discards inserted CSS; reinstall cinematic focus for a
     // player which remains open while the main page changes.
-    if (mediaFocusContents === wc) {
-      mediaFocusContents = null;
-      mediaFocusStyleKey = '';
-      syncNativeMediaFocus(tab, true);
-    }
+    mediaFocus.refresh(wc);
     const currentUrl = wc.getURL();
     await installCookieConsentRefusal(wc).catch(() => {});
     if (isGoogleConsentUrl(currentUrl)) {
@@ -1145,7 +1112,7 @@ function layout(options = {}) {
   const focusEnabled = Boolean(!isPrivateMode() && !railCollapsed && stageWidth > 0 &&
     stageState.open && !stageState.collapsed &&
     stageState.apps?.some(app => app.id === stageState.activeApp && app.media));
-  syncNativeMediaFocus(tab, focusEnabled);
+  mediaFocus.sync(tab?.view?.webContents, focusEnabled);
   sideStage?.layout({
     x: stageX, y: viewTop, width: stageWidth, height: availableHeight,
     privateMode: isPrivateMode() || railCollapsed
