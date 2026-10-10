@@ -889,6 +889,12 @@ function render() {
     maximizeControl.title = label;
     maximizeControl.setAttribute('aria-label', label);
   }
+  const stage = state.sideStage || {};
+  const focusedApp = (stage.apps || []).find(app => app.id === stage.activeApp);
+  // Native WebContentsView darkness is coordinated with shell chrome.
+  const mediaFocus = Boolean(stage.enabled && stage.open && !stage.collapsed &&
+    !state.railCollapsed && !stage.privateDisabled && focusedApp?.media);
+  document.body.classList.toggle('focus-reader-active', mediaFocus);
   document.body.classList.toggle('rail-minimized', Boolean(state.railCollapsed));
   document.body.classList.toggle('chrome-hidden', state.immersive && !state.chromeVisible);
   document.body.classList.toggle('immersive', state.immersive && !state.chromeVisible);
