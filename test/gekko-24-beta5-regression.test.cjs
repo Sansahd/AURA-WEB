@@ -60,10 +60,10 @@ test('Mail and ZOON never silently pretend an unavailable remote page is ready',
   assert.match(definitions, /quanticmail/);
   assert.match(definitions, /quanticpulse/);
   assert.match(definitions, /quanticmail\.onrender\.com/);
-  assert.match(definitions, /xdsawyerlol\.github\.io\/QuanticSillage/);
-  assert.match(definitions, /zoon\.html/);
+  assert.match(definitions, /mediumorchid-badger-314305\.hostingersite\.com\/pulse\//);
+  assert.match(definitions, /pulse\//);
   assert.match(read('src/renderer/index.html'), /quanticmail\.onrender\.com/);
-  assert.match(read('src/renderer/index.html'), /QuanticSillage\/zoon\.html/);
+  assert.match(read('src/renderer/index.html'), /mediumorchid-badger-314305\.hostingersite\.com\/pulse\//);
   assert.match(manager, /showFailure/);
   assert.match(manager, /this\.failures\.has\(appId\)/);
   assert.match(manager, /this\.clearLoadTimer\(appId\)/);
