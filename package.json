@@ -61,7 +61,8 @@
           "assets/**/*"
         ]
       }
-    ]
+    ],
+    "electronDist": "node_modules/electron/dist"
   },
   "dependencies": {
     "youtubei.js": "18.1.0",
