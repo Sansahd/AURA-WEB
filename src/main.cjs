@@ -16,6 +16,7 @@ const { buildInternalState, internalTitle } = require('./core/internal-state.cjs
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
+const { awaitProtectedMedia } = require('./services/protected-media.cjs');
 const { NativeMediaFocus } = require('./services/media-focus.cjs');
 const { getStatus: getQuanticIdentityStatus } = require('./services/quantic-id-bridge.cjs');
 const { authenticateQuanticSocial, installSocialSession, revokeSocialSession,
@@ -1256,7 +1257,7 @@ function layout(options = {}) {
   const rightRail = railPosition === 'right' ? sideSpace : 0;
   // SideStage is a native WebContentsView layered ABOVE the shell. On GEKKO
   // home/internal pages it must never cover the homepage or its full-width dock.
-  const homeOrInternal = !tab || !isExternal(tab.url);
+  const homeOrInternal = !tab || (!isExternal(tab.url) && !(stageState.open && stageState.activeApp==='netflix'));
   const stageWidth = !homeOrInternal && !railCollapsed && stageState.enabled && !isPrivateMode() && stageState.open && !stageState.collapsed
     ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
@@ -2145,12 +2146,17 @@ ipcMain.handle('set-setting', async (_event, key, value) => {
     // navigation). The small reader WebContentsView caused blank screens,
     // broken authentication and missing error UI. Open them in the normal
     // GEKKO tab runtime instead: second click closes, existing tab is reused.
-    if (appId==='netflix' && (action==='toggle' || action==='select')) {
-      // The unlicensed Electron mini-WebContents does not contain a Netflix-
-      // supported Widevine CDM (M7701-1003). Do not claim playback works here.
-      // Use the user's default supported Windows browser for protected video.
-      shell.openExternal('https://www.netflix.com/').catch(()=>{});
-      return store.settings();
+    if (appId==='netflix' && (action==='toggle' || action==='select' || action==='reload')) {
+      // The Castlabs Widevine component is installed by the legitimate
+      // component updater. Keep Netflix inside SideStage; never open Edge/
+      // Chrome or any other browser as a hidden fallback.
+      const drm=await awaitProtectedMedia(30000);
+      if(!drm.ok){
+        sideStage?.action('select','netflix');
+        sideStage?.showProtectedMediaError('Moteur Widevine indisponible : '+drm.reason);
+        layout();emitState(true);
+        return store.settings();
+      }
     }
     if (['quanticmail', 'quanticpulse'].includes(appId) &&
         (action === 'toggle' || action === 'select')) {
@@ -2170,7 +2176,7 @@ ipcMain.handle('set-setting', async (_event, key, value) => {
     // Open the selected service as a normal tab instead. From an external site,
     // the persistent SideStage reader is still available as before.
     if ((action === 'toggle' || action === 'select') &&
-        !isExternal(activeTab()?.url || '') && appDefinition(appId)) {
+        !isExternal(activeTab()?.url || '') && appDefinition(appId) && appId !== 'netflix') {
       aiOpen = false;
       sideStage?.action('close');
       createTab(appDefinition(appId).url, true);
