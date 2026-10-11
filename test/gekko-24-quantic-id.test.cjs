@@ -75,23 +75,31 @@ test('local assertion is only requested after unlocked status, with precise SOCI
  assert.equal(locked.seen.length,1,'must not sign a challenge while locked');
 });
 
-test('Quantic ID session is only injected into the exact official SOCIAL page',async()=>{
- assert.equal(isSocialPage('https://xdsawyerlol.github.io/QuanticSillage/zoon.html'),true);
- assert.equal(isSocialPage('https://xdsawyerlol.github.io/QuanticSillage/zoon.html.evil'),false);
- assert.equal(isSocialPage('https://phishing.example/QuanticSillage/zoon.html'),false);
+test('Quantic ID is injected only on the official Hostinger Pulse page',async()=>{
+ assert.equal(isSocialPage('https://mediumorchid-badger-314305.hostingersite.com/pulse/'),true);
+ assert.equal(isSocialPage('https://mediumorchid-badger-314305.hostingersite.com/pulse/?feed=all'),true);
+ assert.equal(isSocialPage('https://mediumorchid-badger-314305.hostingersite.com/pulse/evil'),false);
+ assert.equal(isSocialPage('https://phishing.example/pulse/'),false);
  const scripts=[];
  const wc={
   isDestroyed:()=>false,
-  getURL:()=> 'https://xdsawyerlol.github.io/QuanticSillage/zoon.html',
+  getURL:()=> 'https://mediumorchid-badger-314305.hostingersite.com/pulse/',
   executeJavaScript:async code=>{scripts.push(code);return true}
  };
- const result=await installSocialSession(wc,{ok:true,token:'t'.repeat(42),user:{id:'user1'}});
- assert.equal(result,true);
- assert.equal(scripts.length,1);
- assert.ok(scripts[0].includes('quantic-gekkko-session'));
- assert.ok(scripts[0].includes("location.origin !== 'https://xdsawyerlol.github.io'"));
+ assert.equal(await installSocialSession(wc,{ok:true,token:'t'.repeat(42),user:{id:'user1'}}),true);
+ assert.ok(scripts[0].includes('quantic_pulse_token'));
+ assert.ok(scripts[0].includes("location.origin !== 'https://mediumorchid-badger-314305.hostingersite.com'"));
+ assert.ok(scripts[0].includes("import('/pulse/session.js')"));
+ assert.ok(scripts[0].includes('mod.applySession(session)'));
  assert.equal(await revokeSocialSession(wc,'t'.repeat(42)),true);
- const evil={...wc,getURL:()=> 'https://phishing.example/QuanticSillage/zoon.html'};
+ const evil={...wc,getURL:()=> 'https://phishing.example/pulse/'};
  assert.equal(await installSocialSession(evil,{ok:true,token:'t'.repeat(42),user:{id:'user1'}}),false);
  assert.equal(scripts.length,2);
+});
+test('nested and legacy-version vault status never uses device presence as proof of unlocking',()=>{
+ assert.equal(normalizeStatus({identity:{available:true,locked:false,keyId:'qid_2'}}).unlocked,true);
+ assert.equal(normalizeStatus({identity:{available:true,locked:true,keyId:'qid_2'}}).unlocked,false);
+ assert.equal(normalizeStatus({vault:{available:true,state:'unlocked',keyId:'qid_2'}}).unlocked,true);
+ assert.equal(normalizeStatus({keyPresent:true}).unlocked,false);
+ assert.equal(normalizeStatus({version:6,unlocked:true,identityAvailable:true}).unlocked,false);
 });
