@@ -1828,6 +1828,11 @@ app.whenReady().then(async () => {
   await verifyQuanticUiShell();
 
   store = new QuanticStore(app);
+  // Visual CI exercises all four placements with a clean user profile.
+  if(process.env.GEKKO_LAYOUT_SMOKE==='1' &&
+     ['top','bottom','left','right'].includes(process.env.GEKKO_LAYOUT_POSITION)){
+    store.setSetting('railPosition',process.env.GEKKO_LAYOUT_POSITION);
+  }
   normalSession = session.fromPartition(NORMAL_PARTITION, { cache: true });
   // No "persist:" prefix: Chromium keeps this profile in memory only.
   privateSession = session.fromPartition(PRIVATE_PARTITION, { cache: false });
