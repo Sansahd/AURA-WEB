@@ -39,7 +39,7 @@ class QuanticStore {
         settings: {
           ...this.data.settings,
           ...existingSettings,
-          railPosition: 'bottom', // Migrate old right/left bar preferences to the only full-width bar.
+          railPosition: ['top','bottom','left','right'].includes(existingSettings.railPosition) ? existingSettings.railPosition : 'bottom',
           appearance: normalizeAppearance(existingSettings.appearance, DEFAULT_APPEARANCE),
           sideStage: normalizeSideStage(existingSettings.sideStage, DEFAULT_SIDESTAGE),
           extensionPaths: Array.isArray(existingSettings.extensionPaths) ? existingSettings.extensionPaths.filter((item) => typeof item === 'string') : []
@@ -113,7 +113,7 @@ class QuanticStore {
 
   setSetting(key, value) {
     if (key === 'appearance') value = normalizeAppearance(value, this.data.settings.appearance);
-    if (key === 'railPosition' && value !== 'bottom') return this.settings();
+    if (key === 'railPosition' && !['top','bottom','left','right'].includes(value)) return this.settings();
     if (key === 'sideStage') value = normalizeSideStage(value, this.data.settings.sideStage);
     const current = this.data.settings[key];
     if (JSON.stringify(current) === JSON.stringify(value)) return this.settings();
