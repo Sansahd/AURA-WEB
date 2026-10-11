@@ -39,6 +39,7 @@ let instantAliasLock = '';
 const prewarmKeys = new Set();
 let lastWallpaperVersion = -1;
 let lastSideStageKey = '';
+let lastHomeFavoritesKey = '';
 
 
 function active() { return state.tabs.find((tab) => tab.id === state.activeId); }
@@ -340,6 +341,38 @@ function renderSearch(data) {
   for (const provider of data.providers || []) grid.append(cardButton(provider.name, provider.detail || 'Recherche privée', () => fire(window.quantic.navigate(provider.url))));
   web.append(grid);
   internalContent.append(web);
+}
+
+function renderHomeFavorites() {
+  const grid=$('#home-favorites-list');
+  if (!grid) return;
+  const items=(Array.isArray(state.homeFavorites)?state.homeFavorites:[])
+    .filter(item => item && typeof item.url==='string' && /^https?:\/\//i.test(item.url)).slice(0,12);
+  const key=JSON.stringify(items.map(item=>[item.url,item.title]));
+  if(key===lastHomeFavoritesKey)return;
+  lastHomeFavoritesKey=key;
+  grid.replaceChildren();
+  if(!items.length){
+    grid.append(el('p','gekko-home-favorites-empty',
+      'Ajoute un site avec 😍 : il apparaîtra ici.'));
+    return;
+  }
+  for(const item of items){
+    let host;
+    try{host=new URL(item.url).hostname.replace(/^www\./i,'');}catch{continue}
+    const name=String(item.title||host).slice(0,90);
+    const tile=el('button','gekko-home-favorite');
+    tile.type='button';
+    tile.title=name+' · '+host;
+    tile.setAttribute('aria-label','Ouvrir '+name);
+    const mark=el('span','gekko-home-favorite-mark',
+      (host[0]||name[0]||'★').toUpperCase());
+    const info=el('span','gekko-home-favorite-info');
+    info.append(el('strong','',name),el('small','',host));
+    tile.append(mark,info);
+    tile.onclick=()=>fire(window.quantic.navigate(item.url));
+    grid.append(tile);
+  }
 }
 
 function renderFavorites(data) {
@@ -936,6 +969,7 @@ function render() {
   $('#home-button')?.classList.toggle('active', state.internal?.kind === 'home');
 
   setInternalVisibility();
+  renderHomeFavorites();
   renderInternal();
   aiPanel.classList.toggle('closed', !state.aiOpen);
   if (aiEngine) {
@@ -1123,7 +1157,20 @@ document.querySelectorAll('[data-home-action]').forEach((button) => {
 });
 
 window.quantic.onFocusAddress(() => { address.focus(); address.select(); });
-window.quantic.onFocusHomeSearch(() => { address.focus(); address.select(); });
+window.quantic.onFocusHomeSearch(() => {
+  const input=$('#home-search-input');
+  if(!home.classList.contains('hidden') && input){input.focus();input.select();}
+  else{address.focus();address.select();}
+});
+const homeSearch=$('#home-search-form');
+const homeSearchInput=$('#home-search-input');
+homeSearch.onsubmit=(event)=>{
+  event.preventDefault();
+  const value=homeSearchInput.value.trim();
+  if(!value)return;
+  fire(window.quantic.navigate(value));
+};
+$('#home-all-favorites').onclick=()=>fire(window.quantic.togglePanelTab('quantic://favorites'));
 
 async function runAi(action, prompt = '') {
   if (aiBusy) return;
