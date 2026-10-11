@@ -25,12 +25,13 @@ test('GEKKO installer is assisted, visible and launches GEKKO after finish', () 
 });
 
 
-test('GEKKO does not wait for Widevine before creating the browser', () => {
-  const mainIndex = bootstrap.indexOf("require('./main.cjs')");
-  const mediaIndex = bootstrap.indexOf('void prepareProtectedMedia()');
-  assert.ok(mainIndex >= 0, 'main.cjs must be loaded');
-  assert.ok(mediaIndex > mainIndex, 'protected-media init must run after browser startup');
-  assert.doesNotMatch(bootstrap, /await\s+prepareProtectedMedia\(\)/);
+test('GEKKO initializes Castlabs Widevine before opening the UI, with a bounded offline timeout', () => {
+  const mainIndex=bootstrap.indexOf("require('./main.cjs')");
+  const mediaIndex=bootstrap.indexOf('prepareProtectedMedia(),');
+  assert.ok(mainIndex>mediaIndex && mediaIndex>=0);
+  assert.match(bootstrap,/startup_drm_timeout/);
+  assert.match(pkg.devDependencies.electron,/castlabs\/electron-releases#v44\.5\.1\+wvcus/);
+  assert.equal(pkg.build.electronDist,'node_modules/electron/dist');
 });
 
 
