@@ -1,6 +1,6 @@
 'use strict';
 
-const QUANTIC_PORTAL_ORIGIN = 'https://xdsawyerlol.github.io/QuanticSillage';
+const SOCIAL_URL = 'https://mediumorchid-badger-314305.hostingersite.com/pulse/';
 const LEGACY_DEFAULT_PINNED = ['youtube', 'twitch', 'spotify', 'netflix', 'quanticmail'];
 
 const SIDE_APPS = Object.freeze({
@@ -9,7 +9,7 @@ const SIDE_APPS = Object.freeze({
   spotify: Object.freeze({ id: 'spotify', label: 'Spotify', short: 'SP', icon: '../assets/brands/spotify.svg', url: 'https://open.spotify.com/', media: true }),
   netflix: Object.freeze({ id: 'netflix', label: 'Netflix', short: 'NF', icon: '../assets/brands/netflix.svg', url: 'https://www.netflix.com/', media: true, drm: true }),
   quanticmail: Object.freeze({ id: 'quanticmail', label: 'Quantic Mail', short: 'QM', icon: '../assets/brands/quantic-mail.svg', url: 'https://quanticmail.onrender.com/', media: false, privacy: true, localFirst: true }),
-  quanticpulse: Object.freeze({ id: 'quanticpulse', label: 'SOCIAL', short: 'SO', icon: '../assets/brands/quantic-pulse.svg', url: `${QUANTIC_PORTAL_ORIGIN}/zoon.html`, media: false, social: true, privacy: true })
+  quanticpulse: Object.freeze({ id: 'quanticpulse', label: 'SOCIAL', short: 'SO', icon: '../assets/brands/quantic-pulse.svg', url: SOCIAL_URL, media: false, social: true, privacy: true })
 });
 
 const DEFAULT_SIDESTAGE = Object.freeze({
