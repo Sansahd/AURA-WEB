@@ -90,7 +90,7 @@ const CHANNEL_VALIDATORS = Object.freeze({
     if (key === 'searchEngine') return SEARCH_ENGINES.has(value);
     if (key === 'networkMode') return NETWORK_MODES.has(value);
     if (key === 'immersiveMode') return typeof value === 'boolean';
-    if (key === 'railPosition') return ['top', 'left', 'right'].includes(value);
+    if (key === 'railPosition') return ['top', 'bottom', 'left', 'right'].includes(value);
     if (key === 'appearance') return isAppearancePatch(value);
     if (key === 'generateWallpaper') return isString(value, 512) && value.trim().length > 0;
     if (key === 'resetWallpaper') return value === true;
