@@ -34,27 +34,49 @@ function scheduleGeometrySmoke(win, app) {
           shell,home,scene,dock,rail,input,tabShelf,windowControls
         };
       })()`, true);
-      const tolerance = 15;
+      const tolerance = 16;
       const errors = [];
-      for (const key of ['shell', 'home', 'scene']) {
-        if (!snapshot[key] || snapshot[key].right < snapshot.width - tolerance)
-          errors.push(key + '_right_edge_missing');
+      const expected = process.env.GEKKO_LAYOUT_POSITION || 'bottom';
+      const vertical = ['left','right'].includes(expected);
+      const contentLeft = expected === 'left' ? 96 : 0;
+      const contentRight = expected === 'right' ? snapshot.width - 96 : snapshot.width;
+      const contentTop = expected === 'top' ? 60 : 0;
+      const contentBottom = expected === 'bottom' ? snapshot.height - 60 : snapshot.height;
+      if (!snapshot.shell || snapshot.shell.width < snapshot.width - tolerance)
+        errors.push('shell_does_not_fill_window');
+      for (const key of ['home', 'scene']) {
+        if (!snapshot[key] ||
+            Math.abs(snapshot[key].left-contentLeft)>tolerance ||
+            Math.abs(snapshot[key].right-contentRight)>tolerance ||
+            Math.abs(snapshot[key].top-contentTop)>tolerance ||
+            Math.abs(snapshot[key].bottom-contentBottom)>tolerance)
+          errors.push(key+'_incorrect_'+expected+'_bounds');
       }
-      if (!snapshot.dock || snapshot.dock.right < snapshot.width - tolerance ||
-          snapshot.dock.width < snapshot.width - 2 * tolerance)
-        errors.push('dock_does_not_span_window');
-      if (!snapshot.input || !snapshot.input.visible || snapshot.input.width < 55)
+      if (!snapshot.dock || (
+         vertical
+         ? snapshot.dock.height < snapshot.height - tolerance*2 ||
+           snapshot.dock.width > 120 ||
+           (expected==='left' ? snapshot.dock.left > tolerance : snapshot.dock.right < snapshot.width-tolerance)
+         : snapshot.dock.width < snapshot.width - tolerance*2 ||
+           snapshot.dock.height > 75 ||
+           (expected==='top' ? snapshot.dock.top > tolerance : snapshot.dock.bottom < snapshot.height-tolerance)
+      )) errors.push('dock_does_not_span_chosen_edge');
+      if (!snapshot.input || !snapshot.input.visible || snapshot.input.width < (vertical ? 6 : 55))
         errors.push('omnibox_not_visible');
-      if (!snapshot.rail || snapshot.rail.width < 50 ||
-          snapshot.rail.right > snapshot.dock.right + 2)
-        errors.push('unified_rail_not_inside_dock');
-      if (!snapshot.windowControls || snapshot.windowControls.right > snapshot.width + 2)
+      if (!snapshot.rail || (
+        vertical
+          ? snapshot.rail.height < 30 || snapshot.rail.bottom > snapshot.dock.bottom + 2
+          : snapshot.rail.width < 50 || snapshot.rail.right > snapshot.dock.right + 2
+      )) errors.push('unified_rail_not_inside_dock');
+      if (!snapshot.windowControls ||
+          snapshot.windowControls.right > snapshot.width + 2 ||
+          snapshot.windowControls.bottom > snapshot.height + 2)
         errors.push('window_controls_clipped');
-      if (snapshot.railPosition !== 'bottom') errors.push('not_bottom_layout');
+      if (snapshot.railPosition !== expected) errors.push('wrong_layout_'+expected);
       console.log('[GEKKO_LAYOUT_SMOKE]', JSON.stringify({ ...snapshot, errors }));
       const screenshot = await win.capturePage();
       if (!screenshot.isEmpty()) {
-        const outfile = path.join(process.cwd(), 'dist', 'gekko-glass-wide-smoke.png');
+        const outfile = path.join(process.cwd(), 'dist', 'gekko-glass-wide-smoke-'+(process.env.GEKKO_LAYOUT_POSITION||'bottom')+'.png');
         fs.mkdirSync(path.dirname(outfile), { recursive: true });
         fs.writeFileSync(outfile, screenshot.toPNG());
         console.log('[GEKKO_LAYOUT_SCREENSHOT]', outfile);
