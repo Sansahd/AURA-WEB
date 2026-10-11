@@ -13,7 +13,7 @@ test('rail collapse preserves a clickable 18px handle and gives width back to we
   const preload = read('src/preload.cjs');
 
   assert.match(main, /const SIDESTAGE_RAIL_MIN_W = 18;/);
-  assert.match(main, /const rail = railCollapsed \? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;/);
+  assert.match(main, /const sideSpace = chromeHidden/);
   assert.match(main, /railCollapsed = shouldCollapse/);
   assert.match(main, /const shouldCollapse = railPinned \? false : Boolean\(next\)/);
   assert.match(main, /function startRailHoverWatcher/);
