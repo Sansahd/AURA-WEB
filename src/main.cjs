@@ -1701,7 +1701,7 @@ function installDownloadTracking(targetSession) {
 function toggleFavorite() {
   const tab = activeTab();
   if (!tab) return false;
-  const value = store.toggleFavorite({ title: tab.title, url: tab.url });
+  const value = store.toggleFavorite({ title: tab.title, url: tab.url, favicon: tab.favicon || '' });
   emitState();
   return value;
 }
