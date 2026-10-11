@@ -26,6 +26,7 @@ function makeManager() {
   const requireMock = (id) => {
     if (id === 'electron') return {WebContentsView:FakeWebContentsView,shell:{openExternal:()=>Promise.resolve()}};
     if (id === './sidestage.cjs') return require('../src/services/sidestage.cjs');
+    if (id === './netflix-widevine.cjs') return {supportsEmbeddedWidevine:async()=>null};
     throw Error('Unexpected dependency '+id);
   };
   const wrapper=vm.runInNewContext('(function(require,module,exports){\n'+source+'\n})',
