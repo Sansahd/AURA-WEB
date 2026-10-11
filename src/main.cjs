@@ -2140,6 +2140,13 @@ ipcMain.handle('set-setting', async (_event, key, value) => {
     // navigation). The small reader WebContentsView caused blank screens,
     // broken authentication and missing error UI. Open them in the normal
     // GEKKO tab runtime instead: second click closes, existing tab is reused.
+    if (appId==='netflix' && (action==='toggle' || action==='select')) {
+      // The unlicensed Electron mini-WebContents does not contain a Netflix-
+      // supported Widevine CDM (M7701-1003). Do not claim playback works here.
+      // Use the user's default supported Windows browser for protected video.
+      shell.openExternal('https://www.netflix.com/').catch(()=>{});
+      return store.settings();
+    }
     if (['quanticmail', 'quanticpulse'].includes(appId) &&
         (action === 'toggle' || action === 'select')) {
       aiOpen = false;
