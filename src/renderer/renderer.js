@@ -969,6 +969,7 @@ function render() {
   $('#home-button')?.classList.toggle('active', state.internal?.kind === 'home');
 
   setInternalVisibility();
+  if(state.internal?.kind)paintPageEdge(null);
   renderHomeFavorites();
   renderInternal();
   aiPanel.classList.toggle('closed', !state.aiOpen);
@@ -1011,6 +1012,24 @@ function acceptState(next) {
   });
 }
 
+function paintPageEdge(preview){
+  const shell=$('#shell');
+  if(!shell)return;
+  if(!preview || !/^data:image\/png;base64,[a-z0-9+/=]+$/i.test(preview.image||'') ||
+     preview.image.length>240000 ||
+     !['top','bottom','left','right'].some(side=>preview.position===side+' center'||
+       preview.position==='center '+side) ||
+     !/^(100% 60px|96px 100%)$/.test(preview.size||'')){
+    shell.classList.remove('has-page-edge');
+    shell.style.removeProperty('--gekko-page-edge-image');
+    return;
+  }
+  shell.style.setProperty('--gekko-page-edge-image','url('+JSON.stringify(preview.image)+')');
+  shell.style.setProperty('--gekko-page-edge-position',preview.position);
+  shell.style.setProperty('--gekko-page-edge-size',preview.size);
+  shell.classList.add('has-page-edge');
+}
+window.quantic.onPageEdge(paintPageEdge);
 window.quantic.onState(acceptState);
 fire(window.quantic.state().then(acceptState));
 
