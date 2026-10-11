@@ -1048,7 +1048,7 @@ async function loginSocialWithQuanticId() {
       emitState(true);
       return false;
     }
-    const remembered=await wc.executeJavaScript("localStorage.getItem('zoon_token')",true).catch(()=>'');
+    const remembered=await wc.executeJavaScript("localStorage.getItem('quantic_pulse_token')",true).catch(()=>'');
     const existingToken=remembered===quanticSocialLease?.token?'':String(remembered||'');
     const assertion=await authenticateQuanticSocial({existingToken});
     if(!assertion.ok){
