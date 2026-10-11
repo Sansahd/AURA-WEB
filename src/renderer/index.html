@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="gekko-24-polish.css">
   <link rel="stylesheet" href="gekko-24-layout.css">
   <link rel="stylesheet" href="gekko-glass-wide.css">
+  <link rel="stylesheet" href="gekko-home-persona.css">
   <title>GEKKO</title>
 </head>
 <body>
@@ -187,6 +188,24 @@
         <img src="../assets/quantic-glide-mark.svg" alt="GEKKO">
         <strong>GEKKO</strong>
         <span>BROWSE FREELY</span>
+      </div>
+
+      <div class="gekko-home-center">
+        <form id="home-search-form" class="gekko-home-search" role="search" aria-label="Recherche depuis l’accueil">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+          <input id="home-search-input" type="search" autocomplete="off" spellcheck="false"
+            placeholder="Rechercher ou saisir une adresse…" aria-label="Rechercher sur le Web ou saisir une adresse">
+          <button type="submit" aria-label="Lancer la recherche">↗</button>
+        </form>
+        <section class="gekko-home-favorites" aria-label="Mes favoris">
+          <div class="gekko-home-favorites-head">
+            <h2>Mes favoris</h2>
+            <button id="home-all-favorites" type="button" title="Gérer les favoris">Tous les favoris <span aria-hidden="true">↗</span></button>
+          </div>
+          <div id="home-favorites-list" class="gekko-home-favorites-grid" aria-live="polite">
+            <p class="gekko-home-favorites-empty">Tes sites favoris apparaîtront ici.</p>
+          </div>
+        </section>
       </div>
 
       <div class="gekko-home-cards" aria-label="Actions rapides GEKKO">
