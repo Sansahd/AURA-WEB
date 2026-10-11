@@ -756,7 +756,7 @@ function renderQuanticIdentity() {
   refresh.onclick=()=>fire(window.quantic.quanticIdentityRefresh());
   const social=el('button','pill-button','Entrer dans SOCIAL avec Quantic ID');
   social.disabled=!identity.unlocked;
-  social.onclick=()=>fire(window.quantic.togglePanelTab('https://xdsawyerlol.github.io/QuanticSillage/zoon.html')
+  social.onclick=()=>fire(window.quantic.togglePanelTab('https://mediumorchid-badger-314305.hostingersite.com/pulse/')
     .then(()=>window.quantic.quanticIdentitySocial()));
   row.append(refresh,social);
   section.append(row,el('p','muted','Aucune clé privée n’est transmise au navigateur ou à SOCIAL. Une signature locale sert à prouver l’identité. Verrouiller ou retirer la clé invalide rapidement la session Quantic ID.'));
@@ -784,7 +784,7 @@ function applyAppearance(){const a=state.settings?.appearance||{},root=document.
 function renderSideStage() {
   const data = state.sideStage || { enabled: false, apps: [] };
   const minimized = Boolean(state.railCollapsed);
-  const position = 'bottom';
+  const position = ['top','bottom','left','right'].includes(state.railPosition) ? state.railPosition : 'bottom';
   const key = JSON.stringify(data) + ':' + minimized + ':' + position + ':' + Boolean(state.railPinned) + ':' + state.activeId + ':' + Boolean(state.quanticIdentity?.unlocked);
   if (key === lastSideStageKey && (minimized ? Boolean(sideStageRail.querySelector('.gekko-rail-reveal')) : tabsEl.parentElement === sideStageRail.querySelector('.gekko-tab-shelf'))) return;
   lastSideStageKey = key;
@@ -822,7 +822,7 @@ function renderSideStage() {
   // Three-position layout chooser is always visible in the expanded rail.
   const positionButton = el('button', 'gekko-rail-position', '◫');
   positionButton.type = 'button';
-  positionButton.title = 'Barre inférieure · pleine largeur';
+  positionButton.title = 'Déplacer la barre : haut, bas, gauche ou droite';
   positionButton.setAttribute('aria-label', positionButton.title);
   positionButton.onclick = () => fire(window.quantic.railPositionMenu());
   sideStageRail.append(positionButton);
@@ -846,7 +846,7 @@ function renderSideStage() {
           tab.id === state.activeId && (
             tab.url === app.url ||
             (app.id === 'quanticmail' && tab.url.startsWith('https://quanticmail.onrender.com/')) ||
-            (app.id === 'quanticpulse' && /^https:\/\/xdsawyerlol\.github\.io\/QuanticSillage\/zoon(?:\.html)?(?:[?#]|$)/i.test(tab.url))
+            (app.id === 'quanticpulse' && /^https:\/\/mediumorchid-badger-314305\.hostingersite\.com\/pulse\/(?:[?#]|$)/i.test(tab.url))
           ));
         const button = el('button', 'side-stage-app ' +
           ((data.open && data.activeApp === app.id) || fullAppActive ? 'active ' : '') +
@@ -912,7 +912,7 @@ function renderSideStage() {
 }
 
 function render() {
-  document.body.dataset.railPosition = 'bottom';
+  document.body.dataset.railPosition = ['top','bottom','left','right'].includes(state.railPosition) ? state.railPosition : 'bottom';
   applyAppearance();
   renderSearchEngineControl();
   renderSideStage();
