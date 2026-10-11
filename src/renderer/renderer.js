@@ -348,7 +348,7 @@ function renderHomeFavorites() {
   if (!grid) return;
   const items=(Array.isArray(state.homeFavorites)?state.homeFavorites:[])
     .filter(item => item && typeof item.url==='string' && /^https?:\/\//i.test(item.url)).slice(0,12);
-  const key=JSON.stringify(items.map(item=>[item.url,item.title]));
+  const key=JSON.stringify(items.map(item=>[item.url,item.title,item.favicon]));
   if(key===lastHomeFavoritesKey)return;
   lastHomeFavoritesKey=key;
   grid.replaceChildren();
@@ -365,8 +365,12 @@ function renderHomeFavorites() {
     tile.type='button';
     tile.title=name+' · '+host;
     tile.setAttribute('aria-label','Ouvrir '+name);
-    const mark=el('span','gekko-home-favorite-mark',
-      (host[0]||name[0]||'★').toUpperCase());
+    const mark=el('span','gekko-home-favorite-mark');
+    if(typeof item.favicon==='string' && /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(item.favicon) && item.favicon.length<14000){
+      const img=el('img');img.alt='';img.src=item.favicon;
+      img.onerror=()=>{img.remove();mark.textContent=(host[0]||name[0]||'★').toUpperCase();};
+      mark.append(img);
+    }else mark.textContent=(host[0]||name[0]||'★').toUpperCase();
     const info=el('span','gekko-home-favorite-info');
     info.append(el('strong','',name),el('small','',host));
     tile.append(mark,info);
