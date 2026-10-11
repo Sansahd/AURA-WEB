@@ -64,8 +64,10 @@ test('do not install a signed-in user if /me rejects the token or maps a differe
  assert.equal(mismatch.ok,false);
  assert.equal(mismatch.error,'social_session_user_mismatch');
 });
-test('Netflix M7701-1003 is not misrepresented as a functioning unlicensed mini-player',()=>{
+test('Netflix playback stays in the native SideStage; no external browser fallback',()=>{
  const main=require('node:fs').readFileSync(require('node:path').join(__dirname,'../src/main.cjs'),'utf8');
  assert.match(main,/appId==='netflix'/);
- assert.match(main,/shell\.openExternal\('https:\/\/www\.netflix\.com\/'\)/);
+ assert.match(main,/awaitProtectedMedia\(30000\)/);
+ assert.match(main,/sideStage\?\.action\('select','netflix'\)/);
+ assert.doesNotMatch(main,/shell\.openExternal\('https:\/\/www\.netflix\.com\/'\)/);
 });
