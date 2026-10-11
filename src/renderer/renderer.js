@@ -830,6 +830,7 @@ function renderSideStage() {
   const identity=state.quanticIdentity||{};
   const identityButton=el('button','gekko-identity-indicator'+(identity.unlocked?' is-unlocked':''),'ID');
   identityButton.title=identity.unlocked?'Quantic ID déverrouillée · voir mon identité':
+    identity.reason==='companion_contract_mismatch'?'Quantic Secure répond, mais son protocole ne correspond pas à GEKKO':
     identity.connected?'Quantic ID détectée · verrouillée ou état non confirmé':
     'Quantic Secure indisponible · connecter ma clé USB';
   identityButton.setAttribute('aria-label',identityButton.title);
@@ -852,7 +853,9 @@ function renderSideStage() {
           ((data.open && data.activeApp === app.id) || fullAppActive ? 'active ' : '') +
           (!fullAppTab && app.status === 'loading' ? 'loading' : ''));
         button.dataset.appId = app.id;
-        button.title = fullAppTab
+        button.title = app.id === 'netflix'
+          ? 'Netflix · ouvrir dans le navigateur Windows compatible DRM (Widevine absent dans GEKKO)'
+          : fullAppTab
           ? (app.label || app.id) + ' · onglet complet · second clic pour fermer'
           : app.status === 'error'
           ? (app.label || app.id) + ' indisponible · cliquer pour réessayer, clic milieu pour onglet'
