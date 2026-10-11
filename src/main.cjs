@@ -36,7 +36,9 @@ const BOTTOM_DOCK_H = 60;
 const AI_W = 300;
 const SIDESTAGE_RAIL_W = 54;
 const SIDESTAGE_RAIL_MIN_W = 18;
-const HORIZONTAL_RAIL_H = 58;
+const HORIZONTAL_RAIL_H = 60;
+const SIDE_DOCK_W = 96;
+const SIDE_SEARCH_W = 322;
 const HORIZONTAL_RAIL_MIN_H = 18;
 const SIDESTAGE_COLLAPSED_W = 22;
 const EDGE_TRIGGER = 24;
@@ -115,6 +117,7 @@ let aiRuntime = {
 };
 let chromeVisible = true;
 let chromeOverlayHeight = 0;
+let railSearchFocused = false;
 let railCollapsed = false; // Glass Corner toolbar is always visible.
 let railPinned = true; // Do not hide the sole navigation toolbar on pointer exit.
 let railLastHover = 0;
@@ -1243,13 +1246,14 @@ function layout(options = {}) {
   const [width, height] = win.getContentSize();
   const chromeHidden = isImmersive() && !chromeVisible;
   const top = chromeHidden ? 0 : TOP_CHROME_H;
-  const bottom = chromeHidden ? 0 : BOTTOM_DOCK_H + chromeOverlayHeight;
   const stageState = sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, width: 0 };
   // The compact open-tab shelf is always available, including in private mode.
   const railPosition = store?.settings().railPosition || 'bottom';
-  const horizontal = railPosition === 'top';
-  const rail = railCollapsed ? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W;
-  const topRail = horizontal ? (railCollapsed ? HORIZONTAL_RAIL_MIN_H : HORIZONTAL_RAIL_H) : 0;
+  const topRail = !chromeHidden && railPosition === 'top' ? BOTTOM_DOCK_H : 0;
+  const bottom = !chromeHidden && railPosition === 'bottom' ? BOTTOM_DOCK_H : 0;
+  const sideSpace = chromeHidden ? 0 : (railSearchFocused && ['left','right'].includes(railPosition) ? SIDE_SEARCH_W : SIDE_DOCK_W);
+  const leftRail = railPosition === 'left' ? sideSpace : 0;
+  const rightRail = railPosition === 'right' ? sideSpace : 0;
   // SideStage is a native WebContentsView layered ABOVE the shell. On GEKKO
   // home/internal pages it must never cover the homepage or its full-width dock.
   const homeOrInternal = !tab || !isExternal(tab.url);
@@ -1257,15 +1261,15 @@ function layout(options = {}) {
     ? Number(stageState.width || 420) : 0;
   const aiWidth = aiOpen && chromeVisible && (!stageState.open || stageState.collapsed || railCollapsed) ? AI_W : 0;
   // The original Glass Corner rail is now IN the bottom dock: no side gutter.
-  const sideLeft = 0;
-  const sideRight = stageWidth + aiWidth;
+  const sideLeft = leftRail;
+  const sideRight = rightRail + stageWidth + aiWidth;
   const viewTop = top + topRail;
   const availableHeight = Math.max(1, height - viewTop - bottom);
   if (tab?.view && isExternal(tab.url)) {
     const bounds = { x: sideLeft, y: viewTop, width: Math.max(1, width - sideLeft - sideRight), height: availableHeight };
     setTabViewBounds(tab, bounds, Boolean(options?.animateChrome));
   }
-  const stageX = Math.max(0, width - stageWidth);
+  const stageX = Math.max(0, width - rightRail - stageWidth);
   const focusEnabled = Boolean(!isPrivateMode() && !railCollapsed && stageWidth > 0 &&
     stageState.open && !stageState.collapsed &&
     stageState.apps?.some(app => app.id === stageState.activeApp && app.media));
@@ -1415,7 +1419,7 @@ function startRailHoverWatcher() {
 }
 
 function chooseRailPosition(position) {
-  if (!store || position !== 'bottom') return false;
+  if (!store || !['top','bottom','left','right'].includes(position)) return false;
   store.setSetting('railPosition', position);
   railLastHover = Date.now();
   // Keep the new location visible briefly so the switch is discoverable.
@@ -1428,7 +1432,10 @@ function showRailPositionMenu() {
   if (!win || win.isDestroyed() || !store) return false;
   const selected = store.settings().railPosition || 'bottom';
   Menu.buildFromTemplate([
-    { label: 'En bas · barre pleine largeur', type: 'radio', checked: selected === 'bottom', click: () => chooseRailPosition('bottom') }
+    { label: 'En bas · barre pleine largeur', type: 'radio', checked: selected === 'bottom', click: () => chooseRailPosition('bottom') },
+    { label: 'En haut · barre pleine largeur', type: 'radio', checked: selected === 'top', click: () => chooseRailPosition('top') },
+    { label: 'À gauche · barre verticale', type: 'radio', checked: selected === 'left', click: () => chooseRailPosition('left') },
+    { label: 'À droite · barre verticale', type: 'radio', checked: selected === 'right', click: () => chooseRailPosition('right') }
   ]).popup({ window: win });
   return true;
 }
@@ -2104,7 +2111,12 @@ ipcMain.handle('window-control', (_event, action) => {
   if (action === 'sizes') showWindowSizes();
   if (action === 'close') win.close();
 });
-ipcMain.handle('set-chrome-lock', (_event, locked) => { revealUntil = Date.now() + (locked ? 60000 : 700); });
+ipcMain.handle('set-chrome-lock', (_event, locked) => {
+  const prev=railSearchFocused;
+  railSearchFocused=Boolean(locked);
+  if(prev!==railSearchFocused)layout();
+  revealUntil = Date.now() + (locked ? 60000 : 700);
+});
 ipcMain.handle('set-setting', async (_event, key, value) => {
   if (key === 'searchEngine') value = normalizeEngine(value);
   if (key === 'networkMode') return setNetworkMode(value);
