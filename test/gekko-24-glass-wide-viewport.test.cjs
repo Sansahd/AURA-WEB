@@ -7,7 +7,7 @@ const read=n=>fs.readFileSync(path.join(__dirname,'..',n),'utf8');
 
 test('Glass Corner native Stage cannot cover GEKKO home or the bottom dock',()=>{
  const main=read('src/main.cjs');
- assert.match(main,/const homeOrInternal = !tab \|\| !isExternal\(tab\.url\)/);
+ assert.match(main,/const homeOrInternal = !tab \|\| \(!isExternal\(tab\.url\) && !\(stageState\.open && stageState\.activeApp==='netflix'\)\)/);
  assert.match(main,/privateMode: isPrivateMode\(\) \|\| railCollapsed \|\| homeOrInternal/);
  assert.match(main,/createTab\(appDefinition\(appId\)\.url, true\)/);
  assert.match(main,/const sideLeft = leftRail/);
