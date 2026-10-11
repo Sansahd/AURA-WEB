@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const { components } = require('electron');
 
 function scheduleGeometrySmoke(win, app) {
   if (process.env.GEKKO_LAYOUT_SMOKE !== '1') return;
@@ -37,6 +38,7 @@ function scheduleGeometrySmoke(win, app) {
       const tolerance = 16;
       const errors = [];
       const expected = process.env.GEKKO_LAYOUT_POSITION || 'bottom';
+      if (typeof components?.whenReady !== 'function') errors.push('castlabs_widevine_runtime_missing');
       const vertical = ['left','right'].includes(expected);
       const contentLeft = expected === 'left' ? 96 : 0;
       const contentRight = expected === 'right' ? snapshot.width - 96 : snapshot.width;
