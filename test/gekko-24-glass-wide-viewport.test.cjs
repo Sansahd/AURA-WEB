@@ -10,7 +10,7 @@ test('Glass Corner native Stage cannot cover GEKKO home or the bottom dock',()=>
  assert.match(main,/const homeOrInternal = !tab \|\| !isExternal\(tab\.url\)/);
  assert.match(main,/privateMode: isPrivateMode\(\) \|\| railCollapsed \|\| homeOrInternal/);
  assert.match(main,/createTab\(appDefinition\(appId\)\.url, true\)/);
- assert.match(main,/const sideLeft = 0/);
+ assert.match(main,/const sideLeft = leftRail/);
  assert.match(main,/const BOTTOM_DOCK_H = 60/);
 });
 
@@ -22,7 +22,7 @@ test('GLASS-wide layout fills the true window without compressing address search
  assert.match(css,/#bottom-dock \.search-engine-label/);
  assert.match(css,/#bottom-dock \.address input/);
  assert.match(css,/flex:1 1 58%!important/);
- assert.match(css,/body\[data-rail-position="bottom"\] #home/);
+ assert.match(css,/body:is\(\[data-rail-position="bottom"\],\[data-rail-position="top"\]\) #home/);
  assert.match(css,/right:0!important/);
  assert.match(css,/max-width:none!important/);
 });
