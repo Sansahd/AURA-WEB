@@ -23,19 +23,40 @@ function readJson(path,method='GET',payload=null,{transport=http.request,timeout
   });
 }
 function normalizeStatus(data){
-  const version=Number(data?.version||data?.protocolVersion||0);
-  if(!Number.isInteger(version)||version<1||version>3) return {connected:true,available:false,unlocked:false,reason:'unsupported_protocol',version};
-  const available=data.identityAvailable===true || data.available===true || data.keyPresent===true;
-  const unlocked=available&&(data.unlocked===true || data.identityUnlocked===true ||
-    data.locked===false || data.state==='unlocked' || data.status==='unlocked');
+  if(!data||typeof data!=='object'||Array.isArray(data)){
+    return {connected:true,available:false,unlocked:false,reason:'invalid_status_payload'};
+  }
+  const nested=[data.identity,data.vault,data.quanticIdentity].find(value=>value&&typeof value==='object'&&!Array.isArray(value));
+  const identity=nested||data;
+  // Some older vault companions did not expose a version field. Accept a
+  // recognisable schema, but NEVER infer unlocking from USB/device presence.
+  const rawVersion=data.version??data.protocolVersion??identity.version;
+  const version=rawVersion==null?1:Number(rawVersion);
+  if(!Number.isInteger(version)||version<1||version>3)
+    return {connected:true,available:false,unlocked:false,reason:'unsupported_protocol',version};
+  const explicitIdentity=Boolean(identity.identityAvailable===true||identity.available===true||
+    identity.keyPresent===true||identity.present===true||identity.id||
+    identity.keyId||identity.publicKey);
+  const available=explicitIdentity||Boolean(data.identityAvailable===true||data.available===true);
+  const lockFlag=identity.unlocked===true||identity.identityUnlocked===true||
+    identity.locked===false||identity.state==='unlocked'||identity.status==='unlocked'||
+    data.unlocked===true||data.identityUnlocked===true;
+  const denied=identity.locked===true||data.locked===true||identity.state==='locked'||identity.status==='locked';
+  const unlocked=available&&lockFlag&&!denied;
+  const keyId=typeof identity.keyId==='string'?identity.keyId:typeof data.keyId==='string'?data.keyId:'';
+  const label=typeof identity.label==='string'?identity.label:typeof data.label==='string'?data.label:'Quantic ID';
   return {connected:true,available,unlocked,
-    keyId:typeof data.keyId==='string'&&data.keyId.length<=120?data.keyId:'',
-    label:typeof data.label==='string'&&data.label.length<=80?data.label:'Quantic ID',
-    version,reason:!available?'no_identity':unlocked?'unlocked':'locked_or_unconfirmed'};
+    keyId:keyId.slice(0,120),label:label.slice(0,80),version,
+    reason:!available?'no_identity':unlocked?'unlocked':'locked_or_unconfirmed'};
 }
 async function getStatus(options){
   try{return normalizeStatus(await readJson('/v1/status','GET',null,options));}
-  catch{return{connected:false,available:false,unlocked:false,reason:'companion_offline'};}
+  catch(error){
+    const message=String(error?.message||'');
+    const contractMismatch=/quantic_secure_(?:http_\d+|invalid_json|oversize)/.test(message);
+    return {connected:contractMismatch,available:false,unlocked:false,
+      reason:contractMismatch?'companion_contract_mismatch':'companion_offline'};
+  }
 }
 async function assertChallenge(challenge,{transport=http.request}={}){
   if(typeof challenge!=='string'||!/^quantic-social:v1:[A-Za-z0-9_-]{32,80}$/.test(challenge))throw Error('invalid_challenge');
