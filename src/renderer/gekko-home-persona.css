@@ -262,3 +262,130 @@ body:is([data-rail-position="top"],[data-rail-position="bottom"],
 @media(prefers-reduced-motion:reduce){
   .gekko-home-favorite,.gekko-home-search{transition:none!important}
 }
+
+
+/* Glass Corner 2.4 — eliminate tinted rectangular artifacts on photo wallpapers.
+   A separate backdrop-filter over bright petals produced the hard amber patch.
+   Use one continuous material with no element-level backdrop filter on search. */
+.gekko-home-search,
+body.has-wallpaper .gekko-home-search,
+.gekko-home-search:focus-within,
+body.has-wallpaper .gekko-home-search:focus-within{
+  box-sizing:border-box!important;
+  position:relative!important;
+  isolation:isolate!important;
+  overflow:hidden!important;
+  background:rgba(10,21,28,.58)!important;
+  background-image:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  border:1px solid rgba(238,255,251,.34)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 10px 25px rgba(0,0,0,.14)!important;
+  border-radius:999px!important;
+}
+.gekko-home-search:focus-within{
+  background:rgba(11,29,38,.66)!important;
+  border-color:rgba(185,255,223,.83)!important;
+}
+.gekko-home-search input,
+body.has-wallpaper .gekko-home-search input,
+.gekko-home-search input:focus,
+.gekko-home-search input:active{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  border:0!important;
+  outline:0!important;
+  background:transparent!important;
+  background-image:none!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  border-radius:0!important;
+  color:#faffff!important;
+}
+.gekko-home-search input::-webkit-search-decoration,
+.gekko-home-search input::-webkit-search-results-button,
+.gekko-home-search input::-webkit-search-results-decoration{display:none!important}
+.gekko-home-search button{
+  border-radius:50%!important;
+  height:38px!important;width:38px!important;min-width:38px!important;
+  flex-basis:38px!important;
+  border-color:rgba(240,255,251,.16)!important;
+  background:rgba(255,255,255,.12)!important;
+  box-shadow:none!important;
+}
+/* The old shell contained a full-viewport opaque #10171a painted behind the
+   translucent dock. Carry the chosen wallpaper through its reserved 60px
+   native viewport margin: transparency now reveals the SAME photo as Home. */
+html,body,#shell{
+  background-color:transparent!important;
+}
+#shell{
+  background-color:transparent!important;
+  background-image:var(--quantic-wallpaper-image,none)!important;
+  background-size:cover!important;
+  background-position:center center!important;
+  background-repeat:no-repeat!important;
+}
+body::after{
+  background:transparent!important;
+  pointer-events:none!important;
+}
+body.has-wallpaper::after{background:transparent!important}
+/* Web pages are drawn in a separate native WebContentsView, so the reserved
+   edge is not a physically transparent web page. A separate transient edge
+   preview can be supplied by the native runtime in standard (non-private)
+   browsing to make the glass visually blend with the real page. */
+#shell.has-page-edge{
+  background-image:var(--gekko-page-edge-image),var(--quantic-wallpaper-image,none)!important;
+  background-position:var(--gekko-page-edge-position,center),center!important;
+  background-size:var(--gekko-page-edge-size,cover),cover!important;
+  background-repeat:no-repeat,no-repeat!important;
+}
+body:not(.has-wallpaper) #shell:not(.has-page-edge){
+  background-color:#091923!important;
+}
+body[data-rail-position="top"] #bottom-dock,
+body[data-rail-position="bottom"] #bottom-dock,
+body[data-rail-position="left"] #bottom-dock,
+body[data-rail-position="right"] #bottom-dock {
+  background-color:rgba(9,23,29,var(--quantic-glass-opacity,.35))!important;
+  background-image:none!important;
+}
+.gekko-home-favorites-grid{
+  grid-template-columns:repeat(5,minmax(0,1fr));
+}
+.gekko-home-favorite{
+  height:60px;min-height:60px;
+  border-radius:15px;
+  background:rgba(9,23,31,.42);
+  border-color:rgba(246,255,255,.17);
+}
+.gekko-home-favorite-mark{
+  flex-basis:36px;width:36px;height:36px;
+}
+.gekko-home-favorite-mark img{
+  width:24px;height:24px;
+  display:block;object-fit:contain;
+}
+.gekko-home-favorite-info strong{font-size:12px}
+.gekko-home-favorite-info small{font-size:10px}
+.gekko-home-center{gap:21px}
+.gekko-home-cards{
+  width:min(760px,calc(100% - 30px))!important;
+  gap:10px!important;
+}
+.gekko-home-card{
+  min-height:69px!important;
+  border-radius:16px!important;
+}
+@media(max-width:1150px){
+  .gekko-home-favorites-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .gekko-home-favorite{height:52px;min-height:52px}
+  .gekko-home-center{gap:15px}
+}
+@media(max-width:760px){
+  .gekko-home-favorites-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .gekko-home-favorite{height:44px;min-height:44px}
+  .gekko-home-cards{display:none!important}
+}
