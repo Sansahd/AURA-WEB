@@ -50,7 +50,7 @@ test('SOCIAL login requires a real authenticated /me response, not a recognized 
  assert.equal(api.called.length,3);
  assert.equal(api.called[2],'https://quanticminds.onrender.com/api/pulse/me');
  assert.equal(b.reqs[0].port,47621);
- assert.equal(b.reqs[1].path,'/v1/assert');
+ assert.deepEqual(b.reqs.map(request=>request.path),['/v1/status','/v1/status','/v1/assert']);
  assert.equal(TOKEN_KEY,'quantic_pulse_token');
  assert.equal(isSocialPage('https://mediumorchid-badger-314305.hostingersite.com/pulse/'),true);
 });
