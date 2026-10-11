@@ -64,7 +64,7 @@ async function assertChallenge(challenge,{transport=http.request}={}){
   if(!status.unlocked)throw Error('quantic_identity_locked');
   const assertion=await readJson('/v1/assert','POST',{
     challenge,relyingParty:'quanticminds.onrender.com',purpose:'social-login',
-    origin:'https://xdsawyerlol.github.io'
+    origin:'https://mediumorchid-badger-314305.hostingersite.com'
   },{transport,timeout:3500});
   if(!assertion||typeof assertion.signature!=='string'||!assertion.signature||
     typeof assertion.keyId!=='string'||!assertion.keyId||
