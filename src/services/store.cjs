@@ -138,14 +138,15 @@ class QuanticStore {
   favorites(limit = 500) { return this.data.favorites.slice(0, limit); }
   isFavorite(url) { return this.favoriteUrls.has(url); }
 
-  toggleFavorite({ title, url }) {
+  toggleFavorite({ title, url, favicon = '' }) {
     if (!/^https?:\/\//i.test(url || '')) return false;
     const i = this.data.favorites.findIndex((x) => x.url === url);
     if (i >= 0) {
       this.data.favorites.splice(i, 1);
       this.favoriteUrls.delete(url);
     } else {
-      this.data.favorites.unshift({ title: title || url, url, at: Date.now() });
+      const safeIcon=typeof favicon==='string' && /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(favicon) && favicon.length<14000 ? favicon : '';
+      this.data.favorites.unshift({ title: title || url, url, favicon:safeIcon, at: Date.now() });
       this.favoriteUrls.add(url);
     }
     this.scheduleSave(80);
