@@ -18,6 +18,7 @@ const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWall
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { awaitProtectedMedia } = require('./services/protected-media.cjs');
 const { NativeMediaFocus } = require('./services/media-focus.cjs');
+const {captureEdge}=require('./services/page-edge-preview.cjs');
 const { getStatus: getQuanticIdentityStatus } = require('./services/quantic-id-bridge.cjs');
 const { authenticateQuanticSocial, installSocialSession, revokeSocialSession,
   isSocialPage } = require('./services/quantic-social-sso.cjs');
@@ -142,6 +143,9 @@ let immersiveTimer = null;
 const mediaFocus = new NativeMediaFocus();
 const pageSpotlightByView = new WeakMap();
 let spotlightTab = null;
+let pageEdgeTimer=null;
+let pageEdgeBusy=false;
+let lastPageEdgeKey='';
 
 function setPageSpotlight(tab, enabled) {
   const wc = tab?.view?.webContents;
@@ -201,6 +205,43 @@ function tabState(tab) {
 }
 function activeTab() { return tabs.get(activeId); }
 function isExternal(url = '') { return /^https?:\/\//i.test(url); }
+
+// A WebContentsView is painted above the shell, with a reserved gap for the
+// toolbar. Only a tiny pixel strip from the ACTIVE page is mirrored locally
+// into that gap; no screenshots are saved, logged or sent to any service.
+// Never sample private profiles or protected media/video playback.
+async function updatePageEdge(){
+  if(pageEdgeBusy || !win || win.isDestroyed() || win.webContents.isLoading())return;
+  const tab=activeTab();
+  const position=store?.settings().railPosition||'bottom';
+  const wc=tab?.view?.webContents;
+  const ok=Boolean(tab && !isPrivateMode() && chromeVisible && !tab.mediaPlaying &&
+    !tab.videoFocused && isExternal(tab.url) && wc && !wc.isDestroyed() &&
+    !wc.isLoading() && !/netflix\.com|disneyplus\.com/i.test(tab.url));
+  if(!ok){
+    if(lastPageEdgeKey){
+      lastPageEdgeKey='';
+      win.webContents.send('page-edge-preview',null);
+    }
+    return;
+  }
+  pageEdgeBusy=true;
+  try{
+    const bounds=tab.view.getBounds();
+    const preview=await captureEdge(wc,bounds,position);
+    if(!win||win.isDestroyed()||!preview)return;
+    if(activeId!==tab.id || isPrivateMode() || !chromeVisible ||
+       position!==(store?.settings().railPosition||'bottom'))return;
+    lastPageEdgeKey=tab.id+':'+position;
+    win.webContents.send('page-edge-preview',preview);
+  }catch(error){
+    if(process.env.GEKKO_GLASS_DEBUG==='1')
+      console.warn('[glass] edge preview unavailable:',String(error?.message||error).slice(0,100));
+  }finally{pageEdgeBusy=false}
+}
+function refreshPageEdgeSoon(){
+  setTimeout(()=>{void updatePageEdge()},420).unref?.();
+}
 function isInternal(url = '') { return /^quantic:\/\//i.test(url); }
 function isImmersive() { return Boolean(store?.settings().immersiveMode !== false && isExternal(activeTab()?.url)); }
 function state() {
@@ -848,6 +889,7 @@ function createView(tab) {
     syncFromView(tab, true);
     if (activeId === tab.id && !tab.awaitingNetwork) view.setVisible(true);
     emitState();
+    if(activeId===tab.id)refreshPageEdgeSoon();
   });
 
   wc.on('page-favicon-updated', (_event, favicons) => {
@@ -1158,6 +1200,8 @@ function activateTab(id) {
   tab?.view?.setVisible(Boolean(tab && isExternal(tab.url) && !tab.awaitingNetwork && !tab.awaitingPage));
   layout();
   emitState(true);
+  void updatePageEdge();
+  refreshPageEdgeSoon();
   return true;
 }
 
@@ -1823,6 +1867,11 @@ function createWindow() {
   win.on('maximize', () => { layout(); emitState(true); });
   win.on('unmaximize', () => { layout(); emitState(true); });
   win.on('restore', () => { layout(); emitState(true); });
+  // Light (~72px) in-memory edge sampling, never the desktop and never private.
+  clearInterval(pageEdgeTimer);
+  pageEdgeTimer=setInterval(()=>{void updatePageEdge()},3200);
+  pageEdgeTimer.unref?.();
+  win.on('closed',()=>{clearInterval(pageEdgeTimer);pageEdgeTimer=null;});
 }
 
 app.whenReady().then(async () => {
