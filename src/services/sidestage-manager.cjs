@@ -2,6 +2,7 @@
 
 const { WebContentsView, shell } = require('electron');
 const { appDefinition, publicAppList, normalizeSideStage } = require('./sidestage.cjs');
+const {supportsEmbeddedWidevine}=require('./netflix-widevine.cjs');
 
 class SideStageManager {
   constructor({ store, session, getWindow, openInMain, onChange }) {
@@ -126,6 +127,25 @@ class SideStageManager {
       this.status.set(appId, 'ready');
       this.onChange();
     });
+    // A loaded Netflix login page is NOT proof the DRM playback engine works.
+    // Probe the actual EME/CDM API inside its SideStage WebContents. If
+    // unavailable, display a local error in that SAME panel (no new window).
+    if(appId==='netflix'){
+      wc.on('did-finish-load',()=>{
+        if(this.failures.has(appId))return;
+        supportsEmbeddedWidevine(wc).then(supported=>{
+          if(supported===false && this.views.get(appId)===view && !this.failures.has(appId)){
+            this.showProtectedMediaError(
+              'Widevine n’est pas utilisable dans ce lecteur. La page Netflix peut s’ouvrir, '+
+              'mais un contenu protégé ne peut pas être déchiffré ici.'
+            );
+          }
+        }).catch(error=>{
+          console.warn('[netflix] EME diagnostic unavailable:',String(error?.message||error).slice(0,100));
+        });
+      });
+    }
+
     wc.on('did-fail-load', (_event, code, _description, _url, isMainFrame) => {
       if (!isMainFrame || code === -3) return;
       showFailure(code);
