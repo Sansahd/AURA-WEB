@@ -41,8 +41,8 @@ test('external web content starts at the top and reserves bottom dock plus tab r
   assert.match(main, /TOP_CHROME_H\s*=\s*0/);
   assert.match(main, /BOTTOM_DOCK_H\s*=\s*60/);
   assert.match(main, /height\s*-\s*viewTop\s*-\s*bottom/);
-  assert.match(main, /const topRail = horizontal \?/);
-  assert.match(main, /const rail = railCollapsed \? SIDESTAGE_RAIL_MIN_W : SIDESTAGE_RAIL_W/);
+  assert.match(main, /const topRail = !chromeHidden && railPosition === 'top'/);
+  assert.match(main, /const sideSpace = chromeHidden/);
   assert.match(css, /#chrome\s*\{display:none!important\}/);
   assert.match(css, /#sidestage-rail \.gekko-rail-window-controls/);
 });
@@ -253,7 +253,7 @@ test('search engine picker is a compact native popup and never opens a full-widt
   assert.match(picker, /engine-picker\.js/);
   assert.match(preload, /searchEngineMenu: \(x,y\) => ipcRenderer\.invoke\('search-engine-menu',x,y\)/);
   assert.match(firewall, /'search-engine-menu': \(args\)/);
-  assert.match(main, /BOTTOM_DOCK_H \+ chromeOverlayHeight/);
+  assert.match(main, /railPosition === 'bottom' \? BOTTOM_DOCK_H/);
 });
 
 test('omnibox hypercache can prewarm several likely destinations on the first keystroke', () => {
