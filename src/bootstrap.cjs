@@ -10,13 +10,18 @@ installIpcFirewall(ipcMain,{shellUrl:SHELL_URL});
 
 (async()=>{
   await app.whenReady();
-  // GEKKO opens immediately while the licensed Widevine component initializes
-  // through Castlabs' component service in the background. Netflix SideStage
-  // waits on the very same promise; normal browsing never stalls.
-  void prepareProtectedMedia().then(result=>{
-    if(result.ok)console.log('[drm] component service ready; Netflix support requires additional verification.');
-    else console.warn('[drm] unavailable:',result.reason);
-  });
+  // Castlabs recommends completing CDM initialization before creating
+  // BrowserWindow/WebContentsViews. Limit the startup wait so offline browsing
+  // stays available even if Widevine's official update service is unreachable.
+  const drm=await Promise.race([
+    prepareProtectedMedia(),
+    new Promise(resolve=>{
+      const timer=setTimeout(()=>resolve({ok:false,reason:'startup_drm_timeout'}),15000);
+      timer.unref?.();
+    })
+  ]);
+  if(drm.ok)console.log('[drm] Widevine component stage initialized');
+  else console.warn('[drm] protected playback pending:',drm.reason);
   require('./main.cjs');
 })().catch(error=>{
   console.error('[bootstrap] Quantic startup failed:',error?.stack||error);
