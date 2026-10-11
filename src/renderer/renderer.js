@@ -854,7 +854,7 @@ function renderSideStage() {
           (!fullAppTab && app.status === 'loading' ? 'loading' : ''));
         button.dataset.appId = app.id;
         button.title = app.id === 'netflix'
-          ? 'Netflix · ouvrir dans le navigateur Windows compatible DRM (Widevine absent dans GEKKO)'
+          ? 'Netflix · lecture intégrée dans SideStage avec Widevine'
           : fullAppTab
           ? (app.label || app.id) + ' · onglet complet · second clic pour fermer'
           : app.status === 'error'
