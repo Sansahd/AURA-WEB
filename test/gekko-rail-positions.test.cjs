@@ -28,7 +28,7 @@ test('native pages reserve only the chosen edge and retain reader support',()=>{
  assert.match(main,/const bounds = \{ x: sideLeft, y: viewTop, width: Math\.max\(1, width - sideLeft - sideRight\), height: availableHeight \}/);
  assert.match(css,/height:54px!important/);
  assert.match(css,/body\[data-rail-position="top"\] #bottom-dock/);
- assert.match(css,/body\[data-rail-position="left"\] #bottom-dock/);
+ assert.match(css,/body:is\(\[data-rail-position="left"\],\[data-rail-position="right"\]\) #bottom-dock/);
  assert.match(css,/body\[data-rail-position="right"\] #bottom-dock/);
  assert.match(css,/width:80px!important/);
  assert.match(css,/height:calc\(100vh - 16px\)!important/);
