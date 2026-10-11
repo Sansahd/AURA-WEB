@@ -1095,7 +1095,7 @@ function togglePanelTab(url) {
   const allowedApps = new Set([
     'https://antiquewhite-dolphin-780448.hostingersite.com/',
     'https://quanticmail.onrender.com/',
-    'https://xdsawyerlol.github.io/QuanticSillage/zoon.html',
+    'https://mediumorchid-badger-314305.hostingersite.com/pulse/',
     'https://mediumorchid-badger-314305.hostingersite.com/news/',
     'https://mediumorchid-badger-314305.hostingersite.com/vision/'
   ]);
@@ -1111,8 +1111,8 @@ function togglePanelTab(url) {
     }
     // SOCIAL lives on the shared Sillage origin; do not accidentally match
     // other Quantic Sillage pages by hostname alone.
-    return normalized.endsWith('/zoon.html') &&
-      /^https:\/\/xdsawyerlol\.github\.io\/QuanticSillage\/zoon(?:\.html)?(?:[?#]|$)/i.test(tab.url);
+    return normalized === 'https://mediumorchid-badger-314305.hostingersite.com/pulse/' &&
+      isSocialPage(tab.url);
   });
   if (existing) {
     if (existing.id === activeId) return closeTab(existing.id);
