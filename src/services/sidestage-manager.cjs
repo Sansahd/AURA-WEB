@@ -143,6 +143,29 @@ class SideStageManager {
     return view;
   }
 
+  showProtectedMediaError(message='Widevine indisponible') {
+    const view=this.ensureView('netflix');
+    if(!view || view.webContents.isDestroyed())return false;
+    const escaped=String(message).slice(0,240).replace(/[&<>"']/g,char=>({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[char]);
+    this.clearLoadTimer('netflix');
+    this.failures.add('netflix');
+    this.status.set('netflix','error');
+    const html=`<!doctype html><html lang="fr"><meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
+    <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#09121c;color:#effff4;font-family:system-ui,sans-serif">
+    <main style="max-width:360px;padding:24px;text-align:center">
+    <h2 style="font-size:18px">Netflix · lecture protégée</h2>
+    <p style="color:#cad8df;line-height:1.6;font-size:13px">${escaped}</p>
+    <p style="font-size:12px;color:#9db9b2">GEKKO n'ouvre pas de navigateur externe.
+    Réessayez avec le raccourci Netflix une fois Widevine disponible.</p>
+    </main></body></html>`;
+    view.webContents.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(html)).catch(()=>{});
+    this.onChange();
+    return true;
+  }
+
   action(action, appId = '') {
     const settings = this.settings();
     if (!settings.enabled) return this.state();
