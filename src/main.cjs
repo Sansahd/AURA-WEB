@@ -218,6 +218,8 @@ function state() {
     windowMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
     immersive: isImmersive(),
     settings: store?.settings() || {},
+    // Small local-only preview. The full favorites manager remains unchanged.
+    homeFavorites: store?.favorites(12) || [],
     sideStage: sideStage?.state({ privateMode: isPrivateMode() }) || { enabled: false, open: false, apps: [] },
     veil: veil?.snapshot() || {},
     shields: shields?.snapshot?.() || { status: 'idle', engine: 'fallback' },
