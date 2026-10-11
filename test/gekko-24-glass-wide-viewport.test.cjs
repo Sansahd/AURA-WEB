@@ -32,7 +32,7 @@ test('Windows CI measures the actual Electron rectangle before building installe
  const smoke=read('src/services/ui-geometry-smoke.cjs');
  assert.match(workflow,/Test actual Electron layout on Windows/);
  assert.match(workflow,/npm run smoke:ui/);
- assert.match(smoke,/dock_does_not_span_window/);
+ assert.match(smoke,/dock_does_not_span_chosen_edge/);
  assert.match(smoke,/omnibox_not_visible/);
  assert.match(smoke,/home/);
  assert.match(smoke,/win\.capturePage\(\)/);
