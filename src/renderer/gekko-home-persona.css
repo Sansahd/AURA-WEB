@@ -1,0 +1,264 @@
+/* GEKKO 2.4 Glass Corner — focused welcome page + real user-controlled dock glass.
+   Loaded AFTER existing themes to override their 97-98.5% opaque backplates.
+   The web page runtime and four dock positions remain unchanged. */
+
+/* Actual dock material must respond to Persona, not an old hard-coded gradient. */
+body:is([data-rail-position="top"],[data-rail-position="bottom"],
+        [data-rail-position="left"],[data-rail-position="right"]) #bottom-dock,
+body:is([data-rail-position="top"],[data-rail-position="bottom"],
+        [data-rail-position="left"],[data-rail-position="right"]).rail-site-tinted #bottom-dock {
+  --gekko-chrome-background: rgba(9,23,29,var(--quantic-glass-opacity,.35));
+  --gekko-chrome-edge: rgba(219,255,246,.20);
+  background:rgba(9,23,29,var(--quantic-glass-opacity,.35))!important;
+  background-image:none!important;
+  border:1px solid rgba(219,255,246,.19)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 4px 15px rgba(0,0,0,.09)!important;
+  backdrop-filter:blur(20px) saturate(112%)!important;
+  -webkit-backdrop-filter:blur(20px) saturate(112%)!important;
+  isolation:auto!important;
+}
+/* Do not create a second sheet of glass or a dark painted area BEHIND dock. */
+#bottom-dock::before,#bottom-dock::after{
+  content:none!important;
+  background:none!important;
+  box-shadow:none!important;
+}
+#bottom-dock .nav-row,
+#bottom-dock .dock-cluster,
+#bottom-dock > #sidestage-rail,
+#bottom-dock > #sidestage-rail .gekko-tab-shelf,
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls {
+  background:transparent!important;
+  background-image:none!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+#bottom-dock .address{
+  background:rgba(255,255,255,.065)!important;
+  background-image:none!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.095)!important;
+}
+#bottom-dock .dock-control,
+#bottom-dock > #sidestage-rail > button,
+#bottom-dock .gekko-rail-window-controls button {
+  background:rgba(255,255,255,.035)!important;
+  background-image:none!important;
+  box-shadow:none!important;
+}
+#bottom-dock .dock-control:hover,
+#bottom-dock > #sidestage-rail > button:hover,
+#bottom-dock .gekko-rail-window-controls button:hover{
+  background:rgba(255,255,255,.13)!important;
+}
+/* Center SVG, custom pictograms and brand marks consistently within existing
+   click targets. Keep dimensions/flex basis from the tested wide/side docks. */
+#bottom-dock .dock-control,
+#bottom-dock > #sidestage-rail > button,
+#bottom-dock .gekko-rail-window-controls button,
+.gekko-home-tools button {
+  display:grid!important;
+  place-items:center!important;
+  text-align:center!important;
+  line-height:1!important;
+  padding:0!important;
+}
+#bottom-dock .dock-control svg,
+#bottom-dock .dock-control img,
+#bottom-dock > #sidestage-rail > button img,
+#bottom-dock .gekko-rail-window-controls svg,
+.gekko-home-tools svg{
+  display:block!important;
+  width:20px!important;
+  height:20px!important;
+  max-width:24px!important;
+  max-height:24px!important;
+  margin:0 auto!important;
+  object-fit:contain!important;
+  flex-shrink:0!important;
+}
+#bottom-dock .side-stage-icon{width:23px!important;height:23px!important;}
+#bottom-dock .favorite-heart-eyes{display:grid!important;place-items:center!important;width:24px!important;height:24px!important;margin:0 auto!important;}
+#bottom-dock .tab-favicon{width:17px!important;height:17px!important;object-fit:contain!important;align-self:center!important;}
+#bottom-dock .search-engine-mark,#bottom-dock .search-engine-mark img{
+  display:grid!important;place-items:center!important;
+  object-fit:contain!important;
+}
+.gekko-home-tools button{display:grid!important;place-items:center!important;}
+
+/* Centered, visible and useful homepage search. This is the SAME navigation
+   and search engine as the persistent omnibox, without a duplicate fake UI. */
+.gekko-home-center {
+  position:absolute;
+  z-index:5;
+  top:43%;
+  left:50%;
+  transform:translateX(-50%);
+  box-sizing:border-box;
+  width:min(850px,calc(100% - 48px));
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  align-items:stretch;
+  max-height:41%;
+}
+.gekko-home-search {
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:min(690px,100%);
+  height:58px;
+  min-height:58px;
+  padding:0 8px 0 19px;
+  margin:0 auto;
+  border:1px solid rgba(220,255,249,.32);
+  border-radius:20px;
+  background:rgba(8,26,34,.38);
+  backdrop-filter:blur(21px) saturate(115%);
+  -webkit-backdrop-filter:blur(21px) saturate(115%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 35px rgba(0,0,0,.13);
+  transition:border-color .17s ease,background .17s ease;
+}
+.gekko-home-search:focus-within{
+  border-color:rgba(145,254,220,.75);
+  background:rgba(8,26,34,.56);
+}
+.gekko-home-search > svg{
+  width:22px;height:22px;min-width:22px;
+  fill:none;stroke:rgba(228,255,248,.83);stroke-width:1.8;stroke-linecap:round;
+}
+.gekko-home-search input{
+  width:100%;min-width:0;flex:1 1 auto;
+  height:100%;
+  background:transparent;
+  border:0;
+  outline:none;
+  color:#f4ffff;
+  font:500 16px/1.4 system-ui,sans-serif;
+  -webkit-app-region:no-drag;
+}
+.gekko-home-search input::placeholder{color:rgba(221,253,250,.72)}
+.gekko-home-search input::-webkit-search-cancel-button{cursor:pointer}
+.gekko-home-search button{
+  flex:0 0 40px;
+  width:40px;height:40px;min-width:40px;
+  display:grid;place-items:center;
+  padding:0;margin:0;
+  border:1px solid rgba(219,255,246,.16);
+  border-radius:13px;
+  background:rgba(153,255,211,.11);
+  color:#eafff6;
+  font:500 24px/1 system-ui,sans-serif;
+  cursor:pointer;
+}
+.gekko-home-search button:hover{background:rgba(153,255,211,.23)}
+.gekko-home-search :focus-visible,.gekko-home-favorites :focus-visible{
+  outline:2px solid #a0ffdd;outline-offset:3px;
+}
+.gekko-home-favorites {
+  box-sizing:border-box;
+  width:100%;
+  padding:0 3px;
+  overflow:hidden;
+}
+.gekko-home-favorites-head {
+  display:flex;align-items:center;justify-content:space-between;
+  gap:15px;
+  min-height:27px;
+  padding:0 7px 8px;
+}
+.gekko-home-favorites-head h2 {
+  font-size:12px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;
+  color:rgba(239,255,248,.86);
+  margin:0;
+}
+.gekko-home-favorites-head button {
+  background:transparent;border:0;padding:4px 6px;
+  color:rgba(220,255,245,.77);font-size:11px;cursor:pointer;
+}
+.gekko-home-favorites-head button:hover{color:#e8fff3;}
+.gekko-home-favorites-grid {
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:9px;
+  width:100%;
+}
+.gekko-home-favorite {
+  display:flex;align-items:center;gap:9px;
+  box-sizing:border-box;min-width:0;
+  height:54px;min-height:54px;
+  padding:7px 9px;
+  text-align:left;
+  color:#f2fffd;
+  border:1px solid rgba(238,255,248,.13);
+  border-radius:14px;
+  background:rgba(5,25,32,.30);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  cursor:pointer;
+  transition:border-color .16s ease,background .16s ease,transform .16s ease;
+}
+.gekko-home-favorite:hover{
+  border-color:rgba(180,255,234,.43);
+  background:rgba(15,50,58,.48);
+  transform:translateY(-2px);
+}
+.gekko-home-favorite-mark {
+  flex:0 0 31px;
+  display:grid;place-items:center;
+  width:31px;height:31px;
+  border-radius:10px;
+  background:rgba(144,244,209,.15);
+  border:1px solid rgba(219,255,246,.12);
+  color:#ddfff5;
+  font:600 15px/1 system-ui,sans-serif;
+}
+.gekko-home-favorite-info{
+  min-width:0;flex:1 1 auto;
+  display:flex;flex-direction:column;gap:3px;
+}
+.gekko-home-favorite-info strong,.gekko-home-favorite-info small{
+  display:block;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.gekko-home-favorite-info strong{font:600 11px/1.2 system-ui,sans-serif}
+.gekko-home-favorite-info small{font:400 9px/1.2 system-ui,sans-serif;color:rgba(211,243,236,.58)}
+.gekko-home-favorites-empty{
+  grid-column:1/-1;
+  text-align:center;
+  padding:13px 8px;margin:0;
+  color:rgba(224,249,245,.72);font-size:12px;
+  border:1px dashed rgba(209,255,241,.17);
+  border-radius:13px;
+  background:rgba(5,25,32,.12);
+}
+.gekko-home-cards{bottom:4%!important}
+.gekko-home-caption{display:none!important}
+@media (max-width:1150px) {
+  .gekko-home-favorites-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .gekko-home-center{top:40%;gap:13px;max-height:49%}
+  .gekko-home-favorite{height:48px;min-height:48px}
+  .gekko-home-cards{bottom:2%!important}
+}
+@media (max-width:760px) {
+  .gekko-home-center{width:calc(100% - 22px);top:38%;gap:11px;max-height:57%}
+  .gekko-home-search{height:49px;min-height:49px;border-radius:16px}
+  .gekko-home-search input{font-size:13px}
+  .gekko-home-favorites-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .gekko-home-favorite{padding:5px;height:43px;min-height:43px;gap:5px}
+  .gekko-home-favorite-mark{width:26px;height:26px;flex-basis:26px}
+  .gekko-home-favorite-info small{display:none}
+  .gekko-home-cards{display:none!important}
+}
+@media (max-height:640px) {
+  .gekko-home-brand{top:2%!important}
+  .gekko-home-brand img{width:72px!important;height:72px!important}
+  .gekko-home-brand strong{font-size:30px!important}
+  .gekko-home-center{top:35%;max-height:61%;gap:9px}
+  .gekko-home-favorite{height:41px;min-height:41px}
+  .gekko-home-cards{display:none!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .gekko-home-favorite,.gekko-home-search{transition:none!important}
+}
