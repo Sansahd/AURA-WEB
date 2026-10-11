@@ -27,12 +27,17 @@ function scheduleGeometrySmoke(win, app) {
         const dock = rect('#bottom-dock');
         const rail = rect('#bottom-dock > #sidestage-rail');
         const input = rect('#bottom-dock #address');
+        const homeSearch = rect('#home-search-input');
+        const favoriteTiles = document.querySelectorAll('#home-favorites-list .gekko-home-favorite').length;
+        const dockSurface = getComputedStyle(document.querySelector('#bottom-dock'));
+        const dockBackground = dockSurface.backgroundColor;
+        const dockBackgroundImage = dockSurface.backgroundImage;
         const tabShelf = rect('#bottom-dock .gekko-tab-shelf');
         const windowControls = rect('#bottom-dock .gekko-rail-window-controls');
         return {
           width:innerWidth,height:innerHeight,dpr:devicePixelRatio,
           railPosition:document.body.dataset.railPosition,
-          shell,home,scene,dock,rail,input,tabShelf,windowControls
+          shell,home,scene,dock,rail,input,homeSearch,favoriteTiles,dockBackground,dockBackgroundImage,tabShelf,windowControls
         };
       })()`, true);
       const tolerance = 16;
@@ -65,6 +70,17 @@ function scheduleGeometrySmoke(win, app) {
       )) errors.push('dock_does_not_span_chosen_edge');
       if (!snapshot.input || !snapshot.input.visible || snapshot.input.width < (vertical ? 6 : 55))
         errors.push('omnibox_not_visible');
+      if (!snapshot.homeSearch || !snapshot.homeSearch.visible ||
+          snapshot.homeSearch.width < 190 ||
+          Math.abs((snapshot.homeSearch.left+snapshot.homeSearch.right)/2-
+                   (snapshot.home.left+snapshot.home.right)/2)>23)
+        errors.push('home_center_search_missing_or_offcenter');
+      if (snapshot.favoriteTiles < 2) errors.push('local_home_favorites_missing');
+      // CSS must not silently reapply an opaque 97% backplate from the older themes.
+      const match=/rgba?\\([^,]+,[^,]+,[^,]+(?:,\\s*([0-9.]+))?\\)/.exec(snapshot.dockBackground||'');
+      const alpha=match ? Number(match[1]??1) : 1;
+      if (alpha > .90 || snapshot.dockBackgroundImage!=='none')
+        errors.push('dock_material_not_translucent');
       if (!snapshot.rail || (
         vertical
           ? snapshot.rail.height < 30 || snapshot.rail.bottom > snapshot.dock.bottom + 2
