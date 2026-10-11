@@ -1835,6 +1835,11 @@ app.whenReady().then(async () => {
   if(process.env.GEKKO_LAYOUT_SMOKE==='1' &&
      ['top','bottom','left','right'].includes(process.env.GEKKO_LAYOUT_POSITION)){
     store.setSetting('railPosition',process.env.GEKKO_LAYOUT_POSITION);
+    // Exercise the real local favorites path in isolated GitHub Actions smoke.
+    if (!store.favorites(1).length) {
+      store.toggleFavorite({title:'France Travail',url:'https://www.francetravail.fr/'});
+      store.toggleFavorite({title:'Quantic Sillage',url:'https://mediumorchid-badger-314305.hostingersite.com/'});
+    }
   }
   normalSession = session.fromPartition(NORMAL_PARTITION, { cache: true });
   // No "persist:" prefix: Chromium keeps this profile in memory only.
