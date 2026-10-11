@@ -13,7 +13,7 @@
     "smoke:ui": "node scripts/gekko-layout-smoke.cjs"
   },
   "devDependencies": {
-    "electron": "44.1.0",
+    "electron": "https://github.com/castlabs/electron-releases#v44.5.1+wvcus",
     "electron-builder": "26.15.3"
   },
   "build": {
