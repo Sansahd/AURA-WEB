@@ -3,8 +3,8 @@
  * Uses the REAL Glass Corner DOM, colors, blur and controls.
  * No stacked redesign, no separate side rail, no visible scrollbars.
  */
-body[data-rail-position="bottom"] #bottom-dock,
-body.chrome-hidden[data-rail-position="bottom"] #bottom-dock{
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock,
+body.chrome-hidden:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock{
   box-sizing:border-box!important;
   position:absolute!important;
   left:8px!important;right:8px!important;top:auto!important;bottom:6px!important;
@@ -22,11 +22,11 @@ body.chrome-hidden[data-rail-position="bottom"] #bottom-dock{
   -webkit-backdrop-filter:blur(24px) saturate(118%)!important;
   overflow:visible!important;opacity:1!important;pointer-events:auto!important;
 }
-body.chrome-hidden[data-rail-position="bottom"] #bottom-dock{
+body.chrome-hidden:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock{
   transform:translate3d(0,74px,0)!important;opacity:0!important;pointer-events:none!important;
 }
 #bottom-dock .dock-drag-grip{width:66px!important;height:7px!important}
-body[data-rail-position="bottom"] #bottom-dock .nav-row{
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock .nav-row{
   box-sizing:border-box!important;
   display:flex!important;flex:0 1 660px!important;
   flex-direction:row!important;align-items:center!important;gap:4px!important;
@@ -45,7 +45,7 @@ body[data-rail-position="bottom"] #bottom-dock .nav-row{
   background:rgba(255,255,255,.035)!important;
 }
 #bottom-dock .dock-separator{flex:0 0 1px!important;margin:0 1px!important}
-body[data-rail-position="bottom"] #bottom-dock .address-wrap{
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock .address-wrap{
   display:block!important;position:relative!important;
   flex:1 1 230px!important;width:auto!important;min-width:120px!important;max-width:400px!important;
   height:42px!important;margin:0!important;-webkit-app-region:no-drag!important;
@@ -61,9 +61,9 @@ body[data-rail-position="bottom"] #bottom-dock .address-wrap{
 #bottom-dock .dock-actions{flex:0 0 auto!important}
 /* The original SideStage controls are physically relocated into the dock.
    Override its old fixed vertical position, not its behavior. */
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail,
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail.collapsed,
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail:not(.rail-minimized){
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail,
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail.collapsed,
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail:not(.rail-minimized){
   box-sizing:border-box!important;
   position:static!important;
   inset:auto!important;top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;
@@ -99,7 +99,7 @@ body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail:not(.rail-minim
 #bottom-dock > #sidestage-rail .side-stage-icon{
   max-width:22px!important;max-height:22px!important;
 }
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .gekko-tab-shelf{
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail .gekko-tab-shelf{
   box-sizing:border-box!important;position:relative!important;
   display:flex!important;flex:1 1 125px!important;flex-direction:row!important;
   align-items:center!important;justify-content:flex-start!important;gap:3px!important;
@@ -109,7 +109,7 @@ body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .gekko-tab-shel
   border:0!important;border-left:1px solid rgba(245,255,248,.12)!important;
   overflow:hidden!important;
 }
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .tabs{
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail .tabs{
   display:flex!important;flex:1 1 auto!important;
   flex-direction:row!important;flex-wrap:nowrap!important;
   align-items:center!important;justify-content:flex-start!important;gap:3px!important;
@@ -119,7 +119,7 @@ body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .tabs{
   overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none!important;
 }
 #bottom-dock > #sidestage-rail .tabs::-webkit-scrollbar{display:none!important}
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .tab{
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail .tab{
   box-sizing:border-box!important;
   display:flex!important;flex:0 1 100px!important;
   flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;
@@ -144,7 +144,7 @@ body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .tab{
   width:29px!important;min-width:29px!important;height:32px!important;
   margin:0!important;padding:0!important;border-radius:9px!important;
 }
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .gekko-rail-window-controls{
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail .gekko-rail-window-controls{
   box-sizing:border-box!important;display:flex!important;
   flex:0 0 90px!important;flex-direction:row!important;
   align-items:center!important;justify-content:space-between!important;gap:2px!important;
@@ -160,12 +160,12 @@ body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .gekko-rail-win
   -webkit-app-region:no-drag!important;
 }
 #bottom-dock > #sidestage-rail .gekko-rail-window-controls button[data-win="close"]{margin:0!important}
-body[data-rail-position="bottom"] .home,
-body[data-rail-position="bottom"] .internal-page,
-body[data-rail-position="bottom"] .navigation-transition{
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) .home,
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) .internal-page,
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) .navigation-transition{
   inset:0 0 60px 0!important;
 }
-body[data-rail-position="bottom"] .ai-panel{right:12px!important;bottom:72px!important}
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) .ai-panel{right:12px!important;bottom:72px!important}
 /* On narrow screens prioritize search, Mail and SOCIAL; never generate a
    scrollable vertical pack or overlapping toolbar buttons. */
 @media(max-width:1250px){
@@ -202,9 +202,9 @@ html, body, #shell {
   inset:0!important;
   overflow:hidden!important;
 }
-body[data-rail-position="bottom"] #home,
-body[data-rail-position="bottom"] #internal-page,
-body[data-rail-position="bottom"] .navigation-transition {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #home,
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #internal-page,
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) .navigation-transition {
   box-sizing:border-box!important;
   position:absolute!important;
   left:0!important;right:0!important;
@@ -213,13 +213,13 @@ body[data-rail-position="bottom"] .navigation-transition {
   max-width:none!important;
   min-width:0!important;
 }
-body[data-rail-position="bottom"] #home .gekko-home-scene {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #home .gekko-home-scene {
   position:absolute!important;
   inset:0!important;
   width:100%!important;
   max-width:none!important;
 }
-body[data-rail-position="bottom"] #bottom-dock {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock {
   position:fixed!important;
   left:8px!important;
   right:8px!important;
@@ -229,7 +229,7 @@ body[data-rail-position="bottom"] #bottom-dock {
   box-sizing:border-box!important;
   justify-content:space-between!important;
 }
-body[data-rail-position="bottom"] #bottom-dock > .nav-row {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > .nav-row {
   flex:1 1 52%!important;
   width:auto!important;
   min-width:0!important;
@@ -237,7 +237,7 @@ body[data-rail-position="bottom"] #bottom-dock > .nav-row {
   margin:0!important;
   justify-content:flex-start!important;
 }
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail:not(.rail-minimized) {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail:not(.rail-minimized) {
   position:relative!important;
   flex:1 1 48%!important;
   width:auto!important;
@@ -247,18 +247,18 @@ body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail:not(.rail-minim
   overflow:hidden!important;
 }
 /* Keep tab space elastic; preserve every visible action and the +. */
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .gekko-tab-shelf {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail .gekko-tab-shelf {
   flex:1 1 auto!important;
   min-width:45px!important;
   max-width:none!important;
 }
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .tabs {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail .tabs {
   flex:1 1 auto!important;
   min-width:0!important;
   max-width:none!important;
 }
 /* Avoid clipping the actual start/end of the glass toolbar. */
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .gekko-rail-window-controls {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail .gekko-rail-window-controls {
   flex:0 0 90px!important;
   margin-left:auto!important;
 }
@@ -267,13 +267,13 @@ body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail .gekko-rail-win
 /* Real Windows screenshot check: input was only 35px at 1024px.
    Use an icon-only search-engine selector and give the omnibox priority.
    Preserve the engine selection popup and every existing click handler. */
-body[data-rail-position="bottom"] #bottom-dock > .nav-row {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > .nav-row {
   flex:1 1 58%!important;
 }
-body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail:not(.rail-minimized) {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail:not(.rail-minimized) {
   flex:1 1 42%!important;
 }
-body[data-rail-position="bottom"] #bottom-dock .address-wrap {
+body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock .address-wrap {
   flex:1 1 240px!important;
   min-width:150px!important;
   max-width:400px!important;
@@ -318,10 +318,238 @@ body[data-rail-position="bottom"] #bottom-dock .address-wrap {
   padding:4px!important;
 }
 @media(max-width:960px){
-  body[data-rail-position="bottom"] #bottom-dock > .nav-row{
+  body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > .nav-row{
     flex:1 1 61%!important;
   }
-  body[data-rail-position="bottom"] #bottom-dock > #sidestage-rail:not(.rail-minimized){
+  body:is([data-rail-position="bottom"],[data-rail-position="top"]) #bottom-dock > #sidestage-rail:not(.rail-minimized){
     flex:1 1 39%!important;
+  }
+}
+
+
+/* Four-edge toolbar: top uses exactly the same Glass Corner components.
+   The shell remains full-width; no separate floating panel is introduced. */
+body[data-rail-position="top"] #bottom-dock,
+body.chrome-hidden[data-rail-position="top"] #bottom-dock{
+  top:6px!important;
+  bottom:auto!important;
+}
+body[data-rail-position="top"] #home,
+body[data-rail-position="top"] #internal-page,
+body[data-rail-position="top"] .navigation-transition{
+  top:60px!important;bottom:0!important;left:0!important;right:0!important;
+  width:100%!important;max-width:none!important;
+}
+body[data-rail-position="top"] .ai-panel{
+  top:74px!important;bottom:10px!important;
+}
+
+/* Left and right: narrow vertical dock. The browser reserves only 96px,
+   not the former 220px wasted side panel. The search input expands into a
+   temporary 322px native viewport reservation only while focused. */
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock,
+body.chrome-hidden:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock{
+  box-sizing:border-box!important;
+  position:fixed!important;
+  top:8px!important;bottom:8px!important;
+  left:8px!important;right:auto!important;
+  width:80px!important;min-width:80px!important;max-width:80px!important;
+  height:calc(100vh - 16px)!important;min-height:0!important;max-height:none!important;
+  display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;
+  align-items:center!important;justify-content:flex-start!important;
+  gap:4px!important;padding:6px 4px!important;margin:0!important;
+  transform:none!important;
+  border:1px solid var(--gekko-chrome-edge)!important;
+  border-radius:20px!important;
+  background:var(--gekko-chrome-background)!important;
+  box-shadow:0 4px 16px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.12)!important;
+  backdrop-filter:blur(24px) saturate(118%)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(118%)!important;
+  overflow:visible!important;
+  opacity:1!important;pointer-events:auto!important;
+}
+body[data-rail-position="right"] #bottom-dock,
+body.chrome-hidden[data-rail-position="right"] #bottom-dock{
+  left:auto!important;right:8px!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .dock-drag-grip{
+  display:none!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > .nav-row {
+  box-sizing:border-box!important;
+  display:flex!important;flex:0 0 auto!important;
+  flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;
+  width:68px!important;max-width:68px!important;min-width:0!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  padding:0!important;margin:0!important;gap:3px!important;
+  -webkit-app-region:no-drag!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .dock-cluster {
+  box-sizing:border-box!important;
+  display:flex!important;flex:0 0 auto!important;
+  flex-direction:row!important;flex-wrap:wrap!important;
+  align-items:center!important;justify-content:center!important;
+  width:68px!important;max-width:68px!important;min-width:0!important;
+  height:auto!important;gap:2px!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .dock-control{
+  box-sizing:border-box!important;
+  width:30px!important;height:29px!important;min-width:30px!important;
+  flex:0 0 30px!important;padding:4px!important;margin:0!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .dock-separator{
+  display:none!important;
+}
+/* A search is always represented, and its true text field expands on click. */
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .address-wrap{
+  box-sizing:border-box!important;
+  position:relative!important;inset:auto!important;
+  order:0!important;
+  display:flex!important;flex:0 0 42px!important;
+  width:68px!important;max-width:68px!important;min-width:0!important;
+  height:42px!important;margin:0!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .address{
+  width:100%!important;height:42px!important;padding:0 2px!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .search-engine-button{
+  flex:0 0 26px!important;width:26px!important;min-width:26px!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .address-go{display:none!important}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .address input{
+  width:100%!important;min-width:0!important;flex:1 1 auto!important;font-size:11px!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .address-wrap:focus-within {
+  position:fixed!important;
+  z-index:250!important;
+  top:16px!important;
+  left:98px!important;
+  right:auto!important;
+  bottom:auto!important;
+  width:300px!important;
+  max-width:min(300px,calc(100vw - 110px))!important;
+  height:45px!important;
+  background:var(--gekko-chrome-background)!important;
+  border-radius:14px!important;
+}
+body[data-rail-position="right"] #bottom-dock .address-wrap:focus-within{
+  left:auto!important;right:98px!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .address-wrap:focus-within .address-go {
+  display:grid!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .site-suggestions{
+  position:fixed!important;
+  top:65px!important;
+  bottom:auto!important;
+  width:300px!important;
+  max-width:min(300px,calc(100vw - 110px))!important;
+  left:98px!important;right:auto!important;
+  max-height:240px!important;overflow-y:auto!important;
+}
+body[data-rail-position="right"] #bottom-dock .site-suggestions{
+  left:auto!important;right:98px!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail,
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail:not(.rail-minimized){
+  box-sizing:border-box!important;
+  position:relative!important;inset:auto!important;
+  display:flex!important;flex:1 1 auto!important;
+  flex-direction:column!important;flex-wrap:nowrap!important;
+  align-items:center!important;justify-content:flex-start!important;
+  width:70px!important;min-width:0!important;max-width:70px!important;
+  min-height:0!important;height:auto!important;max-height:none!important;
+  margin:0!important;padding:3px 0!important;gap:2px!important;
+  border:0!important;border-radius:0!important;
+  background:transparent!important;box-shadow:none!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  transform:none!important;
+  overflow:hidden!important;pointer-events:auto!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail .gekko-window-grip{
+  flex:0 0 12px!important;height:12px!important;width:45px!important;
+  min-height:12px!important;min-width:45px!important;
+  margin:0!important;padding:0!important;font-size:12px!important;
+  cursor:grab!important;-webkit-app-region:drag!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail > button{
+  box-sizing:border-box!important;
+  display:grid!important;place-items:center!important;
+  flex:0 0 28px!important;height:28px!important;width:32px!important;
+  min-height:28px!important;min-width:32px!important;
+  padding:2px!important;margin:0!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail > .side-stage-app{
+  display:inline-grid!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail .gekko-tab-shelf{
+  box-sizing:border-box!important;
+  display:flex!important;flex:1 1 auto!important;
+  flex-direction:column!important;align-items:center!important;
+  width:67px!important;min-width:0!important;max-width:67px!important;
+  min-height:38px!important;height:auto!important;max-height:none!important;
+  margin:0!important;padding:3px!important;gap:2px!important;
+  border:0!important;border-top:1px solid rgba(245,255,248,.12)!important;
+  overflow:hidden!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail .tabs{
+  display:flex!important;flex:1 1 auto!important;
+  flex-direction:column!important;flex-wrap:nowrap!important;
+  align-items:center!important;justify-content:flex-start!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  min-height:0!important;height:auto!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+  scrollbar-width:none!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail .tab{
+  display:flex!important;flex:0 0 29px!important;
+  width:61px!important;min-width:0!important;max-width:61px!important;
+  height:29px!important;min-height:29px!important;
+  padding:0 3px!important;margin:0!important;gap:2px!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail .tab-title{
+  font-size:9px!important;min-width:0!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail .plus{
+  display:grid!important;flex:0 0 28px!important;
+  height:28px!important;min-height:28px!important;width:30px!important;
+  margin:0!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail .gekko-rail-window-controls{
+  box-sizing:border-box!important;
+  display:flex!important;flex:0 0 28px!important;
+  flex-direction:row!important;align-items:center!important;justify-content:center!important;
+  gap:1px!important;
+  width:70px!important;min-width:70px!important;max-width:70px!important;
+  height:28px!important;min-height:28px!important;margin:0!important;padding:0!important;
+  border:0!important;border-top:1px solid rgba(245,255,248,.14)!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock > #sidestage-rail .gekko-rail-window-controls button{
+  flex:0 0 21px!important;width:21px!important;min-width:21px!important;
+  height:24px!important;min-height:24px!important;padding:0!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"]) #home,
+body:is([data-rail-position="left"],[data-rail-position="right"]) #internal-page,
+body:is([data-rail-position="left"],[data-rail-position="right"]) .navigation-transition{
+  position:absolute!important;top:0!important;bottom:0!important;
+  width:auto!important;min-width:0!important;max-width:none!important;
+}
+body[data-rail-position="left"] #home,
+body[data-rail-position="left"] #internal-page,
+body[data-rail-position="left"] .navigation-transition{
+  left:96px!important;right:0!important;
+}
+body[data-rail-position="right"] #home,
+body[data-rail-position="right"] #internal-page,
+body[data-rail-position="right"] .navigation-transition{
+  left:0!important;right:96px!important;
+}
+body.chrome-hidden:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock{
+  opacity:0!important;pointer-events:none!important;
+}
+@media(max-height:760px){
+  body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .dock-actions #persona,
+  body:is([data-rail-position="left"],[data-rail-position="right"]) #bottom-dock .dock-primary #apps-button{
+    display:none!important;
   }
 }
