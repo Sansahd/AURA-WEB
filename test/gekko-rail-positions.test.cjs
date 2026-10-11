@@ -5,29 +5,33 @@ const fs=require('node:fs');
 const path=require('node:path');
 const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
 
-test('Glass Corner preferences migrate from side rail to one bottom-width bar',()=>{
- const store=read('src/services/store.cjs'),main=read('src/main.cjs');
+test('Glass Corner persists all four dock positions and exposes an actual chooser',()=>{
+ const store=read('src/services/store.cjs'),main=read('src/main.cjs'),ipc=read('src/security/ipc-firewall.cjs');
  assert.match(store,/railPosition: 'bottom'/);
- assert.match(store,/railPosition: 'bottom', \/\/ Migrate/);
- assert.match(store,/key === 'railPosition' && value !== 'bottom'/);
- assert.match(main,/let railPinned = true/);
- assert.match(main,/let railCollapsed = false/);
- assert.match(main,/En bas · barre pleine largeur/);
+ assert.match(store,/\['top','bottom','left','right'\]\.includes\(existingSettings\.railPosition\)/);
+ assert.match(store,/\['top','bottom','left','right'\]\.includes\(value\)/);
+ assert.match(ipc,/\['top', 'bottom', 'left', 'right'\]\.includes\(value\)/);
+ for(const pos of ["top","bottom","left","right"]){
+   assert.ok(main.includes("chooseRailPosition('"+pos+"')"),pos);
+ }
  assert.match(main,/store\.setSetting\('railPosition', position\)/);
 });
 
-test('native website keeps full horizontal width and Glass Corner dock occupies only 60px',()=>{
- const main=read('src/main.cjs');
- const css=read('src/renderer/gekko-glass-wide.css');
- assert.match(main,/const BOTTOM_DOCK_H = 60/);
- assert.match(main,/const sideLeft = 0/);
- assert.match(main,/const sideRight = stageWidth \+ aiWidth/);
+test('native pages reserve only the chosen edge and retain reader support',()=>{
+ const main=read('src/main.cjs'),css=read('src/renderer/gekko-glass-wide.css');
+ assert.match(main,/const topRail = !chromeHidden && railPosition === 'top'/);
+ assert.match(main,/const bottom = !chromeHidden && railPosition === 'bottom'/);
+ assert.match(main,/const leftRail = railPosition === 'left'/);
+ assert.match(main,/const rightRail = railPosition === 'right'/);
+ assert.match(main,/const sideLeft = leftRail/);
+ assert.match(main,/const sideRight = rightRail \+ stageWidth \+ aiWidth/);
  assert.match(main,/const bounds = \{ x: sideLeft, y: viewTop, width: Math\.max\(1, width - sideLeft - sideRight\), height: availableHeight \}/);
- assert.match(main,/const stageX = Math\.max\(0, width - stageWidth\)/);
- assert.match(css,/width:calc\(100% - 16px\)!important/);
- assert.match(css,/inset:0 0 60px 0!important/);
  assert.match(css,/height:54px!important/);
- assert.match(css,/background:var\(--gekko-chrome-background\)!important/);
+ assert.match(css,/body\[data-rail-position="top"\] #bottom-dock/);
+ assert.match(css,/body\[data-rail-position="left"\] #bottom-dock/);
+ assert.match(css,/body\[data-rail-position="right"\] #bottom-dock/);
+ assert.match(css,/width:80px!important/);
+ assert.match(css,/height:calc\(100vh - 16px\)!important/);
 });
 
 test('Glass Corner original sidebar controls really share the dock with permanent search',()=>{
