@@ -77,7 +77,7 @@ function scheduleGeometrySmoke(win, app) {
         errors.push('home_center_search_missing_or_offcenter');
       if (snapshot.favoriteTiles < 2) errors.push('local_home_favorites_missing');
       // CSS must not silently reapply an opaque 97% backplate from the older themes.
-      const match=/rgba?\\([^,]+,[^,]+,[^,]+(?:,\\s*([0-9.]+))?\\)/.exec(snapshot.dockBackground||'');
+      const match=/rgba?\([^,]+,[^,]+,[^,]+(?:,\s*([0-9.]+))?\)/.exec(snapshot.dockBackground||'');
       const alpha=match ? Number(match[1]??1) : 1;
       if (alpha > .90 || snapshot.dockBackgroundImage!=='none')
         errors.push('dock_material_not_translucent');
