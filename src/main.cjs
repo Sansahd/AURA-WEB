@@ -108,8 +108,8 @@ let activeId = null;
 let nextId = 1;
 let aiOpen = false;
 let aiRuntime = {
-  engine: 'aura-2',
-  label: 'AURA 2.0',
+  engine: 'aura-cloud',
+  label: 'AURA · Cloud autonome',
   model: '',
   role: '',
   distributed: false,
