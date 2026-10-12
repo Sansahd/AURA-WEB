@@ -94,6 +94,24 @@ function installFingerprintGuard() {
   } catch {}
 }
 
+// Browser-native viewport scrollbar. Avoid restyling arbitrary in-page
+// scroll containers or breaking sites with their own widget scrollbars.
+function installGekkoViewportScrollbar() {
+  const apply = () => {
+    if (!document.documentElement || document.getElementById('gekko-viewport-scrollbar')) return;
+    const style = document.createElement('style');
+    style.id = 'gekko-viewport-scrollbar';
+    style.textContent = `
+      :root { scrollbar-width: thin; scrollbar-color: rgba(108,169,170,.55) transparent; }
+      @media (forced-colors: active) {
+        :root { scrollbar-color: auto; scrollbar-width: auto; }
+      }`;
+    document.documentElement.appendChild(style);
+  };
+  if (document.documentElement) apply();
+  else document.addEventListener('DOMContentLoaded', apply, { once: true });
+}
+
 // Run only on YouTube, before its page scripts parse the initial player response.
 // This complements the later DOM-ready guard; no work is done on other websites.
 function installYouTubeEarlyAdFilter() {
@@ -143,9 +161,11 @@ function installYouTubeEarlyAdFilter() {
 try {
   if (typeof contextBridge?.executeInMainWorld === 'function') {
     contextBridge.executeInMainWorld({ func: installFingerprintGuard });
+    contextBridge.executeInMainWorld({ func: installGekkoViewportScrollbar });
     contextBridge.executeInMainWorld({ func: installYouTubeEarlyAdFilter });
   } else {
     webFrame.executeJavaScript(`(${installFingerprintGuard.toString()})()`, true).catch(() => {});
+    webFrame.executeJavaScript(`(${installGekkoViewportScrollbar.toString()})()`, true).catch(() => {});
     webFrame.executeJavaScript(`(${installYouTubeEarlyAdFilter.toString()})()`, true).catch(() => {});
   }
 } catch {}
