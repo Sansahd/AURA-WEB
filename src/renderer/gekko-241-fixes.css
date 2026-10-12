@@ -52,3 +52,11 @@ body[data-rail-position] .gekko-home-search button {
   filter:none!important;
   transform:none!important;
 }
+
+/* GEKKO Search displays source-attributed, sanitized links inside GEKKO. */
+.gekko-search-results{display:grid;grid-template-columns:1fr;gap:9px;margin:12px 0}
+.gekko-search-result{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:5px;padding:16px 18px;border:1px solid color-mix(in srgb,var(--quantic-accent,#79efd0) 20%,transparent);border-radius:14px;background:rgba(9,23,29,.35);color:#f2fffa;cursor:pointer}
+.gekko-search-result strong{font-size:16px;font-weight:600}
+.gekko-search-result small{color:#a9dacf;font-size:11px}
+.gekko-search-result span{color:#d5e6df;font-size:13px;line-height:1.5}
+.gekko-search-result:hover{border-color:var(--quantic-accent,#79efd0);background:rgba(28,60,53,.55)}

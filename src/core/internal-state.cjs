@@ -1,4 +1,3 @@
-const { detectIntent } = require('../services/intents.cjs');
 const { normalizeEngine } = require('./navigation.cjs');
 
 function parseInternal(url = 'quantic://newtab') {
@@ -32,20 +31,7 @@ function buildInternalState(url, store, veilSnapshot = {}, careerSnapshot = null
   if (parsed.host === 'newtab') return { kind: 'home' };
 
   if (parsed.host === 'search') {
-    const query = parsed.url.searchParams.get('q') || '';
-    const intent = detectIntent(query);
-    return {
-      kind: 'search',
-      query,
-      intent: { id: intent.id, label: intent.label, sites: intent.sites.map(([name, siteUrl]) => ({ name, url: siteUrl })) },
-      providers: [
-        { id: 'duckduckgo', name: 'DuckDuckGo', detail: 'Privé · direct', url: `https://duckduckgo.com/?q=${encodeURIComponent(query)}` },
-        { id: 'qwant', name: 'Qwant', detail: 'Européen · direct', url: `https://www.qwant.com/?q=${encodeURIComponent(query)}&t=web` },
-        { id: 'startpage', name: 'Startpage', detail: 'Résultats Google sans profilage', url: `https://www.startpage.com/sp/search?query=${encodeURIComponent(query)}` },
-        { id: 'brave', name: 'Brave Search', detail: 'Index indépendant', url: `https://search.brave.com/search?q=${encodeURIComponent(query)}` },
-        { id: 'searxng', name: 'SearXNG', detail: 'Métamoteur open source', url: `https://searxng.website/search?q=${encodeURIComponent(query)}` }
-      ]
-    };
+    return { kind: 'search', query: parsed.url.searchParams.get('q') || '' };
   }
 
   if (parsed.host === 'favorites') {

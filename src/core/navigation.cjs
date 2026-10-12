@@ -61,9 +61,5 @@ function resolveInput(raw, searchEngine = 'gekko') {
   };
 }
 
-// GEKKO Search uses a public Web index to display real results immediately.
-// This can later be replaced by an independent GEKKO index.
-function gekkoSearchTarget(query) {
-  return `https://search.brave.com/search?q=${encodeURIComponent(String(query || '').trim())}`;
-}
-module.exports = { resolveInput, gekkoSearchTarget, normalizeEngine, ENGINES, COMMON_SITES, VALID_ENGINES };
+// GEKKO Search stays inside GEKKO and presents federated results.
+module.exports = { resolveInput, normalizeEngine, ENGINES, COMMON_SITES, VALID_ENGINES };

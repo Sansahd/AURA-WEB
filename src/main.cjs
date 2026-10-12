@@ -13,7 +13,8 @@ const { installCookieConsentRefusal } = require('./services/cookie-consent.cjs')
 const { SITES: POPULAR_SITES } = require('./renderer/site-cache.js');
 const { DIRECT_SCHEME_PREFIX, extractYouTubeVideoId, parseDirectRequest, YouTubeDirectResolver, installYouTubeDirectPlayer, removeYouTubeDirectPlayer } = require('./services/youtube-direct.cjs');
 const { buildInternalState, internalTitle } = require('./core/internal-state.cjs');
-const { resolveInput, gekkoSearchTarget, normalizeEngine } = require('./core/navigation.cjs');
+const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
+const { searchPublicWeb } = require('./services/gekko-search.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { awaitProtectedMedia } = require('./services/protected-media.cjs');
@@ -273,7 +274,11 @@ function state() {
       privateNetwork: isPrivateMode(),
       ephemeralProfile: isPrivateMode(),
       veil: veil?.snapshot() || {}
-    } : (tab && isInternal(tab.url) ? buildInternalState(tab.url, store, veil?.snapshot() || {}, careerAgent?.snapshot?.() || null) : null)
+    } : (tab && isInternal(tab.url) ? {
+      ...buildInternalState(tab.url, store, veil?.snapshot() || {}, careerAgent?.snapshot?.() || null),
+      ...(tab.url.startsWith('quantic://search?')
+        ? { lookup: tab.gekkoSearch || { status: 'loading', results: [], source: '' } } : {})
+    } : null)
   };
 }
 
@@ -975,10 +980,26 @@ function syncFromView(tab, saveHistory = false) {
 async function loadTab(tab, raw) {
   if (!tab) return { ok: false, error: 'Aucun onglet actif' };
   const target = resolvedInput(raw);
-  // GEKKO Search performs the query directly, without a provider-choice page.
+  // Always render results INSIDE GEKKO, never redirect to a provider.
   if (target.value.startsWith('quantic://search?')) {
     const query = new URL(target.value).searchParams.get('q') || '';
-    if (query.trim()) return loadTab(tab, gekkoSearchTarget(query));
+    showInternal(tab, target.value);
+    tab.gekkoSearch = { status: 'loading', results: [], source: '' };
+    emitState(true);
+    if (query.trim()) {
+      const expectedUrl = tab.url;
+      void searchPublicWeb(query,{ fetch: (url,options) => currentSession().fetch(url,options) })
+        .then(result => {
+          if (tabs.get(tab.id) !== tab || tab.url !== expectedUrl) return;
+          tab.gekkoSearch = result;
+          emitState(true);
+        }).catch(() => {
+          if (tabs.get(tab.id) !== tab || tab.url !== expectedUrl) return;
+          tab.gekkoSearch = { status: 'unavailable', results: [], source: '' };
+          emitState(true);
+        });
+    }
+    return { ok: true, url: target.value };
   }
 
   // "Tor" in the search palette is a real route, not a fake search engine.

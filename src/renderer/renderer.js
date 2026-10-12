@@ -322,27 +322,34 @@ function cardButton(title, subtitle, onClick) {
 }
 
 function renderSearch(data) {
+  const lookup = data.lookup || { status: 'loading', results: [] };
   const head = el('div', 'internal-head');
-  const text = el('div');
-  text.append(el('h1', '', data.query || 'Recherche'), el('p', '', `Intention détectée : ${data.intent?.label || 'Rechercher'}`));
-  head.append(text);
+  head.append(el('h1', '', 'GEKKO Search'), el('p', '',
+    'Résultats pour « ' + String(data.query || '').slice(0, 200) + ' »'));
   internalContent.append(head);
-
-  if (data.intent?.sites?.length) {
-    const section = el('section', 'internal-section');
-    section.append(el('h2', '', 'Suggestions GEKKO'));
-    const grid = el('div', 'internal-grid');
-    for (const site of data.intent.sites) grid.append(cardButton(site.name, 'Ouvrir le site', () => fire(window.quantic.navigate(site.url))));
-    section.append(grid);
-    internalContent.append(section);
+  if (lookup.status === 'loading') {
+    internalContent.append(el('p', 'muted', 'Recherche en cours…'));
+    return;
   }
-
-  const web = el('section', 'internal-section');
-  web.append(el('h2', '', 'Rechercher sur le Web'));
-  const grid = el('div', 'internal-grid');
-  for (const provider of data.providers || []) grid.append(cardButton(provider.name, provider.detail || 'Recherche privée', () => fire(window.quantic.navigate(provider.url))));
-  web.append(grid);
-  internalContent.append(web);
+  if (lookup.status !== 'ok' || !Array.isArray(lookup.results) || !lookup.results.length) {
+    internalContent.append(el('div', 'error-card muted',
+      'Résultats momentanément indisponibles. Vérifie ta connexion, puis relance la recherche.'));
+    return;
+  }
+  internalContent.append(el('p','muted', 'Index public : ' + (lookup.source || 'source externe') +
+    ' · interface GEKKO · aucun index propriétaire revendiqué.'));
+  const list = el('div', 'gekko-search-results');
+  for (const result of lookup.results) {
+    if (!/^https?:\/\//i.test(result.url || '')) continue;
+    const item = el('button', 'gekko-search-result');
+    item.type = 'button';
+    let hostname = ''; try { hostname = new URL(result.url).hostname; } catch {}
+    item.append(el('small', '', hostname), el('strong', '', result.title || hostname),
+      el('span', '', result.snippet || ''));
+    item.onclick = () => fire(window.quantic.navigate(result.url));
+    list.append(item);
+  }
+  internalContent.append(list);
 }
 
 function renderHomeFavorites() {

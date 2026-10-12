@@ -3,18 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const { resolveInput, gekkoSearchTarget } = require('../src/core/navigation.cjs');
+const { resolveInput } = require('../src/core/navigation.cjs');
 const { QuanticStore } = require('../src/services/store.cjs');
 
 test('GEKKO routes searches to results, without an intermediate engine selector', () => {
   assert.equal(resolveInput('pourquoi le ciel est bleu').value, 'quantic://search?q=pourquoi%20le%20ciel%20est%20bleu');
-  assert.equal(gekkoSearchTarget('pourquoi le ciel est bleu'),
-    'https://search.brave.com/search?q=pourquoi%20le%20ciel%20est%20bleu');
   assert.equal(resolveInput('youtube').value, 'https://www.youtube.com/');
   assert.equal(resolveInput('https://www.wikipedia.org').type, 'url');
   assert.match(resolveInput('bonjour', 'qwant').value, /^https:\/\/www\.qwant\.com/);
   const main=fs.readFileSync(path.join(__dirname,'../src/main.cjs'),'utf8');
-  assert.match(main,/return loadTab\(tab, gekkoSearchTarget\(query\)\)/);
+  assert.match(main,/searchPublicWeb\(query/); assert.doesNotMatch(main,/gekkoSearchTarget/);
   assert.doesNotMatch(main,/navigate-home-search/);
   const renderer=fs.readFileSync(path.join(__dirname,'../src/renderer/renderer.js'),'utf8');
   assert.match(renderer,/if \(maybeInstantLaunch\(value\)\) return;/);
