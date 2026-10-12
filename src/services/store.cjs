@@ -17,7 +17,8 @@ class QuanticStore {
         immersiveMode: true,
         clearCacheOnExit: false,
         networkMode: 'balanced',
-        compatibilityPolicyVersion: 4,
+        compatibilityPolicyVersion: 5,
+        searchEngineExplicit: false,
         appearance: { ...DEFAULT_APPEARANCE },
         sideStage: { ...DEFAULT_SIDESTAGE, pinnedApps: [...DEFAULT_SIDESTAGE.pinnedApps] },
         extensionPaths: []
@@ -76,7 +77,18 @@ class QuanticStore {
         const allowed = new Set(['gekko', 'duckduckgo', 'qwant', 'startpage', 'brave', 'searxng', 'tor']);
         if (existingSettings.searchEngine === 'quantic') this.data.settings.searchEngine = 'gekko';
         else if (!allowed.has(this.data.settings.searchEngine)) this.data.settings.searchEngine = 'gekko';
-        this.data.settings.compatibilityPolicyVersion = 4;
+      }
+      // v3 silently switched implicit GEKKO defaults to DuckDuckGo. Restore GEKKO
+      // for unmarked profiles once; new explicit choices are permanently retained.
+      if (Number(existing.settings?.compatibilityPolicyVersion || 0) < 5) {
+        const previous = String(existingSettings.searchEngine || '').toLowerCase();
+        const permitted = new Set(['gekko', 'duckduckgo', 'qwant', 'startpage', 'brave', 'searxng', 'tor']);
+        const wasImplicitDuckDuckGo = previous === 'duckduckgo' && existingSettings.searchEngineExplicit !== true;
+        this.data.settings.searchEngine = wasImplicitDuckDuckGo || !permitted.has(previous) ? 'gekko' : previous;
+        this.data.settings.searchEngineExplicit = Boolean(existingSettings.searchEngineExplicit ||
+          (permitted.has(previous) && previous !== 'gekko' && previous !== 'duckduckgo'));
+        this.data.settings.compatibilityPolicyVersion = 5;
+        this.scheduleSave(120);
       }
     } catch {}
     this.reindex();
@@ -122,6 +134,14 @@ class QuanticStore {
   }
 
   setSetting(key, value) {
+    if (key === 'searchEngine') {
+      const { normalizeEngine } = require('../core/navigation.cjs');
+      value = normalizeEngine(value);
+      if (!this.data.settings.searchEngineExplicit) {
+        this.data.settings.searchEngineExplicit = true;
+        this.scheduleSave(120);
+      }
+    }
     if (key === 'appearance') value = normalizeAppearance(value, this.data.settings.appearance);
     if (key === 'railPosition' && !['top','bottom','left','right'].includes(value)) return this.settings();
     if (key === 'sideStage') value = normalizeSideStage(value, this.data.settings.sideStage);

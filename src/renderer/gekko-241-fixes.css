@@ -1,0 +1,54 @@
+/* GEKKO 2.4.1 — ONE final layer for user-selected Persona color and opacity.
+   Previous beta gradients and hardcoded opaque backplates must not win. */
+:root {
+  --gekko-user-accent:var(--quantic-accent,#79efd0);
+  --gekko-user-opacity:var(--quantic-glass-opacity,.22);
+  --gekko-accent-edge:color-mix(in srgb,var(--gekko-user-accent) 55%,transparent);
+  --gekko-accent-wash:color-mix(in srgb,var(--gekko-user-accent) 14%,transparent);
+}
+#chrome, body #chrome {
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+}
+body[data-rail-position] #bottom-dock,
+body[data-rail-position].rail-site-tinted #bottom-dock {
+  --gekko-chrome-background:rgba(9,23,29,var(--gekko-user-opacity));
+  --gekko-chrome-edge:var(--gekko-accent-edge);
+  background:var(--gekko-chrome-background)!important;
+  background-image:none!important;
+  border-color:var(--gekko-accent-edge)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 4px 14px rgba(0,0,0,.13)!important;
+}
+body[data-rail-position] #bottom-dock .address,
+body[data-rail-position] #bottom-dock .search-engine-button {
+  border-color:var(--gekko-accent-edge)!important;
+  background:var(--gekko-accent-wash)!important;
+}
+body[data-rail-position] #bottom-dock :is(.dock-control,.tab.active,.gekko-rail-pin.is-pinned) {
+  border-color:var(--gekko-accent-edge)!important;
+}
+body[data-rail-position] #bottom-dock :is(.dock-control:hover,.tab.active,.search-engine-button:hover) {
+  background:var(--gekko-accent-wash)!important;
+}
+body[data-rail-position] #bottom-dock :is(.address input,.gekko-home-search input) {
+  caret-color:var(--gekko-user-accent)!important;
+}
+body[data-rail-position] :is(.gekko-home-search:focus-within,.gekko-home-search button,
+  .gekko-home-favorite:hover,.engine-option[aria-checked="true"]) {
+  border-color:var(--gekko-accent-edge)!important;
+}
+body[data-rail-position] .gekko-home-search {
+  background:rgba(9,23,29,var(--gekko-user-opacity))!important;
+}
+body[data-rail-position] .gekko-home-search button {
+  background:var(--gekko-accent-wash)!important;
+}
+/* Retina/125-200% Windows scaling: use the vector original, never a scaled favicon. */
+.gekko-home-brand img,
+#bottom-dock .search-engine-mark img {
+  image-rendering:auto!important;
+  object-fit:contain!important;
+  filter:none!important;
+  transform:none!important;
+}

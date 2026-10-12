@@ -60,7 +60,7 @@ function renderSearchEngineControl() {
   const key = currentSearchEngine();
   const meta = SEARCH_ENGINES[key];
   // Reuse the same bundled SVG logos as the engine selector (no network requests).
-  const markSrc = key === 'gekko' ? '../assets/gekko-icon.png'
+  const markSrc = key === 'gekko' ? '../assets/gekko-home-symbol.svg'
     : 'engine-icons/' + (key === 'tor' ? 'torbrowser' : key) + '.svg';
   if (searchEngineMarkImage && searchEngineMarkImage.getAttribute('src') !== markSrc) {
     searchEngineMarkImage.setAttribute('src', markSrc);
@@ -153,7 +153,7 @@ function renderSiteSuggestions(matches = siteMatches) {
 function updateSiteSuggestions() {
   const query = address?.value || '';
   const matches = window.GekkoSiteCache?.matchSites?.(query, 5) || [];
-  siteSelection = 0;
+  siteSelection = -1;
   renderSiteSuggestions(matches);
 }
 
@@ -198,7 +198,9 @@ function openSiteSuggestion(index = siteSelection) {
 function navigateAddressValue() {
   const value = address.value.trim();
   if (!value) return;
-  if (siteMatches.length && openSiteSuggestion(siteSelection)) return;
+  // Enter always searches the typed text, unless the user selected a suggestion
+  // explicitly with the keyboard. Typing an alias never starts navigation.
+  if (siteSelection >= 0 && siteMatches.length && openSiteSuggestion(siteSelection)) return;
   closeSiteSuggestions();
   address.blur();
   fire(window.quantic.navigate(value));
@@ -1111,8 +1113,7 @@ address.oninput = () => {
   }
 
   const value = address.value;
-  maybePrewarmPopularSite(value);
-  if (maybeInstantLaunch(value)) return;
+  // Never prewarm or auto-launch a site just because its name matches typing.
   updateSiteSuggestions();
 };
 address.onkeydown = (event) => {
@@ -1124,7 +1125,7 @@ address.onkeydown = (event) => {
   }
   if (event.key === 'ArrowUp' && siteMatches.length) {
     event.preventDefault();
-    siteSelection = (siteSelection - 1 + siteMatches.length) % siteMatches.length;
+    siteSelection = siteSelection < 0 ? siteMatches.length - 1 : (siteSelection - 1 + siteMatches.length) % siteMatches.length;
     refreshSiteSelection();
     return;
   }
@@ -1142,8 +1143,7 @@ $('#address-go').onclick = () => navigateAddressValue();
 address.onfocus = () => {
   fire(window.quantic.chromeLock(true));
   const value = address.value;
-  maybePrewarmPopularSite(value);
-  if (!maybeInstantLaunch(value)) updateSiteSuggestions();
+  updateSiteSuggestions();
 };
 address.onblur = () => {
   closeSiteSuggestions();
@@ -1191,7 +1191,7 @@ homeSearch.onsubmit=(event)=>{
   event.preventDefault();
   const value=homeSearchInput.value.trim();
   if(!value)return;
-  fire(window.quantic.navigate(value));
+  fire(window.quantic.navigateHomeSearch(value));
 };
 $('#home-all-favorites').onclick=()=>fire(window.quantic.togglePanelTab('quantic://favorites'));
 

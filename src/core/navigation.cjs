@@ -61,4 +61,18 @@ function resolveInput(raw, searchEngine = 'gekko') {
   };
 }
 
-module.exports = { resolveInput, normalizeEngine, ENGINES, COMMON_SITES, VALID_ENGINES };
+// A submitted HOME query is a search, never an implicit shortcut to a brand.
+function resolveHomeSearch(raw, searchEngine = 'gekko') {
+  const value = String(raw || '').trim();
+  if (!value) return { type: 'home', value: 'quantic://newtab' };
+  // Explicit addresses still open as URLs, including localhost and schemes.
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) ||
+      /^(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(value) ||
+      /^[^\s]+\.[a-z]{2,}(?::\d+)?(?:\/.*)?$/i.test(value)) {
+    return resolveInput(value, searchEngine);
+  }
+  const selected = normalizeEngine(searchEngine);
+  return { type: 'search', engine: selected, value: ENGINES[selected](value), requiresTor: selected === 'tor' };
+}
+
+module.exports = { resolveInput, resolveHomeSearch, normalizeEngine, ENGINES, COMMON_SITES, VALID_ENGINES };
