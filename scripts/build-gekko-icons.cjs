@@ -1,7 +1,7 @@
 'use strict';
 /*
- * Canonical source: src/assets/quantic-glide-mark.svg
- * Generate Windows ICO (seven sizes) plus runtime PNG with the same vector.
+ * Canonical source: user-uploaded src/assets/gekko-user-logo.webp.b64
+ * Generate Windows ICO (seven sizes) plus runtime PNG from user's artwork.
  * This script runs in CI before native packaging. Never package Electron's
  * fallback EXE/logo if an icon cannot be rendered.
  */
@@ -9,17 +9,24 @@ const fs=require('node:fs');
 const path=require('node:path');
 const sharp=require('sharp');
 const root=path.resolve(__dirname,'..');
-const svgFile=path.join(root,'src','assets','quantic-glide-mark.svg');
+const userArtwork=path.join(root,'src','assets','gekko-user-logo.webp.b64');
 const pngFile=path.join(root,'src','assets','gekko-icon.png');
 const icoFile=path.join(root,'build','gekko.ico');
 const sizes=[16,24,32,48,64,128,256];
 
 async function build(){
- const svg=fs.readFileSync(svgFile);
- if(!svg.toString('utf8').includes('id="gecko"') ||
-    !svg.toString('utf8').includes('id="earth"'))throw Error('GEKKO art missing gecko or globe');
+ const encoded=fs.readFileSync(userArtwork,'utf8').trim();
+ if(!/^[A-Za-z0-9+/=]+$/.test(encoded))throw Error('Invalid uploaded logo encoding');
+ const artwork=Buffer.from(encoded,'base64');
+ if(artwork.length<4000 || artwork.toString('ascii',0,4)!=='RIFF' ||
+    artwork.toString('ascii',8,12)!=='WEBP')
+   throw Error('GEKKO user artwork not a valid WebP');
+ const meta=await sharp(artwork).metadata();
+ if(meta.width<80 || meta.height<80 || !meta.hasAlpha)
+   throw Error('GEKKO user artwork must be a transparent square');
  const pngs=await Promise.all(sizes.map(size=>
-   sharp(svg,{density:384}).resize(size,size).png({compressionLevel:9}).toBuffer()));
+   sharp(artwork).resize(size,size,{fit:'contain',background:'#00000000'})
+     .png({compressionLevel:9}).toBuffer()));
  const large=pngs[pngs.length-1];
  const dir=Buffer.alloc(6+sizes.length*16);
  dir.writeUInt16LE(0,0);dir.writeUInt16LE(1,2);dir.writeUInt16LE(sizes.length,4);
