@@ -29,15 +29,23 @@ test('favorites are the real locally saved bookmarks and update on any state ref
 test('slider sets opacity live and stores result, with safe lower bound',()=>{
  const persona=read('src/services/persona.cjs'),ui=read('src/renderer/renderer.js');
  const css=read('src/renderer/gekko-home-persona.css');
- assert.match(persona,/glassOpacity: 0\.35/);
+ assert.match(persona,/glassOpacity: 0\.22/);
  assert.match(persona,/clamp\(source\.glassOpacity, 0\.05, 0\.95/);
  assert.match(ui,/glass\.min='\.05'/);
  assert.match(ui,/glass\.oninput=\(\)=>/);
  assert.match(ui,/setProperty\('--quantic-glass-opacity',glass\.value\)/);
  assert.match(ui,/setSetting\('appearance',\{glassOpacity:Number\(glass\.value\)\}\)/);
- assert.match(css,/background:rgba\(9,23,29,var\(--quantic-glass-opacity,\.35\)\)!important/);
+ assert.match(css,/background:rgba\(9,23,29,var\(--quantic-glass-opacity,\.22\)\)!important/);
  assert.match(css,/#bottom-dock::before,#bottom-dock::after/);
  assert.match(css,/#bottom-dock \.nav-row/);
+});
+test('previous 72% opaque GEKKO default migrates once to 22% without overriding custom selections',()=>{
+ const store=read('src/services/store.cjs');
+ const persona=read('src/services/persona.cjs');
+ assert.match(store,/oldAppearance\.glassMaterialVersion/);
+ assert.match(store,/\.glassOpacity=\.22/);
+ assert.match(store,/Math\.abs\(Number\(oldAppearance\.glassOpacity\)-\.72\)/);
+ assert.match(persona,/glassMaterialVersion: 2/);
 });
 test('last-loaded Glass Corner CSS centers icons in all four bar locations',()=>{
  const html=read('src/renderer/index.html'),css=read('src/renderer/gekko-home-persona.css');
