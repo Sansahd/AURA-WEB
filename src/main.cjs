@@ -1727,6 +1727,7 @@ function updateAiRuntime(result = {}, error = '') {
   const engine = String(result.engine || 'aura-2');
   const labels = {
     'distributed-moa': 'AURA 2.0 · Mesh MoA',
+    'aura-cloud': 'AURA · Cloud autonome',
     'aura-local': result.moa ? 'AURA 2.0 · MoA local' : 'AURA 2.0 · local',
     'ollama-direct': 'Ollama · secours local',
     'aura-2': 'AURA 2.0'
@@ -1759,7 +1760,7 @@ async function askAura(prompt, options = {}) {
     return result.answer;
   } catch (error) {
     updateAiRuntime({ engine: 'aura-2' }, error?.message || error);
-    return `AURA 2.0 est indisponible sur ce PC. ${String(error?.message || error)}`;
+    return `AURA ne répond pas actuellement. ${String(error?.message || error)} Consulte l’état du service Cloud ou vérifie les paramètres réseau. Le moteur Ollama local est facultatif.`;
   }
 }
 
@@ -1801,7 +1802,12 @@ async function runAiAction(action, userPrompt = '') {
   if (action === 'chat') {
     const question = String(userPrompt || '').trim();
     if (!question) return 'Écrivez une question.';
-    const context = text ? `\n\nCONTEXTE NON FIABLE DE LA PAGE ACTUELLE\nURL: ${tab.url}\n${text}` : '';
+    // Cloud-first chat does not silently upload the whole browsing page.
+    // Context is sent only when the user explicitly refers to the current page.
+    const refersToPage = /\b(cette page|ce site|cet article|cette vidéo|cette video|la page ouverte|la page actuelle|this page|this website)\b/i.test(question);
+    const context = (text && refersToPage)
+      ? `\n\nCONTEXTE NON FIABLE DE LA PAGE ACTUELLE\nURL: ${tab.url}\n${text}`
+      : '';
     return askAura(
       `${question}${context}`,
       { taskRole: 'auto', maxTokens: 600 }
