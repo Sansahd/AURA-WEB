@@ -60,44 +60,29 @@ test('navigation has no cinematic or fade overlay', () => {
 });
 
 
-test('new tab matches the approved cinematic GEKKO browser composition', () => {
+test('new tab keeps original GEKKO wallpaper with only emblem, central search and favorites', () => {
   const html = read('src/renderer/index.html');
   const css = read('src/renderer/quantic-glide-brand.css');
-
   for (const marker of [
-    'gekko-home-scene',
-    'gekko-home-brand',
-    'gekko-home-cards',
-    'gekko-home-card',
-    'gekko-home-mountains',
-    'gekko-home-aurora'
-  ]) assert.match(html, new RegExp(marker));
-
-  const cards = (html.match(/class="gekko-home-card"/g) || []).length;
-  assert.equal(cards, 3);
-  assert.match(html, /Private Search/);
-  assert.match(html, /Secure Tabs/);
-  assert.match(html, /Fast &amp; Light/);
-  assert.doesNotMatch(html, /Explore More/);
-
-  assert.match(css, /clip-path/);
-  assert.match(css, /drop-shadow/);
-  assert.match(css, /backdrop-filter/);
-  assert.match(css, /radial-gradient/);
+    'gekko-home-scene','gekko-home-brand',
+    'gekko-home-mountains','gekko-home-aurora',
+    'home-search-form','home-favorites-list'
+  ]) assert.match(html,new RegExp(marker));
+  assert.doesNotMatch(html,/gekko-home-cards|gekko-home-card|gekko-home-tools|home-tool-home/);
+  assert.doesNotMatch(html,/Private Search|Secure Tabs|Fast &amp; Light/);
+  assert.match(css,/clip-path/);
+  assert.match(css,/radial-gradient/);
 });
 
-test('new tab visual controls stay functional', () => {
+test('home search and favorites replace redundant action tiles with real navigation', () => {
   const html = read('src/renderer/index.html');
   const renderer = read('src/renderer/renderer.js');
-  assert.match(html, /data-home-action="private-search"/);
-  assert.match(html, /data-home-action="secure-tabs"/);
-  assert.match(html, /data-home-action="fast-light"/);
-  assert.doesNotMatch(html, /data-home-action="explore-more"/);
-  assert.match(renderer, /data-home-action/);
-  assert.match(renderer, /private-search/);
-  assert.match(renderer, /secure-tabs/);
+  assert.match(html,/id="home-search-input"/);
+  assert.match(html,/id="home-favorites-list"/);
+  assert.match(renderer,/homeSearch\.onsubmit/);
+  assert.match(renderer,/renderHomeFavorites\(\)/);
+  assert.doesNotMatch(html,/data-home-action=/);
 });
-
 
 test('Apps button opens a real Quantic launcher', () => {
   const html = read('src/renderer/index.html');
@@ -169,24 +154,16 @@ test('premium control pass removes the legacy v2 dock collision', () => {
   assert.match(css, /#bottom-dock \.dock-control/);
 });
 
-test('home controls use vector icons and compact horizontal action tiles', () => {
-  const html = read('src/renderer/index.html');
-  const css = read('src/renderer/quantic-glide-brand.css');
-
-  const tools = html.slice(html.indexOf('class="gekko-home-tools"'), html.indexOf('class="gekko-home-brand"'));
-  assert.match(tools, /class="home-tool-button"/);
-  assert.match(tools, /<svg viewBox=/);
-  assert.doesNotMatch(tools, />[⌂♢▦♙]</);
-
-  const cards = html.slice(html.indexOf('class="gekko-home-cards"'), html.indexOf('class="gekko-home-caption"'));
-  assert.match(cards, /class="home-card-icon"/);
-  assert.match(cards, /class="home-card-copy"/);
-  assert.match(cards, /class="home-card-arrow"/);
-  assert.match(css, /grid-template-columns:42px minmax\(0,1fr\) 22px/);
-  assert.match(css, /min-height:78px!important/);
-  assert.match(css, /border:1px solid rgba\(210,255,249,.095\)!important/);
+test('premium GEKKO home keeps search and local bookmarks without marketing tiles', () => {
+  const html=read('src/renderer/index.html');
+  const css=read('src/renderer/gekko-home-persona.css');
+  assert.match(html,/gekko-home-brand/);
+  assert.match(html,/gekko-home-search/);
+  assert.match(html,/gekko-home-favorites-grid/);
+  assert.doesNotMatch(html,/class="gekko-home-cards"/);
+  assert.doesNotMatch(html,/class="gekko-home-tools"/);
+  assert.match(css,/\.gekko-home-search/);
 });
-
 
 test('omnibox includes a zero-network popular-site suggestion surface', () => {
   const html = read('src/renderer/index.html');
