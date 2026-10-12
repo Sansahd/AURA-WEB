@@ -329,6 +329,7 @@ function renderSearch(data) {
   const region = result.region === 'world' ? 'world' : 'fr';
   const query = String(data.query || '');
   const root = el('section', 'gk25');
+  root.setAttribute('aria-label','Résultats GEKKO Search');
 
   function searchUrl(value, selectedMode = mode, selectedFresh = fresh, selectedRegion = region) {
     const u = new URL('quantic://search');
@@ -414,16 +415,43 @@ function renderSearch(data) {
   if (mode === 'all' && knowledge?.summary) {
     const feature = el('section', 'gk25-panel gk25-feature');
     const copy = el('div');
+    const short = String(knowledge.summary || '').trim().slice(0,355);
     copy.append(el('div', 'gk25-tag', '✦  Aperçu documenté · Wikipédia'),
       el('h2', '', knowledge.title),
-      el('p', '', knowledge.summary),
-      linkButton('Lire l’article source ↗', knowledge.url));
+      el('p', '', short + (String(knowledge.summary||'').length>355?'…':'')));
+    if(Array.isArray(knowledge.facts) && knowledge.facts.length){
+      const factsStrip=el('div','gk25-feature-facts');
+      for(const fact of knowledge.facts.slice(0,3)){
+        factsStrip.append(el('span','gk25-feature-fact',fact.label+' : '+fact.value));
+      }
+      copy.append(factsStrip);
+    }
+    copy.append(linkButton('Voir la source documentaire ↗', knowledge.url));
     feature.append(copy);
     if (typeof knowledge.image === 'string' && /^data:image\/png;base64,/.test(knowledge.image)) {
       const picture = el('img');
       picture.alt = 'Illustration de ' + knowledge.title;
       picture.src = knowledge.image;
-      feature.append(picture);
+      const media=el('div','gk25-feature-media');
+      media.append(picture);
+      const morePictures=(knowledge.media||[]).filter(p=>p.image&&p.image!==knowledge.image).slice(0,2);
+      if(morePictures.length){
+        const thumbs=el('div','gk25-feature-thumbs');
+        for(const entry of morePictures){
+          const thumb=el('button','gk25-photo-link');
+          thumb.type='button';
+          const img=el('img');img.alt=entry.title;img.src=entry.image;
+          thumb.title='Voir sur Wikimedia Commons';
+          thumb.append(img);
+          thumb.onclick=()=>fire(window.quantic.navigate(entry.url));
+          thumbs.append(thumb);
+        }
+        media.append(thumbs);
+      }
+      media.append(el('small','gk25-photocredit','Illustration : '+(knowledge.imageSource||'Wikimedia')));
+      feature.append(media);
+      root.classList.add('gk25-has-media');
+      root.style.setProperty('--gk25-art','url("'+knowledge.image+'")');
     }
     main.append(feature);
 
@@ -436,18 +464,34 @@ function renderSearch(data) {
       poster.src = knowledge.image;
       info.append(poster);
     }
-    info.append(el('p', '', knowledge.summary.slice(0, 360)),
-      el('span', 'gk25-note', 'Source : ' + knowledge.source));
-    info.append(linkButton('Consulter Wikipédia ↗', knowledge.url));
+    const facts=Array.isArray(knowledge.facts)?knowledge.facts.slice(0,6):[];
+    if(facts.length){
+      const details=el('dl','gk25-facts');
+      for(const fact of facts){
+        details.append(el('dt','',fact.label),el('dd','',fact.value));
+      }
+      info.append(details);
+    }else{
+      info.append(el('p','gk25-knowledge-alt',
+        'Informations complémentaires à consulter dans les sources documentaires.'));
+    }
+    info.append(el('small','gk25-note','Sources : '+knowledge.source+(facts.length?' · Wikidata':'')));
+    info.append(linkButton('Article complet ↗',knowledge.url));
     side.append(info);
   } else if (mode === 'all' && result.status === 'ok' && result.results?.length) {
     const top = result.results[0];
     const feature = el('section', 'gk25-panel gk25-feature');
     const wrap = el('div');
-    wrap.append(el('div','gk25-tag','✦  À la une · ' + result.source),
-      el('h2','',top.title),el('p','',top.snippet || 'Consulter ce résultat pour en savoir davantage.'),
-      linkButton('Consulter la source ↗',top.url));
+    wrap.append(el('div','gk25-tag','✦  En première position · '+result.source),
+      el('h2','',top.title),
+      el('p','',(top.snippet||'Consulter la page source pour en savoir davantage.').slice(0,310)),
+      linkButton('Ouvrir ce résultat ↗',top.url));
     feature.append(wrap);
+    if(/^data:image\/png;base64,/.test(top.thumbnail||'')){
+      const preview=el('img');preview.alt='Illustration provenant du résultat';
+      preview.src=top.thumbnail;
+      feature.append(preview);
+    }
     main.append(feature);
   }
 
@@ -487,16 +531,27 @@ function renderSearch(data) {
         img.alt = '';
         icon.append(img);
       } else icon.textContent = host[0]?.toUpperCase() || '•';
-      meta.append(icon, el('span','',host));
+      const siteLabel=host==='fr.wikipedia.org'?'Wikipédia':host.includes('youtube.com')?'YouTube':
+        host.includes('imdb.com')?'IMDb':host.includes('allocine.fr')?'AlloCiné':host;
+      const metaText=el('div','gk25-metatext');
+      metaText.append(el('span','gk25-sitename',siteLabel),el('small','',host));
+      meta.append(icon,metaText);
       open.append(meta,el('span','gk25-title',item.title || host));
-      if (item.snippet) open.append(el('span','gk25-snippet',item.snippet));
+      if (item.snippet) open.append(el('span','gk25-snippet',item.snippet.slice(0,215)+(item.snippet.length>215?'…':'')));
       open.onclick = () => fire(window.quantic.navigate(item.url));
       const more = el('button', 'gk25-action', '↗');
       more.type = 'button';
       more.title = 'Ouvrir dans un nouvel onglet';
       more.setAttribute('aria-label','Ouvrir '+(item.title||host)+' dans un nouvel onglet');
       more.onclick = () => fire(window.quantic.newTab(item.url));
-      card.append(open,more);
+      card.append(open);
+      if(/^data:image\/png;base64,/.test(item.thumbnail||'')){
+        const image=el('img','gk25-result-thumb');
+        image.src=item.thumbnail;
+        image.alt='Illustration provenant de '+host;
+        card.append(image);
+      }
+      card.append(more);
       list.append(card);
     }
     main.append(list);
@@ -510,13 +565,19 @@ function renderSearch(data) {
     main.append(status);
   }
   const related = el('section','gk25-panel gk25-related');
-  related.append(el('h3','','Explorer le sujet'));
+  related.append(el('h3','','Recherches associées'));
   const relatedGrid = el('div','gk25-chips');
-  for (const [label,suffix,id] of [['Définition',' définition','all'],['Histoire',' histoire','all'],
-    ['Images','','images'],['Vidéos','','videos'],['Actualités','','news'],['Chronologie',' chronologie','all']]) {
-    const chip = el('button','gk25-chip','⌕  '+label);
+  const suggested=Array.isArray(result.related)?result.related.slice(0,10):[];
+  const fallbacks=[
+    ['Définition',query+' définition'],['Films et séries',query+' films séries'],
+    ['Images',query+' images'],['Vidéos',query+' vidéos'],
+    ['Actualités',query+' actualités'],['Origines',query+' histoire']
+  ];
+  const rows=suggested.length ? suggested.map(value=>[value,value]) : fallbacks;
+  for(const [label,value] of rows){
+    const chip=el('button','gk25-chip','⌕  '+label);
     chip.type='button';
-    chip.onclick = () => go(query+suffix,id,'all');
+    chip.onclick=()=>go(value,'all','all');
     relatedGrid.append(chip);
   }
   related.append(relatedGrid);
