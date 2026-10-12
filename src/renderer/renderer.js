@@ -60,7 +60,7 @@ function renderSearchEngineControl() {
   const key = currentSearchEngine();
   const meta = SEARCH_ENGINES[key];
   // Reuse the same bundled SVG logos as the engine selector (no network requests).
-  const markSrc = key === 'gekko' ? '../assets/quantic-glide-mark.svg'
+  const markSrc = key === 'gekko' ? '../assets/gekko-icon.png'
     : 'engine-icons/' + (key === 'tor' ? 'torbrowser' : key) + '.svg';
   if (searchEngineMarkImage && searchEngineMarkImage.getAttribute('src') !== markSrc) {
     searchEngineMarkImage.setAttribute('src', markSrc);
