@@ -64,13 +64,21 @@ test('native window and web view have matching dark resize backing',()=>{
  assert.match(main,/layout\(\)/);
 });
 
-test('homepage emblem is transparent and independent of the backed Windows shortcut icon',()=>{
+test('user-uploaded transparent gecko globe is used for homepage and Windows icons',()=>{
  const html=read('src/renderer/index.html');
- const home=read('src/assets/gekko-home-symbol.svg');
- const app=read('src/assets/quantic-glide-mark.svg');
- assert.match(html,/src="\.\.\/assets\/gekko-home-symbol\.svg"/);
- assert.match(home,/id="gecko"/);
- assert.match(home,/id="earth"/);
- assert.doesNotMatch(home,/<rect[^>]+width="256" height="256" rx="55"/);
- assert.match(app,/<rect width="256" height="256" rx="55"/);
+ const script=read('scripts/build-gekko-icons.cjs');
+ const raw=read('src/assets/gekko-user-logo.webp.b64').trim();
+ const source=Buffer.from(raw,'base64');
+ assert.match(html,/src="\.\.\/assets\/gekko-icon\.png"/);
+ assert.doesNotMatch(html,/src="\.\.\/assets\/gekko-home-symbol\.svg"/);
+ assert.equal(source.toString('ascii',0,4),'RIFF');
+ assert.equal(source.toString('ascii',8,12),'WEBP');
+ assert.equal(source.length,source.readUInt32LE(4)+8);
+ assert.ok(source.length>4000);
+ assert.match(script,/gekko-user-logo\.webp\.b64/);
+ assert.match(script,/sharp\(artwork\)\.resize\(size,size/);
+ const out=path.join(__dirname,'..','src','assets','gekko-icon.png');
+ assert.ok(fs.existsSync(out));
+ assert.deepEqual(Array.from(fs.readFileSync(out).subarray(0,8)),
+   [137,80,78,71,13,10,26,10]);
 });
