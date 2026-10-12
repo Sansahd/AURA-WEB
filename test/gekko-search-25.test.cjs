@@ -31,7 +31,7 @@ test('absence of real images never invents picture URLs',async()=>{
 });
 test('video and news filters alter actual provider request URLs',async()=>{
  const seen=[];
- const fetcher=async url=>{seen.push(url);return response('<rss><channel><item><title>Video</title><link>https://example.org/vid</link><description>Extrait</description></item></channel></rss>','application/rss+xml')};
+ const fetcher=async url=>{seen.push(url);return response('<rss><channel><item><title>Video</title><link>https://www.youtube.com/watch?v=dQw4w9WgXcQ</link><description>Extrait</description></item></channel></rss>','application/rss+xml')};
  const v=await searchPublicWeb('spiderman',{fetch:fetcher,mode:'videos',fresh:'week',region:'fr'});
  assert.equal(v.status,'ok');
  assert.match(decodeURIComponent(seen[0]),/site:youtube.com/);
@@ -54,7 +54,7 @@ test('GEKKO 2.5 UI is integrated and accessible without loading remote HTML',()=
  assert.match(ui,/toggleAi/);
  assert.match(ui,/aria-current/);
  assert.match(main,/searchKnowledge\(query,opts\)/);
- assert.match(main,/searchCommonsImages\(query,opts\)/);
+ assert.match(main,/searchImageSources\(query,opts\)/);
  assert.match(page,/gekko-search-25\.css/);
  assert.match(css,/@media\(max-width:700px\)/);
  assert.doesNotMatch(ui,/innerHTML\s*=/);
