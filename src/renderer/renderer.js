@@ -1042,9 +1042,9 @@ $('#home-button').onclick = () => fire(window.quantic.home());
 $('#bookmarks').onclick = () => fire(window.quantic.togglePanelTab('quantic://favorites'));
 $('#downloads').onclick = () => fire(window.quantic.navigate('https://mediumorchid-badger-314305.hostingersite.com/downloads/#gekko'));
 $('#apps-button').onclick = () => appsPanel?.classList.toggle('hidden');
-$('#home-tool-apps').onclick = () => appsPanel?.classList.toggle('hidden');
-$('#home-tool-home').onclick = () => fire(window.quantic.home());
-$('#home-tool-settings').onclick = () => fire(window.quantic.togglePanelTab('quantic://settings'));
+// Removed redundant floating home shortcut; the main toolbar owns this action.
+// Removed redundant floating home shortcut; the main toolbar owns this action.
+// Removed redundant floating home shortcut; the main toolbar owns this action.
 $('#apps-close').onclick = () => appsPanel?.classList.add('hidden');
 document.querySelectorAll('[data-app-url]').forEach((button) => {
   button.onclick = () => {
