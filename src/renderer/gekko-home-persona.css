@@ -389,3 +389,56 @@ body[data-rail-position="right"] #bottom-dock {
   .gekko-home-favorite{height:44px;min-height:44px}
   .gekko-home-cards{display:none!important}
 }
+
+
+/* 2.4 Glass Corner — eliminate the white ghost square under reload.
+   A generic "all SVGs display:block!important" rule had overridden
+   the .icon-stop hidden state: both reload and stop were painted. */
+#bottom-dock #reload{
+  display:grid!important;
+  place-items:center!important;
+  position:relative!important;
+  overflow:hidden!important;
+  padding:0!important;
+}
+#bottom-dock #reload svg{
+  grid-area:1/1!important;
+  margin:0!important;
+  flex:none!important;
+  width:20px!important;height:20px!important;
+  max-width:20px!important;max-height:20px!important;
+}
+#bottom-dock #reload:not(.loading) .icon-stop{
+  display:none!important;
+  visibility:hidden!important;
+}
+#bottom-dock #reload.loading .icon-reload{
+  display:none!important;
+  visibility:hidden!important;
+}
+#bottom-dock #reload:not(.loading) .icon-reload,
+#bottom-dock #reload.loading .icon-stop{
+  display:block!important;
+  visibility:visible!important;
+}
+#bottom-dock #reload.loading .icon-stop rect{
+  fill:currentColor!important;
+  stroke:none!important;
+}
+/* The home screen has exactly 3 useful sections: emblem, search, favorites.
+   Floating shortcuts and promotional cards were redundant with the toolbar. */
+.gekko-home-scene .gekko-home-center{
+  top:43%!important;
+  gap:18px!important;
+}
+.gekko-home-brand{
+  top:13%!important;
+}
+.gekko-home-brand img{
+  filter:drop-shadow(0 8px 17px rgba(5,20,30,.23))!important;
+  animation:none!important;
+}
+@media(max-height:690px){
+  .gekko-home-brand{top:5%!important}
+  .gekko-home-scene .gekko-home-center{top:39%!important}
+}
