@@ -63,3 +63,14 @@ test('native window and web view have matching dark resize backing',()=>{
  assert.match(main,/win\.setBackgroundColor\('#07131b'\)/);
  assert.match(main,/layout\(\)/);
 });
+
+test('homepage emblem is transparent and independent of the backed Windows shortcut icon',()=>{
+ const html=read('src/renderer/index.html');
+ const home=read('src/assets/gekko-home-symbol.svg');
+ const app=read('src/assets/quantic-glide-mark.svg');
+ assert.match(html,/src="\.\.\/assets\/gekko-home-symbol\.svg"/);
+ assert.match(home,/id="gecko"/);
+ assert.match(home,/id="earth"/);
+ assert.doesNotMatch(home,/<rect[^>]+width="256" height="256" rx="55"/);
+ assert.match(app,/<rect width="256" height="256" rx="55"/);
+});
