@@ -1342,24 +1342,49 @@ function showChrome(focusAddress = false) {
   if (focusAddress) win.webContents.send('focus-address');
 }
 
+function nearDockEdge(pointer, bounds, position, distance = EDGE_TRIGGER) {
+  const x = pointer.x - bounds.x;
+  const y = pointer.y - bounds.y;
+  const inside = x >= 0 && y >= 0 && x <= bounds.width && y <= bounds.height;
+  if (!inside) return false;
+  if (position === 'top') return y <= distance;
+  if (position === 'bottom') return y >= bounds.height - distance;
+  if (position === 'left') return x <= distance;
+  if (position === 'right') return x >= bounds.width - distance;
+  return false;
+}
+
 function startImmersionWatcher() {
   clearInterval(immersiveTimer);
   immersiveTimer = setInterval(() => {
     if (!win || win.isDestroyed() || !isImmersive() || railPinned) return;
     const bounds = win.getBounds();
     const pointer = screen.getCursorScreenPoint();
-    const insideX = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width;
-    if (!insideX) return;
-    // With the address dock at the bottom, hovering the title-free top edge
-    // must not unexpectedly reveal bottom controls during window movement.
-    const nearBottom = pointer.y >= bounds.y + bounds.height - EDGE_TRIGGER;
-    if (!chromeVisible && nearBottom) return showChrome(false);
-    if (chromeVisible && Date.now() > revealUntil && pointer.y > bounds.y + TOP_CHROME_H + 36 && pointer.y < bounds.y + bounds.height - BOTTOM_DOCK_H - 36) {
-      chromeVisible = false;
-      aiOpen = false;
-      layout();
-      emitState(true);
+    const position = store?.settings().railPosition || 'bottom';
+    // The reveal trigger MUST follow the configured dock edge. Previously
+    // only the bottom border was watched, even when docked at top/left/right.
+    const reveal = nearDockEdge(pointer, bounds, position);
+    if (!chromeVisible) {
+      if (reveal) showChrome(false);
+      return;
     }
+    if (Date.now() <= revealUntil) return;
+    const withinWindow = pointer.x >= bounds.x && pointer.x <= bounds.x + bounds.width
+      && pointer.y >= bounds.y && pointer.y <= bounds.y + bounds.height;
+    if (!withinWindow || reveal) return;
+    // Keep controls visible while hovering within their actual 60/96px dock.
+    // Hide only after pointer moves into the page content beyond that edge.
+    const x = pointer.x - bounds.x;
+    const y = pointer.y - bounds.y;
+    const away = position === 'top' ? y > BOTTOM_DOCK_H + 36
+      : position === 'bottom' ? y < bounds.height - BOTTOM_DOCK_H - 36
+      : position === 'left' ? x > SIDE_DOCK_W + 36
+      : x < bounds.width - SIDE_DOCK_W - 36;
+    if (!away) return;
+    chromeVisible = false;
+    aiOpen = false;
+    layout();
+    emitState(true);
   }, 120);
   immersiveTimer.unref?.();
 }
