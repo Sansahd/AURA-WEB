@@ -478,6 +478,27 @@ function renderSearch(data) {
     info.append(el('small','gk25-note','Sources : '+knowledge.source+(facts.length?' · Wikidata':'')));
     info.append(linkButton('Article complet ↗',knowledge.url));
     side.append(info);
+    const documents=(knowledge.media||[]).filter(x=>/^data:image\/png;base64,/.test(x.image||'')&&/^https:\/\//.test(x.url||'')).slice(0,5);
+    if(documents.length>1) {
+      const gallery=el('section','gk25-panel gk25-gallery');
+      const caption=el('div','gk25-gallery-header');
+      caption.append(el('h3','','Images libres et illustrations'));
+      const all=el('button','gk25-link','Toutes les images ↗');
+      all.type='button';all.onclick=()=>go(query,'images');
+      caption.append(all);gallery.append(caption);
+      const band=el('div','gk25-gallery-band');
+      for(const item of documents){
+        const tile=el('button','gk25-gallery-item');
+        tile.type='button';
+        const img=el('img');img.src=item.image;img.alt=item.title||'Illustration';
+        tile.title=[item.title,item.license].filter(Boolean).join(' — ');
+        tile.append(img);
+        tile.onclick=()=>fire(window.quantic.navigate(item.url));
+        band.append(tile);
+      }
+      gallery.append(band,el('small','gk25-note','Images de Wikimedia Commons et Openverse · vérifier les licences à la source.'));
+      side.append(gallery);
+    }
   } else if (mode === 'all' && result.status === 'ok' && result.results?.length) {
     const top = result.results[0];
     const feature = el('section', 'gk25-panel gk25-feature');

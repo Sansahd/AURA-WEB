@@ -17,7 +17,7 @@ const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { searchPublicWeb } = require('./services/gekko-search.cjs');
 const { searchKnowledge, searchCommonsImages, searchSuggestions } = require('./services/gekko-search-25.cjs');
 const { enrichSearchResults } = require('./services/gekko-search-rich.cjs');
-const { searchImageSources } = require('./services/gekko-search-images.cjs');
+const { searchImageSources, searchOpenverseImages } = require('./services/gekko-search-images.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { awaitProtectedMedia } = require('./services/protected-media.cjs');
@@ -1010,7 +1010,7 @@ async function loadTab(tab, raw) {
         // Do not block the first paint on small favicon/preview requests.
         void enrichSearchResults(payload.results,opts).then(rows=>{
           if(!valid())return;
-          tab.gekkoSearch.results=rows;
+          tab.gekkoSearch.results=[...rows,...payload.results.slice(rows.length)];
           emitState(true);
         }).catch(()=>{});
       }
@@ -1029,6 +1029,19 @@ async function loadTab(tab, raw) {
         if (!valid()) return;
         tab.gekkoSearch.knowledge=knowledge;
         emitState(true);
+        if(knowledge){
+          void searchOpenverseImages(query,opts,{limit:5}).then(open=>{
+            if(!valid()||!open.results?.length)return;
+            const known=new Set((knowledge.media||[]).map(x=>x.url));
+            knowledge.media=[...(knowledge.media||[]),...open.results.filter(x=>!known.has(x.url))].slice(0,8);
+            if(!knowledge.image){
+              knowledge.image=open.results[0].image;
+              knowledge.imageSource='Openverse · licence '+(open.results[0].license||'ouverte');
+            }
+            tab.gekkoSearch.knowledge={...knowledge};
+            emitState(true);
+          }).catch(()=>{});
+        }
       }).catch(() => {});
     }
     return { ok:true,url:target.value };

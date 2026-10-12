@@ -13,16 +13,16 @@ function safeLanding(raw){
   return u.href;
  } catch{return ''}
 }
-async function searchOpenverseImages(query,opts){
+async function searchOpenverseImages(query,opts,{limit=18}={}){
  const q=clean(query,150);
  if(!q||!opts?.nativeImage||typeof opts?.fetch!=='function')
   return {status:'unavailable',results:[],source:'Openverse'};
  const u=new URL('https://api.openverse.org/v1/images/');
  u.searchParams.set('q',q);
- u.searchParams.set('page_size','18');
+ u.searchParams.set('page_size',String(Math.max(1,Math.min(18,Math.round(limit)||18))));
  try {
   const raw=JSON.parse((await readLimited(u.href,opts.fetch)).toString('utf8'));
-  const items=Array.isArray(raw.results)?raw.results.filter(x=>!x.mature&&isUuid(x.id)).slice(0,18):[];
+  const items=Array.isArray(raw.results)?raw.results.filter(x=>!x.mature&&isUuid(x.id)).slice(0,Math.max(1,Math.min(18,Math.round(limit)||18))):[];
   let cursor=0;const output=new Array(items.length);
   await Promise.all(Array.from({length:Math.min(4,items.length)},async()=>{
    while(cursor<items.length){
