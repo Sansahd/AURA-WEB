@@ -92,8 +92,20 @@ async function searchCommonsImages(query,opts){
   return {status:results.length?'ok':'unavailable',results,source:'Wikimedia Commons'};
  }catch{return {status:'unavailable',results:[],source:'Wikimedia Commons'}}
 }
+async function searchSuggestions(query,opts){
+ const q=clean(query,130);if(!q||typeof opts?.fetch!=='function')return [];
+ const u='https://duckduckgo.com/ac/?q='+encodeURIComponent(q)+'&type=list';
+ try{
+  const parsed=JSON.parse((await readLimited(u,opts.fetch)).toString('utf8'));
+  const raw=Array.isArray(parsed)?parsed:[];
+  const seen=new Set([q.toLocaleLowerCase('fr')]);
+  return raw.map(x=>clean(x?.phrase||x?.value||'',135))
+   .filter(x=>{const k=x.toLocaleLowerCase('fr');if(x.length<3||seen.has(k))return false;seen.add(k);return true})
+   .slice(0,10);
+ }catch{return []}
+}
 function related(query){
  const q=clean(query,120);
  return [['Définition',q+' définition'],['Histoire',q+' histoire'],['Images',q+' images'],['Vidéos',q+' vidéos'],['Actualités',q+' actualités'],['Chronologie',q+' chronologie']].map(([label,query])=>({label,query}));
 }
-module.exports={safeMediaUrl,readLimited,clean,pages,pngOf,searchKnowledge,searchCommonsImages,related,wikidataFacts};
+module.exports={safeMediaUrl,readLimited,clean,pages,pngOf,searchKnowledge,searchCommonsImages,related,wikidataFacts,searchSuggestions};
