@@ -153,7 +153,7 @@ function renderSiteSuggestions(matches = siteMatches) {
 function updateSiteSuggestions() {
   const query = address?.value || '';
   const matches = window.GekkoSiteCache?.matchSites?.(query, 5) || [];
-  siteSelection = -1;
+  siteSelection = 0;
   renderSiteSuggestions(matches);
 }
 
@@ -200,7 +200,7 @@ function navigateAddressValue() {
   if (!value) return;
   // Enter always searches the typed text, unless the user selected a suggestion
   // explicitly with the keyboard. Typing an alias never starts navigation.
-  if (siteSelection >= 0 && siteMatches.length && openSiteSuggestion(siteSelection)) return;
+  if (siteMatches.length && openSiteSuggestion(siteSelection)) return;
   closeSiteSuggestions();
   address.blur();
   fire(window.quantic.navigate(value));
