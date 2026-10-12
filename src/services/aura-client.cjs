@@ -32,12 +32,13 @@ function cleanError(error) {
   if(/abort|timeout/i.test(value))return 'délai de réponse dépassé';
   return value.slice(0,240);
 }
-async function jsonRequest(fetcher,url,options,timeoutMs){
+async function jsonRequest(fetcher,url,options,timeoutMs,onResponse=null){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
   timer.unref?.();
   try{
     const response=await fetcher(url,{...options,redirect:'error',signal:controller.signal});
+    if(typeof onResponse==='function')onResponse(response);
     const text=await response.text();
     if(text.length>MAX_RESPONSE_BYTES)throw Error('Réponse AURA trop volumineuse');
     let data={};
@@ -69,6 +70,7 @@ class QuanticAuraClient {
     this.allowLocalFallback=Boolean(allowLocalFallback);
     this.cloudTimeoutMs=Math.max(1000,Math.min(120000,Number(cloudTimeoutMs)||16000));
     this.localTimeoutMs=Math.max(1000,Math.min(120000,Number(localTimeoutMs)||8000));
+    this.cloudSessionCookie=''; // in-memory, never persisted or sent to local services
   }
   async generate({
     prompt,system='',taskRole='auto',maxTokens=500,
@@ -81,9 +83,16 @@ class QuanticAuraClient {
     try{
       const data=await jsonRequest(this.fetch,this.cloudUrl+'/api/chat',{
         method:'POST',
-        headers:{'content-type':'application/json','accept':'application/json','user-agent':'GEKKO/AURA-Cloud'},
+        headers:{'content-type':'application/json','accept':'application/json','user-agent':'GEKKO/AURA-Cloud',...(this.cloudSessionCookie?{cookie:this.cloudSessionCookie}:{})},
         body:JSON.stringify({text,author:'Utilisateur GEKKO'})
-      },this.cloudTimeoutMs);
+      },this.cloudTimeoutMs,(response)=>{
+        // AURA's public /api/chat uses a signed session cookie for continuity.
+        // Scope to this HTTPS host; never persist it or reuse it for Ollama.
+        const value=String(response.headers?.get?.('set-cookie')||'');
+        const match=/(?:^|[,;\s])aura_chat_session=([^;\s,]+)/i.exec(value);
+        if(match && match[1].length<=250)
+          this.cloudSessionCookie='aura_chat_session='+match[1];
+      });
       const answer=String(data.answer||'').trim();
       if(!answer)throw Error('AURA Cloud a renvoyé une réponse vide');
       return {answer,engine:'aura-cloud',model:String(data.model||'noyau natif'),
