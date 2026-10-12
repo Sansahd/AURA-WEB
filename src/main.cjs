@@ -16,6 +16,7 @@ const { buildInternalState, internalTitle } = require('./core/internal-state.cjs
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { searchPublicWeb } = require('./services/gekko-search.cjs');
 const { searchKnowledge, searchCommonsImages } = require('./services/gekko-search-25.cjs');
+const { enrichSearchResults } = require('./services/gekko-search-rich.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { awaitProtectedMedia } = require('./services/protected-media.cjs');
@@ -992,7 +993,7 @@ async function loadTab(tab, raw) {
     showInternal(tab, target.value);
     const requestId = (tab.gekkoSearchRequestId || 0) + 1;
     tab.gekkoSearchRequestId = requestId;
-    tab.gekkoSearch = { status:'loading',results:[],images:[],knowledge:null,source:'',mode,fresh,region };
+    tab.gekkoSearch = { status:'loading',results:[],images:[],knowledge:null,related:[],source:'',mode,fresh,region };
     emitState(true);
     if (!query.trim()) return { ok:true,url:target.value };
     const valid = () => tabs.get(tab.id) === tab && tab.url === target.value && tab.gekkoSearchRequestId === requestId;
@@ -1004,6 +1005,14 @@ async function loadTab(tab, raw) {
       tab.gekkoSearch = {...tab.gekkoSearch,...payload};
       if (mode === 'images') tab.gekkoSearch.images = payload.results;
       emitState(true);
+      if(mode !== 'images' && payload.status === 'ok' && Array.isArray(payload.results)){
+        // Do not block the first paint on small favicon/preview requests.
+        void enrichSearchResults(payload.results,opts).then(rows=>{
+          if(!valid())return;
+          tab.gekkoSearch.results=rows;
+          emitState(true);
+        }).catch(()=>{});
+      }
     }).catch(() => {
       if (!valid()) return;
       tab.gekkoSearch = {...tab.gekkoSearch,status:'unavailable'};
