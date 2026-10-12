@@ -32,12 +32,17 @@ function scheduleGeometrySmoke(win, app) {
         const dockSurface = getComputedStyle(document.querySelector('#bottom-dock'));
         const dockBackground = dockSurface.backgroundColor;
         const dockBackgroundImage = dockSurface.backgroundImage;
+        const homeBrand = document.querySelector('.gekko-home-brand img');
+        const brandLogo = homeBrand ? {
+          src:homeBrand.getAttribute('src')||'',
+          loaded:homeBrand.complete && homeBrand.naturalWidth>0
+        } : null;
         const tabShelf = rect('#bottom-dock .gekko-tab-shelf');
         const windowControls = rect('#bottom-dock .gekko-rail-window-controls');
         return {
           width:innerWidth,height:innerHeight,dpr:devicePixelRatio,
           railPosition:document.body.dataset.railPosition,
-          shell,home,scene,dock,rail,input,homeSearch,favoriteTiles,dockBackground,dockBackgroundImage,tabShelf,windowControls
+          shell,home,scene,dock,rail,input,homeSearch,favoriteTiles,brandLogo,dockBackground,dockBackgroundImage,tabShelf,windowControls
         };
       })()`, true);
       const tolerance = 16;
@@ -76,6 +81,9 @@ function scheduleGeometrySmoke(win, app) {
                    (snapshot.home.left+snapshot.home.right)/2)>23)
         errors.push('home_center_search_missing_or_offcenter');
       if (snapshot.favoriteTiles < 2) errors.push('local_home_favorites_missing');
+      if (!snapshot.brandLogo || !snapshot.brandLogo.loaded ||
+          !snapshot.brandLogo.src.endsWith('/gekko-icon.png'))
+        errors.push('uploaded_user_gecko_icon_not_rendered');
       // CSS must not silently reapply an opaque 97% backplate from the older themes.
       const match=/rgba?\([^,]+,[^,]+,[^,]+(?:,\s*([0-9.]+))?\)/.exec(snapshot.dockBackground||'');
       const alpha=match ? Number(match[1]??1) : 1;
