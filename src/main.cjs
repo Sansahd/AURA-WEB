@@ -15,7 +15,7 @@ const { DIRECT_SCHEME_PREFIX, extractYouTubeVideoId, parseDirectRequest, YouTube
 const { buildInternalState, internalTitle } = require('./core/internal-state.cjs');
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { searchPublicWeb } = require('./services/gekko-search.cjs');
-const { searchKnowledge, searchCommonsImages } = require('./services/gekko-search-25.cjs');
+const { searchKnowledge, searchCommonsImages, searchSuggestions } = require('./services/gekko-search-25.cjs');
 const { enrichSearchResults } = require('./services/gekko-search-rich.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
@@ -1019,6 +1019,11 @@ async function loadTab(tab, raw) {
       emitState(true);
     });
     if (mode === 'all') {
+      void searchSuggestions(query,opts).then(related=>{
+        if(!valid())return;
+        tab.gekkoSearch.related=related;
+        emitState(true);
+      }).catch(()=>{});
       void searchKnowledge(query,opts).then(knowledge => {
         if (!valid()) return;
         tab.gekkoSearch.knowledge=knowledge;
