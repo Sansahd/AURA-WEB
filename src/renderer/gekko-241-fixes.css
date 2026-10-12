@@ -60,3 +60,6 @@ body[data-rail-position] .gekko-home-search button {
 .gekko-search-result small{color:#a9dacf;font-size:11px}
 .gekko-search-result span{color:#d5e6df;font-size:13px;line-height:1.5}
 .gekko-search-result:hover{border-color:var(--quantic-accent,#79efd0);background:rgba(28,60,53,.55)}
+
+.gekko-favorite-page-mark{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.07);color:#b5d8d1}
+.gekko-favorite-page-mark img{width:23px;height:23px;object-fit:contain;display:block}

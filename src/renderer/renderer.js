@@ -375,7 +375,7 @@ function renderHomeFavorites() {
     tile.title=name+' · '+host;
     tile.setAttribute('aria-label','Ouvrir '+name);
     const mark=el('span','gekko-home-favorite-mark');
-    if(typeof item.favicon==='string' && /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(item.favicon) && item.favicon.length<14000){
+    if(typeof item.favicon==='string' && /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(item.favicon) && item.favicon.length<70000){
       const img=el('img');img.alt='';img.src=item.favicon;
       img.onerror=()=>{img.remove();mark.textContent=(host[0]||name[0]||'★').toUpperCase();};
       mark.append(img);
@@ -400,6 +400,13 @@ function renderFavorites(data) {
     const row = el('div', 'internal-row');
     const grow = el('div', 'grow');
     grow.append(el('strong', '', item.title || item.url), el('small', '', item.url));
+    const favIcon = el('span','gekko-favorite-page-mark');
+    if(typeof item.favicon==='string' && /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(item.favicon) && item.favicon.length<70000) {
+      const image=el('img'); image.alt=''; image.src=item.favicon;
+      image.onerror=()=>{image.remove();favIcon.textContent='★'};
+      favIcon.append(image);
+    } else favIcon.textContent='★';
+    row.append(favIcon);
     const actions = el('div', 'internal-actions');
     const open = el('button', '', 'Ouvrir');
     open.onclick = () => fire(window.quantic.navigate(item.url));

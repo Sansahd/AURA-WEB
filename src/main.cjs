@@ -914,6 +914,7 @@ function createView(tab) {
           tabs.get(tab.id) !== tab || tab.view?.webContents !== wc ||
           wc.isDestroyed() || new URL(wc.getURL()).origin !== new URL(currentUrl).origin) return;
       tab.favicon = icon;
+      if (!isPrivateMode()) store.updateFavoriteFavicon(currentUrl, icon);
       emitState();
     }).catch(() => {});
   });
@@ -1749,10 +1750,40 @@ function installDownloadTracking(targetSession) {
   });
 }
 
+const attemptedFavoriteIcons = new Set();
+let favoriteIconsBusy = false;
+// Backfill legacy bookmarks from the bookmarked origin only; no icon proxy.
+async function refreshSavedFavicons() {
+  if (favoriteIconsBusy || isPrivateMode() || !store || !normalSession) return;
+  favoriteIconsBusy = true;
+  try {
+    for (const favorite of store.favorites(200)) {
+      if (isPrivateMode()) break;
+      if (favorite.favicon || attemptedFavoriteIcons.has(favorite.url)) continue;
+      attemptedFavoriteIcons.add(favorite.url);
+      let url; try { url = new URL(favorite.url); } catch { continue; }
+      if (!['http:','https:'].includes(url.protocol) || url.username || url.password) continue;
+      const liveIcon = [...tabs.values()].find(t => t.url === favorite.url && t.favicon)?.favicon;
+      if (liveIcon) {
+        if (store.updateFavoriteFavicon(favorite.url, liveIcon)) emitState();
+        continue;
+      }
+      const icon = await fetchSmallIcon({
+        candidates: [new URL('/favicon.ico', url.origin).href,
+          new URL('/apple-touch-icon.png', url.origin).href],
+        pageUrl: favorite.url,
+        fetch: (iconUrl, options) => normalSession.fetch(iconUrl, options),
+        nativeImage, signal: AbortSignal.timeout(4500)
+      }).catch(() => '');
+      if (icon && store.updateFavoriteFavicon(favorite.url, icon)) emitState();
+    }
+  } finally { favoriteIconsBusy = false; }
+}
 function toggleFavorite() {
   const tab = activeTab();
-  if (!tab) return false;
+  if (!tab || !isExternal(tab.url) || isPrivateMode()) return false;
   const value = store.toggleFavorite({ title: tab.title, url: tab.url, favicon: tab.favicon || '' });
+  if (value) setTimeout(() => { void refreshSavedFavicons(); }, 250).unref?.();
   emitState();
   return value;
 }
@@ -2028,6 +2059,7 @@ app.whenReady().then(async () => {
   }
 
   createWindow();
+  setTimeout(() => { void refreshSavedFavicons(); }, 2000).unref?.();
   startImmersionWatcher();
   startRailHoverWatcher();
   startTabLifecycleWatcher();

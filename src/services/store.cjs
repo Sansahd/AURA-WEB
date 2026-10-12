@@ -175,7 +175,7 @@ class QuanticStore {
       this.data.favorites.splice(i, 1);
       this.favoriteUrls.delete(url);
     } else {
-      const safeIcon=typeof favicon==='string' && /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(favicon) && favicon.length<14000 ? favicon : '';
+      const safeIcon=typeof favicon==='string' && /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(favicon) && favicon.length<70000 ? favicon : '';
       this.data.favorites.unshift({ title: title || url, url, favicon:safeIcon, at: Date.now() });
       this.favoriteUrls.add(url);
     }
@@ -183,6 +183,15 @@ class QuanticStore {
     return i < 0;
   }
 
+  updateFavoriteFavicon(url, icon) {
+    if (typeof url !== 'string' || typeof icon !== 'string' ||
+      !/^data:image\/png;base64,[a-z0-9+/=]+$/i.test(icon) || icon.length >= 70000) return false;
+    const item = this.data.favorites.find(row => row.url === url);
+    if (!item || item.favicon === icon) return false;
+    item.favicon = icon;
+    this.scheduleSave(400);
+    return true;
+  }
   removeFavorite(url) {
     const before = this.data.favorites.length;
     this.data.favorites = this.data.favorites.filter((x) => x.url !== url);
