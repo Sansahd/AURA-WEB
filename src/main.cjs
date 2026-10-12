@@ -1822,7 +1822,7 @@ function createWindow() {
     roundedCorners: true,
     thickFrame: true,
     show: false,
-    icon: path.join(__dirname, 'assets', 'quantic-icon.png'),
+    icon: path.join(__dirname, 'assets', 'gekko-icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
 
@@ -1862,7 +1862,12 @@ function createWindow() {
 
   // Update the WebContentsView immediately: a 16ms deferred layout can expose
   // an uncovered strip while the user resizes the window with the mouse.
-  win.on('resize', layout);
+  win.on('resize', () => {
+    // Match the BrowserWindow and native WebContentsView paint surfaces while
+    // the user drags any resize edge; never uncover Electron's white default.
+    win.setBackgroundColor('#07131b');
+    layout();
+  });
   win.on('move', () => { railDragUntil = Date.now() + 1200; });
   win.on('maximize', () => { layout(); emitState(true); });
   win.on('unmaximize', () => { layout(); emitState(true); });
@@ -1875,7 +1880,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  if (process.platform === 'win32') app.setAppUserModelId('com.quantic.browser');
+  if (process.platform === 'win32') app.setAppUserModelId('com.quantic.gekko.browser');
   await installQuanticUiProtocol();
   await verifyQuanticUiShell();
 
