@@ -45,7 +45,15 @@ async function searchPublicWeb(query,{fetch:fetcher=fetch,mode='all',fresh='all'
   : [{url:'https://www.bing.com/search?format=rss&q='+encodeURIComponent(filtered)+locale,parse:parseRss,source:'Bing RSS'},
      {url:'https://html.duckduckgo.com/html/?q='+encodeURIComponent(filtered),parse:parseDuckHtml,source:'DuckDuckGo HTML'}];
  for(const row of feeds){
-  try{const results=row.parse(await readBounded(row.url,fetcher));if(results.length)return {status:'ok',results,source:row.source}}catch{}
+  try{
+   let results=row.parse(await readBounded(row.url,fetcher));
+   // A category is never a decoration: do not render unrelated Wikipedias
+   // or movie databases in the "Vidéos" tab.
+   if(mode==='videos')results=results.filter(r=>{
+    try{return /(^|\.)youtube\.com$|(^|\.)dailymotion\.com$|(^|\.)vimeo\.com$|(^|\.)twitch\.tv$/.test(new URL(r.url).hostname)}catch{return false}
+   });
+   if(results.length)return {status:'ok',results,source:row.source}
+  }catch{}
  }
  return {status:'unavailable',results:[],source:''};
 }
