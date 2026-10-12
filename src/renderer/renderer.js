@@ -309,6 +309,7 @@ function displayAddress(tab) {
 
 function setInternalVisibility() {
   const kind = state.internal?.kind || null;
+  document.body.classList.toggle('gekko-search-active', kind === 'search');
   home.classList.toggle('hidden', kind !== 'home');
   internalPage.classList.toggle('hidden', !kind || kind === 'home');
 }

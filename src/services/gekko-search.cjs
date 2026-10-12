@@ -33,11 +33,18 @@ async function readBounded(url,fetcher){
  finally{try{reader.releaseLock()}catch{}}
  return Buffer.concat(chunks,total).toString('utf8');
 }
-async function searchPublicWeb(query,{fetch:fetcher=fetch}={}){
+async function searchPublicWeb(query,{fetch:fetcher=fetch,mode='all',fresh='all',region='fr'}={}){
  const q=String(query||'').trim().slice(0,220);if(!q)return {status:'unavailable',results:[],source:''};
- for(const row of [
-  {url:'https://www.bing.com/search?format=rss&q='+encodeURIComponent(q),parse:parseRss,source:'Bing RSS'},
-  {url:'https://html.duckduckgo.com/html/?q='+encodeURIComponent(q),parse:parseDuckHtml,source:'DuckDuckGo HTML'}]){
+ const after=fresh==='week'?7:fresh==='month'?30:0;
+ const since=after?new Date(Date.now()-after*86400000).toISOString().slice(0,10):'';
+ const scoped=mode==='videos'?q+' site:youtube.com OR site:dailymotion.com':q;
+ const filtered=scoped+(since?' after:'+since:'');
+ const locale=region==='world'?'':'&cc=FR&setlang=fr';
+ const feeds=mode==='news'
+  ? [{url:'https://www.bing.com/news/search?format=rss&q='+encodeURIComponent(filtered)+locale,parse:parseRss,source:'Bing News RSS'}]
+  : [{url:'https://www.bing.com/search?format=rss&q='+encodeURIComponent(filtered)+locale,parse:parseRss,source:'Bing RSS'},
+     {url:'https://html.duckduckgo.com/html/?q='+encodeURIComponent(filtered),parse:parseDuckHtml,source:'DuckDuckGo HTML'}];
+ for(const row of feeds){
   try{const results=row.parse(await readBounded(row.url,fetcher));if(results.length)return {status:'ok',results,source:row.source}}catch{}
  }
  return {status:'unavailable',results:[],source:''};

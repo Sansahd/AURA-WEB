@@ -15,6 +15,7 @@ const { DIRECT_SCHEME_PREFIX, extractYouTubeVideoId, parseDirectRequest, YouTube
 const { buildInternalState, internalTitle } = require('./core/internal-state.cjs');
 const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { searchPublicWeb } = require('./services/gekko-search.cjs');
+const { searchKnowledge, searchCommonsImages } = require('./services/gekko-search-25.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { awaitProtectedMedia } = require('./services/protected-media.cjs');
@@ -981,26 +982,41 @@ function syncFromView(tab, saveHistory = false) {
 async function loadTab(tab, raw) {
   if (!tab) return { ok: false, error: 'Aucun onglet actif' };
   const target = resolvedInput(raw);
-  // Always render results INSIDE GEKKO, never redirect to a provider.
+  // GEKKO Search 2.5: sourced results and optional Wikimedia panel.
   if (target.value.startsWith('quantic://search?')) {
-    const query = new URL(target.value).searchParams.get('q') || '';
+    const params = new URL(target.value).searchParams;
+    const query = params.get('q') || '';
+    const mode = ['all','images','videos','news'].includes(params.get('mode')) ? params.get('mode') : 'all';
+    const fresh = ['all','week','month'].includes(params.get('fresh')) ? params.get('fresh') : 'all';
+    const region = params.get('region') === 'world' ? 'world' : 'fr';
     showInternal(tab, target.value);
-    tab.gekkoSearch = { status: 'loading', results: [], source: '' };
+    const requestId = (tab.gekkoSearchRequestId || 0) + 1;
+    tab.gekkoSearchRequestId = requestId;
+    tab.gekkoSearch = { status:'loading',results:[],images:[],knowledge:null,source:'',mode,fresh,region };
     emitState(true);
-    if (query.trim()) {
-      const expectedUrl = tab.url;
-      void searchPublicWeb(query,{ fetch: (url,options) => currentSession().fetch(url,options) })
-        .then(result => {
-          if (tabs.get(tab.id) !== tab || tab.url !== expectedUrl) return;
-          tab.gekkoSearch = result;
-          emitState(true);
-        }).catch(() => {
-          if (tabs.get(tab.id) !== tab || tab.url !== expectedUrl) return;
-          tab.gekkoSearch = { status: 'unavailable', results: [], source: '' };
-          emitState(true);
-        });
+    if (!query.trim()) return { ok:true,url:target.value };
+    const valid = () => tabs.get(tab.id) === tab && tab.url === target.value && tab.gekkoSearchRequestId === requestId;
+    const opts = { fetch:(url,options) => currentSession().fetch(url,options),nativeImage };
+    const promise = mode === 'images' ? searchCommonsImages(query,opts)
+      : searchPublicWeb(query,{...opts,mode,fresh,region});
+    void promise.then(payload => {
+      if (!valid()) return;
+      tab.gekkoSearch = {...tab.gekkoSearch,...payload};
+      if (mode === 'images') tab.gekkoSearch.images = payload.results;
+      emitState(true);
+    }).catch(() => {
+      if (!valid()) return;
+      tab.gekkoSearch = {...tab.gekkoSearch,status:'unavailable'};
+      emitState(true);
+    });
+    if (mode === 'all') {
+      void searchKnowledge(query,opts).then(knowledge => {
+        if (!valid()) return;
+        tab.gekkoSearch.knowledge=knowledge;
+        emitState(true);
+      }).catch(() => {});
     }
-    return { ok: true, url: target.value };
+    return { ok:true,url:target.value };
   }
 
   // "Tor" in the search palette is a real route, not a fake search engine.
