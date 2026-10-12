@@ -49,6 +49,16 @@ class QuanticStore {
         recentlyClosed: Array.isArray(existing.recentlyClosed) ? existing.recentlyClosed : [],
         projects: Array.isArray(existing.projects) ? existing.projects : []
       };
+      // Legacy GEKKO users still have the former opaque-default .72 in their
+      // profile. Migrate that DEFAULT once to the new Glass Corner .22 without
+      // overriding other chosen values; then persist the migration marker.
+      const oldAppearance=existingSettings.appearance||{};
+      if(Number(oldAppearance.glassMaterialVersion||0)<2){
+        if(Math.abs(Number(oldAppearance.glassOpacity)-.72)<.0001)
+          this.data.settings.appearance.glassOpacity=.22;
+        this.data.settings.appearance.glassMaterialVersion=2;
+        this.scheduleSave(500);
+      }
       // V1.1 used to clear Chromium's cache on every exit and forced the private
       // route for every page. Those defaults made media-heavy sites cold-start on
       // every launch and caused anti-abuse challenges. Migrate that implicit old
