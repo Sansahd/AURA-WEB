@@ -56,7 +56,7 @@ test('favorite icons are stored locally as PNG data URLs with hard size limits',
  const main=read('src/main.cjs'),store=read('src/services/store.cjs'),ui=read('src/renderer/renderer.js');
  assert.match(main,/favicon: tab\.favicon \|\| ''/);
  assert.match(store,/this\.data\.favorites\.unshift\(\{ title: title \|\| url, url, favicon:safeIcon/);
- assert.match(ui,/item\.favicon\.length<14000/);
+ assert.match(ui,/item\.favicon\.length<70000/);
  assert.match(ui,/img\.src=item\.favicon/);
  assert.doesNotMatch(ui,/favicon\\.ico/);
 });
