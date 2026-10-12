@@ -323,34 +323,207 @@ function cardButton(title, subtitle, onClick) {
 }
 
 function renderSearch(data) {
-  const lookup = data.lookup || { status: 'loading', results: [] };
-  const head = el('div', 'internal-head');
-  head.append(el('h1', '', 'GEKKO Search'), el('p', '',
-    'Résultats pour « ' + String(data.query || '').slice(0, 200) + ' »'));
-  internalContent.append(head);
-  if (lookup.status === 'loading') {
-    internalContent.append(el('p', 'muted', 'Recherche en cours…'));
-    return;
+  const result = data.lookup || { status: 'loading', results: [] };
+  const mode = ['all', 'images', 'videos', 'news'].includes(result.mode) ? result.mode : 'all';
+  const fresh = ['all', 'week', 'month'].includes(result.fresh) ? result.fresh : 'all';
+  const region = result.region === 'world' ? 'world' : 'fr';
+  const query = String(data.query || '');
+  const root = el('section', 'gk25');
+
+  function searchUrl(value, selectedMode = mode, selectedFresh = fresh, selectedRegion = region) {
+    const u = new URL('quantic://search');
+    u.searchParams.set('q', String(value || '').trim());
+    if (selectedMode !== 'all') u.searchParams.set('mode', selectedMode);
+    if (selectedFresh !== 'all') u.searchParams.set('fresh', selectedFresh);
+    if (selectedRegion !== 'fr') u.searchParams.set('region', selectedRegion);
+    return u.href;
   }
-  if (lookup.status !== 'ok' || !Array.isArray(lookup.results) || !lookup.results.length) {
-    internalContent.append(el('div', 'error-card muted',
-      'Résultats momentanément indisponibles. Vérifie ta connexion, puis relance la recherche.'));
-    return;
+  function go(value, selectedMode = mode, selectedFresh = fresh, selectedRegion = region) {
+    if (String(value || '').trim()) fire(window.quantic.navigate(searchUrl(value, selectedMode, selectedFresh, selectedRegion)));
   }
-  internalContent.append(el('p','muted', 'Index public : ' + (lookup.source || 'source externe') +
-    ' · interface GEKKO · aucun index propriétaire revendiqué.'));
-  const list = el('div', 'gekko-search-results');
-  for (const result of lookup.results) {
-    if (!/^https?:\/\//i.test(result.url || '')) continue;
-    const item = el('button', 'gekko-search-result');
-    item.type = 'button';
-    let hostname = ''; try { hostname = new URL(result.url).hostname; } catch {}
-    item.append(el('small', '', hostname), el('strong', '', result.title || hostname),
-      el('span', '', result.snippet || ''));
-    item.onclick = () => fire(window.quantic.navigate(result.url));
-    list.append(item);
+  function linkButton(title, url, className = 'gk25-link') {
+    const b = el('button', className, title);
+    b.type = 'button';
+    b.onclick = () => fire(window.quantic.navigate(url));
+    return b;
   }
-  internalContent.append(list);
+  const header = el('header', 'gk25-header');
+  const brand = el('div', 'gk25-brand');
+  const logo = el('img');
+  logo.alt = '';
+  logo.src = '../assets/gekko-icon.png';
+  brand.append(logo, el('span', '', 'GEKKO'));
+  const form = el('form', 'gk25-form');
+  form.setAttribute('role', 'search');
+  const input = el('input');
+  input.type = 'search';
+  input.value = query;
+  input.setAttribute('aria-label', 'Recherche GEKKO');
+  input.autocomplete = 'off';
+  const submit = el('button', 'gk25-go', '⌕');
+  submit.type = 'submit';
+  submit.title = 'Rechercher avec GEKKO';
+  form.append(input, submit);
+  form.onsubmit = event => { event.preventDefault(); go(input.value); };
+  const assist = el('button', 'gk25-assist', '✦ Search Assist');
+  assist.type = 'button';
+  assist.title = 'Ouvrir AURA pour analyser la recherche (si disponible)';
+  assist.onclick = () => { if (!state.aiOpen) fire(window.quantic.toggleAi()); };
+  header.append(brand, form, assist);
+  root.append(header);
+
+  const tabs = el('nav', 'gk25-tabs');
+  tabs.setAttribute('aria-label', 'Types de résultats');
+  for (const [id, label] of [['all', '⌕  Tout'], ['images', '▧  Images'], ['videos', '▷  Vidéos'], ['news', '▤  Actualités']]) {
+    const btn = el('button', 'gk25-tab', label);
+    btn.type = 'button';
+    if (id === mode) btn.setAttribute('aria-current', 'page');
+    btn.onclick = () => go(query, id);
+    tabs.append(btn);
+  }
+  root.append(tabs);
+
+  const filterRow = el('div', 'gk25-filterrow');
+  const filters = el('div', 'gk25-controls');
+  function dropdown(aria, options, value, cb) {
+    const s = el('select');
+    s.setAttribute('aria-label', aria);
+    for (const [id,label] of options) {
+      const opt = el('option', '', label);
+      opt.value = id;
+      s.append(opt);
+    }
+    s.value = value;
+    s.onchange = () => cb(s.value);
+    return s;
+  }
+  filters.append(
+    dropdown('Région de recherche', [['fr','France'],['world','Monde']],region,x=>go(query,mode,fresh,x)),
+    dropdown('Date des résultats', [['all','Toutes les dates'],['week','7 derniers jours'],['month','30 derniers jours']],fresh,x=>go(query,mode,x))
+  );
+  const sourceLabel = result.status === 'ok' ? result.source : result.status === 'loading' ? 'Recherche en cours…' : 'Source indisponible';
+  filterRow.append(filters, el('small', 'gk25-note', sourceLabel + ' · résultats issus de sources publiques'));
+  root.append(filterRow);
+
+  const layout = el('div', 'gk25-columns');
+  const main = el('main', 'gk25-main');
+  const side = el('aside', 'gk25-side');
+  side.setAttribute('aria-label', 'Contexte et exploration');
+  const knowledge = result.knowledge;
+
+  if (mode === 'all' && knowledge?.summary) {
+    const feature = el('section', 'gk25-panel gk25-feature');
+    const copy = el('div');
+    copy.append(el('div', 'gk25-tag', '✦  Aperçu documenté · Wikipédia'),
+      el('h2', '', knowledge.title),
+      el('p', '', knowledge.summary),
+      linkButton('Lire l’article source ↗', knowledge.url));
+    feature.append(copy);
+    if (typeof knowledge.image === 'string' && /^data:image\/png;base64,/.test(knowledge.image)) {
+      const picture = el('img');
+      picture.alt = 'Illustration de ' + knowledge.title;
+      picture.src = knowledge.image;
+      feature.append(picture);
+    }
+    main.append(feature);
+
+    const info = el('section', 'gk25-panel gk25-knowledge');
+    info.append(el('span', 'gk25-tag', 'Fiche documentaire'),
+      el('h2', '', knowledge.title));
+    if (typeof knowledge.image === 'string' && /^data:image\/png;base64,/.test(knowledge.image)) {
+      const poster = el('img');
+      poster.alt = knowledge.title;
+      poster.src = knowledge.image;
+      info.append(poster);
+    }
+    info.append(el('p', '', knowledge.summary.slice(0, 360)),
+      el('span', 'gk25-note', 'Source : ' + knowledge.source));
+    info.append(linkButton('Consulter Wikipédia ↗', knowledge.url));
+    side.append(info);
+  } else if (mode === 'all' && result.status === 'ok' && result.results?.length) {
+    const top = result.results[0];
+    const feature = el('section', 'gk25-panel gk25-feature');
+    const wrap = el('div');
+    wrap.append(el('div','gk25-tag','✦  À la une · ' + result.source),
+      el('h2','',top.title),el('p','',top.snippet || 'Consulter ce résultat pour en savoir davantage.'),
+      linkButton('Consulter la source ↗',top.url));
+    feature.append(wrap);
+    main.append(feature);
+  }
+
+  if (mode === 'images') {
+    if (result.status === 'ok' && Array.isArray(result.images) && result.images.length) {
+      main.append(el('h2', '', 'Images · Wikimedia Commons'));
+      const gallery = el('div', 'gk25-pictures');
+      for (const item of result.images) {
+        if (!/^data:image\/png;base64,/.test(item.image || '') || !/^https:\/\//.test(item.url || '')) continue;
+        const tile = el('button', 'gk25-panel gk25-picture');
+        tile.type = 'button';
+        const picture = el('img');
+        picture.alt = item.title;
+        picture.src = item.image;
+        tile.append(picture, el('span', '', item.title));
+        tile.onclick = () => fire(window.quantic.navigate(item.url));
+        gallery.append(tile);
+      }
+      main.append(gallery);
+      main.append(el('small','gk25-note','Images et fichiers publics Wikimedia Commons. Les droits et licences sont indiqués sur leurs pages sources.'));
+    }
+  } else if (result.status === 'ok' && Array.isArray(result.results)) {
+    const list = el('div', 'gk25-main');
+    for (const item of result.results) {
+      if (!/^https?:\/\//i.test(item.url || '')) continue;
+      let host = '';
+      try { host = new URL(item.url).hostname.replace(/^www\./, ''); } catch { continue; }
+      const card = el('article', 'gk25-panel gk25-result');
+      const open = el('button', 'gk25-open');
+      open.type = 'button';
+      open.setAttribute('aria-label', 'Ouvrir ' + (item.title || host));
+      const meta = el('div', 'gk25-meta');
+      const icon = el('span','gk25-favicon');
+      if (/^data:image\/png;base64,/.test(item.icon || '')) {
+        const img = el('img');
+        img.src = item.icon;
+        img.alt = '';
+        icon.append(img);
+      } else icon.textContent = host[0]?.toUpperCase() || '•';
+      meta.append(icon, el('span','',host));
+      open.append(meta,el('span','gk25-title',item.title || host));
+      if (item.snippet) open.append(el('span','gk25-snippet',item.snippet));
+      open.onclick = () => fire(window.quantic.navigate(item.url));
+      const more = el('button', 'gk25-action', '↗');
+      more.type = 'button';
+      more.title = 'Ouvrir dans un nouvel onglet';
+      more.setAttribute('aria-label','Ouvrir '+(item.title||host)+' dans un nouvel onglet');
+      more.onclick = () => fire(window.quantic.newTab(item.url));
+      card.append(open,more);
+      list.append(card);
+    }
+    main.append(list);
+  }
+
+  if (result.status === 'loading' || result.status === 'unavailable' ||
+    (mode === 'images' && result.status === 'ok' && !(result.images || []).length)) {
+    const status = el('section','gk25-panel gk25-status');
+    status.append(el('strong','',result.status === 'loading' ? 'Recherche en cours…' : 'Aucun résultat disponible pour ce filtre.'));
+    status.append(el('small','','Les sources publiques peuvent limiter les requêtes. Aucun résultat fictif n’est affiché.'));
+    main.append(status);
+  }
+  const related = el('section','gk25-panel gk25-related');
+  related.append(el('h3','','Explorer le sujet'));
+  const relatedGrid = el('div','gk25-chips');
+  for (const [label,suffix,id] of [['Définition',' définition','all'],['Histoire',' histoire','all'],
+    ['Images','','images'],['Vidéos','','videos'],['Actualités','','news'],['Chronologie',' chronologie','all']]) {
+    const chip = el('button','gk25-chip','⌕  '+label);
+    chip.type='button';
+    chip.onclick = () => go(query+suffix,id,'all');
+    relatedGrid.append(chip);
+  }
+  related.append(relatedGrid);
+  side.append(related);
+  layout.append(main,side);
+  root.append(layout);
+  internalContent.append(root);
 }
 
 function renderHomeFavorites() {
