@@ -61,18 +61,9 @@ function resolveInput(raw, searchEngine = 'gekko') {
   };
 }
 
-// A submitted HOME query is a search, never an implicit shortcut to a brand.
-function resolveHomeSearch(raw, searchEngine = 'gekko') {
-  const value = String(raw || '').trim();
-  if (!value) return { type: 'home', value: 'quantic://newtab' };
-  // Explicit addresses still open as URLs, including localhost and schemes.
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) ||
-      /^(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i.test(value) ||
-      /^[^\s]+\.[a-z]{2,}(?::\d+)?(?:\/.*)?$/i.test(value)) {
-    return resolveInput(value, searchEngine);
-  }
-  const selected = normalizeEngine(searchEngine);
-  return { type: 'search', engine: selected, value: ENGINES[selected](value), requiresTor: selected === 'tor' };
+// GEKKO Search uses a public Web index to display real results immediately.
+// This can later be replaced by an independent GEKKO index.
+function gekkoSearchTarget(query) {
+  return `https://search.brave.com/search?q=${encodeURIComponent(String(query || '').trim())}`;
 }
-
-module.exports = { resolveInput, resolveHomeSearch, normalizeEngine, ENGINES, COMMON_SITES, VALID_ENGINES };
+module.exports = { resolveInput, gekkoSearchTarget, normalizeEngine, ENGINES, COMMON_SITES, VALID_ENGINES };

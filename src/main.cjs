@@ -13,7 +13,7 @@ const { installCookieConsentRefusal } = require('./services/cookie-consent.cjs')
 const { SITES: POPULAR_SITES } = require('./renderer/site-cache.js');
 const { DIRECT_SCHEME_PREFIX, extractYouTubeVideoId, parseDirectRequest, YouTubeDirectResolver, installYouTubeDirectPlayer, removeYouTubeDirectPlayer } = require('./services/youtube-direct.cjs');
 const { buildInternalState, internalTitle } = require('./core/internal-state.cjs');
-const { resolveInput, resolveHomeSearch, normalizeEngine } = require('./core/navigation.cjs');
+const { resolveInput, gekkoSearchTarget, normalizeEngine } = require('./core/navigation.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { awaitProtectedMedia } = require('./services/protected-media.cjs');
@@ -972,9 +972,14 @@ function syncFromView(tab, saveHistory = false) {
   if (saveHistory && isExternal(url) && !isPrivateMode()) store.addHistory({ title, url });
 }
 
-async function loadTab(tab, raw, options = {}) {
+async function loadTab(tab, raw) {
   if (!tab) return { ok: false, error: 'Aucun onglet actif' };
-  const target = options.searchOnly ? resolveHomeSearch(raw, store?.settings().searchEngine || 'gekko') : resolvedInput(raw);
+  const target = resolvedInput(raw);
+  // GEKKO Search performs the query directly, without a provider-choice page.
+  if (target.value.startsWith('quantic://search?')) {
+    const query = new URL(target.value).searchParams.get('q') || '';
+    if (query.trim()) return loadTab(tab, gekkoSearchTarget(query));
+  }
 
   // "Tor" in the search palette is a real route, not a fake search engine.
   // For search queries only, move into the isolated private workspace first,
@@ -983,7 +988,7 @@ async function loadTab(tab, raw, options = {}) {
     await setNetworkMode('private');
     const privateTab = activeTab();
     if (!privateTab) return { ok: false, error: 'private-workspace-unavailable' };
-    return loadTab(privateTab, raw, options);
+    return loadTab(privateTab, raw);
   }
 
   if (isInternal(target.value)) {
@@ -2039,7 +2044,6 @@ ipcMain.handle('get-state', () => state());
 ipcMain.handle('quantic-identity-refresh', () => updateQuanticIdentityStatus());
 ipcMain.handle('quantic-identity-social', () => loginSocialWithQuanticId());
 ipcMain.handle('navigate', async (_event, value) => loadTab(activeTab(), value));
-ipcMain.handle('navigate-home-search', async (_event, value) => loadTab(activeTab(), value, { searchOnly: true }));
 ipcMain.handle('prewarm-site', (_event, url) => prewarmPopularSite(url));
 ipcMain.handle('chrome-overlay-height', (_event, height) => {
   chromeOverlayHeight = Math.max(0, Math.min(360, Math.round(Number(height) || 0)));

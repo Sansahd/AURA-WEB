@@ -41,7 +41,7 @@ test('search engine IPC accepts the complete palette and rejects unknown engines
 
 test('new installs default to GEKKO while old valid choices are preserved', () => {
   assert.match(store, /searchEngine: 'gekko'/);
-  assert.match(store, /compatibilityPolicyVersion: 4/);
+  assert.match(store, /compatibilityPolicyVersion: 5/);
   assert.match(store, /existingSettings\.searchEngine === 'quantic'/);
   assert.match(store, /'startpage', 'brave', 'searxng', 'tor'/);
 });

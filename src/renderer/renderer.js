@@ -60,7 +60,7 @@ function renderSearchEngineControl() {
   const key = currentSearchEngine();
   const meta = SEARCH_ENGINES[key];
   // Reuse the same bundled SVG logos as the engine selector (no network requests).
-  const markSrc = key === 'gekko' ? '../assets/gekko-home-symbol.svg'
+  const markSrc = key === 'gekko' ? '../assets/gekko-icon.png'
     : 'engine-icons/' + (key === 'tor' ? 'torbrowser' : key) + '.svg';
   if (searchEngineMarkImage && searchEngineMarkImage.getAttribute('src') !== markSrc) {
     searchEngineMarkImage.setAttribute('src', markSrc);
@@ -1113,7 +1113,8 @@ address.oninput = () => {
   }
 
   const value = address.value;
-  // Never prewarm or auto-launch a site just because its name matches typing.
+  maybePrewarmPopularSite(value);
+  if (maybeInstantLaunch(value)) return;
   updateSiteSuggestions();
 };
 address.onkeydown = (event) => {
@@ -1143,7 +1144,8 @@ $('#address-go').onclick = () => navigateAddressValue();
 address.onfocus = () => {
   fire(window.quantic.chromeLock(true));
   const value = address.value;
-  updateSiteSuggestions();
+  maybePrewarmPopularSite(value);
+  if (!maybeInstantLaunch(value)) updateSiteSuggestions();
 };
 address.onblur = () => {
   closeSiteSuggestions();
@@ -1191,7 +1193,7 @@ homeSearch.onsubmit=(event)=>{
   event.preventDefault();
   const value=homeSearchInput.value.trim();
   if(!value)return;
-  fire(window.quantic.navigateHomeSearch(value));
+  fire(window.quantic.navigate(value));
 };
 $('#home-all-favorites').onclick=()=>fire(window.quantic.togglePanelTab('quantic://favorites'));
 
