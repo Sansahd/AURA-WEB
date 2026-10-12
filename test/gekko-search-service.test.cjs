@@ -5,6 +5,7 @@ test('GEKKO search sanitizes source links and parses result feed',()=>{
  [{title:'Un & deux',url:'https://example.org/a',snippet:'Essai'}]);
  assert.equal(safeUrl('javascript:alert(1)'),'');
  assert.equal(safeUrl('http://localhost/admin'),'');
+ assert.equal(safeUrl('//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.org%2Fdoc'),'https://example.org/doc');
 });
 test('GEKKO result fetch never navigates to Brave',async()=>{
  let sources=[];const fetcher=async u=>{sources.push(u);return new Response(

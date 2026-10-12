@@ -7,7 +7,7 @@ function decode(s){return String(s||'').replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
 });}
 function plain(s){return decode(String(s||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ')).trim().slice(0,500);}
 function safeUrl(raw){
- try{let u=new URL(decode(raw));if(/(^|\.)duckduckgo\.com$/i.test(u.hostname)&&u.pathname.startsWith('/l/')){const next=u.searchParams.get('uddg');if(next)u=new URL(next)}
+ try{const target=decode(raw);let u=new URL(target.startsWith('//')?'https:'+target:target);if(/(^|\.)duckduckgo\.com$/i.test(u.hostname)&&u.pathname.startsWith('/l/')){const next=u.searchParams.get('uddg');if(next)u=new URL(next)}
  if(!['https:','http:'].includes(u.protocol)||u.username||u.password||
  /^(localhost|127\.|10\.|192\.168\.|0\.)/i.test(u.hostname)||u.hostname.endsWith('.local'))return '';
  return u.href;}catch{return ''}
