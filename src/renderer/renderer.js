@@ -497,7 +497,7 @@ function renderSearch(data) {
 
   if (mode === 'images') {
     if (result.status === 'ok' && Array.isArray(result.images) && result.images.length) {
-      main.append(el('h2', '', 'Images · Wikimedia Commons'));
+      main.append(el('h2', '', 'Images · licences ouvertes'));
       const gallery = el('div', 'gk25-pictures');
       for (const item of result.images) {
         if (!/^data:image\/png;base64,/.test(item.image || '') || !/^https:\/\//.test(item.url || '')) continue;
@@ -507,11 +507,12 @@ function renderSearch(data) {
         picture.alt = item.title;
         picture.src = item.image;
         tile.append(picture, el('span', '', item.title));
+        if(item.license || item.creator)tile.append(el('small','gk25-picture-license',[item.creator,item.license].filter(Boolean).join(' · ')));
         tile.onclick = () => fire(window.quantic.navigate(item.url));
         gallery.append(tile);
       }
       main.append(gallery);
-      main.append(el('small','gk25-note','Images et fichiers publics Wikimedia Commons. Les droits et licences sont indiqués sur leurs pages sources.'));
+      main.append(el('small','gk25-note','Images réelles et licences indiquées sur la page de chaque œuvre · sources Wikimedia Commons et Openverse.'));
     }
   } else if (result.status === 'ok' && Array.isArray(result.results)) {
     const list = el('div', 'gk25-main');

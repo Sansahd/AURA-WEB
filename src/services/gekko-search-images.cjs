@@ -2,7 +2,7 @@
 // Copyright-aware image results. Openverse provides legitimately catalogued
 // Creative Commons / public-domain works and offers its own thumbnail proxy.
 // Never contact arbitrary third-party image origins from search metadata.
-const {readLimited,pngOf,clean}=require('./gekko-search-25.cjs');
+const {readLimited,pngOf,clean,searchCommonsImages}=require('./gekko-search-25.cjs');
 function isUuid(value){return /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(String(value||''))}
 function safeLanding(raw){
  try {
@@ -44,7 +44,7 @@ async function searchOpenverseImages(query,opts){
  }catch{return {status:'unavailable',results:[],source:'Openverse'}}
 }
 async function searchImageSources(query,opts){
- const commons=await opts.searchCommonsImages(query,opts);
+ const commons=await searchCommonsImages(query,opts);
  // When Wikimedia is sparse, append openly licensed Openverse results.
  if(commons.results.length>=10)return commons;
  const other=await searchOpenverseImages(query,opts);

@@ -17,6 +17,7 @@ const { resolveInput, normalizeEngine } = require('./core/navigation.cjs');
 const { searchPublicWeb } = require('./services/gekko-search.cjs');
 const { searchKnowledge, searchCommonsImages, searchSuggestions } = require('./services/gekko-search-25.cjs');
 const { enrichSearchResults } = require('./services/gekko-search-rich.cjs');
+const { searchImageSources } = require('./services/gekko-search-images.cjs');
 const { normalizeAppearance, generatePromptWallpaper, importWallpaper, clearWallpaper, wallpaperDataUrl } = require('./services/persona.cjs');
 const { SideStageManager } = require('./services/sidestage-manager.cjs');
 const { awaitProtectedMedia } = require('./services/protected-media.cjs');
@@ -998,7 +999,7 @@ async function loadTab(tab, raw) {
     if (!query.trim()) return { ok:true,url:target.value };
     const valid = () => tabs.get(tab.id) === tab && tab.url === target.value && tab.gekkoSearchRequestId === requestId;
     const opts = { fetch:(url,options) => currentSession().fetch(url,options),nativeImage };
-    const promise = mode === 'images' ? searchCommonsImages(query,opts)
+    const promise = mode === 'images' ? searchImageSources(query,opts)
       : searchPublicWeb(query,{...opts,mode,fresh,region});
     void promise.then(payload => {
       if (!valid()) return;

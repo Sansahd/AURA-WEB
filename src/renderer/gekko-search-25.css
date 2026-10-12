@@ -102,3 +102,9 @@ body.gekko-search-active #internal-content{width:min(1430px,100%)!important;max-
  .gk25-result-thumb{height:78px;width:87px;flex-basis:87px}
  .gk25-feature-media>img{max-height:220px}.gk25-facts{grid-template-columns:minmax(70px,.48fr) 1fr}
  .gk25-action{display:none}.gk25-header{gap:10px}}
+
+.gk25-picture-license{display:block;color:#b5d9e0;font-size:10px;padding:0 6px 7px;line-height:1.35;overflow-wrap:anywhere}
+.gk25-pictures{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:15px}
+.gk25-picture{display:flex;flex-direction:column;border-color:rgba(140,210,224,.3);transition:transform .15s ease,border-color .15s ease}
+.gk25-picture:hover{border-color:var(--a);transform:translateY(-2px)}
+.gk25-picture img{height:176px}
