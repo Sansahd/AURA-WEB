@@ -442,3 +442,58 @@ body[data-rail-position="right"] #bottom-dock {
   .gekko-home-brand{top:5%!important}
   .gekko-home-scene .gekko-home-center{top:39%!important}
 }
+
+
+/* GEKKO 2.4 — discreet scrolling. The navigation/tabs continue to support
+   mousewheel and touchpad gestures, but never display a gray OS scrollbar. */
+#bottom-dock,
+#bottom-dock .nav-row,
+#bottom-dock > #sidestage-rail,
+#bottom-dock .gekko-tab-shelf,
+#bottom-dock .tabs,
+#bottom-dock .dock-cluster,
+#bottom-dock .address-wrap,
+#bottom-dock .dock-actions {
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
+}
+#bottom-dock::-webkit-scrollbar,
+#bottom-dock .nav-row::-webkit-scrollbar,
+#bottom-dock > #sidestage-rail::-webkit-scrollbar,
+#bottom-dock .gekko-tab-shelf::-webkit-scrollbar,
+#bottom-dock .tabs::-webkit-scrollbar,
+#bottom-dock .dock-cluster::-webkit-scrollbar,
+#bottom-dock .address-wrap::-webkit-scrollbar,
+#bottom-dock .dock-actions::-webkit-scrollbar{
+  display:none!important;width:0!important;height:0!important;
+}
+/* Utility menus and long AURA conversations genuinely require scrolling.
+   Give them a subtle glass thumb instead of a bright, chunky Windows rail. */
+:where(.ai-output,.ai-panel,.site-suggestions,.search-engine-menu,
+       .engine-menu-grid,.internal-page,.quantic-suite-panel,
+       #internal-page,.settings-page,.favorite-grid) {
+  scrollbar-width:thin;
+  scrollbar-color:rgba(167,251,229,.24) transparent;
+}
+:where(.ai-output,.ai-panel,.site-suggestions,.search-engine-menu,
+       .engine-menu-grid,.internal-page,.quantic-suite-panel,
+       #internal-page,.settings-page,.favorite-grid)::-webkit-scrollbar{
+  width:5px;height:5px;
+}
+:where(.ai-output,.ai-panel,.site-suggestions,.search-engine-menu,
+       .engine-menu-grid,.internal-page,.quantic-suite-panel,
+       #internal-page,.settings-page,.favorite-grid)::-webkit-scrollbar-track{
+  background:transparent;
+}
+:where(.ai-output,.ai-panel,.site-suggestions,.search-engine-menu,
+       .engine-menu-grid,.internal-page,.quantic-suite-panel,
+       #internal-page,.settings-page,.favorite-grid)::-webkit-scrollbar-thumb{
+  border:0;
+  border-radius:100px;
+  background:rgba(167,251,229,.24);
+}
+:where(.ai-output,.ai-panel,.site-suggestions,.search-engine-menu,
+       .engine-menu-grid,.internal-page,.quantic-suite-panel,
+       #internal-page,.settings-page,.favorite-grid)::-webkit-scrollbar-thumb:hover{
+  background:rgba(167,251,229,.5);
+}
