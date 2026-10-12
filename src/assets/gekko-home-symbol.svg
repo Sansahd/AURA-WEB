@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="GEKKO — gecko et globe sans fond">
+<defs>
+ <linearGradient id="night" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#103340"/><stop offset="1" stop-color="#06131d"/></linearGradient>
+ <linearGradient id="sea" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1b9cad"/><stop offset="1" stop-color="#085b79"/></linearGradient>
+ <linearGradient id="geckoLime" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e6ffa2"/><stop offset=".45" stop-color="#a6f7ae"/><stop offset="1" stop-color="#42d7c1"/></linearGradient>
+</defs>
+
+
+<!-- Keep Earth recognizable at 24px without small noisy land fragments. -->
+<circle id="earth" cx="140" cy="132" r="67" fill="url(#sea)" stroke="#b5fff0" stroke-opacity=".77" stroke-width="2.4"/>
+<path class="continent" d="M110 81 128 73 145 80 144 94 129 105 126 121 110 119 99 102Z" fill="#86ddb6"/>
+<path class="continent" d="M127 123 142 131 149 148 136 164 133 181 119 192 114 173 107 159 112 143Z" fill="#98e9af"/>
+<path class="continent" d="M161 88 179 90 197 106 200 126 186 130 177 143 161 139 157 121 149 108Z" fill="#8ce8b3"/>
+<path class="continent" d="M184 171 198 164 206 176 193 185Z" fill="#8ce8b3"/>
+<!-- Slender adult gecko, not a second circular ring or oversized cartoon head. -->
+<g id="gecko" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M146 43 C112 32 86 47 70 71 C47 103 53 145 74 173 C91 195 112 207 135 206" stroke="#052e32" stroke-width="19"/>
+  <path d="M146 43 C112 32 86 47 70 71 C47 103 53 145 74 173 C91 195 112 207 135 206" stroke="url(#geckoLime)" stroke-width="13.5"/>
+  <path d="M97 50 C74 67 59 99 62 125" stroke="#e9ffd0" stroke-opacity=".55" stroke-width="2.6"/>
+  <!-- A tapered tail, ending beyond the globe rather than into the head. -->
+  <path d="M135 206 C161 212 184 205 197 187 C206 173 203 158 193 153 C185 150 177 156 178 164 C180 169 184 172 189 170" stroke="#06353a" stroke-width="13"/>
+  <path d="M135 206 C161 212 184 205 197 187 C206 173 203 158 193 153 C185 150 177 156 178 164 C180 169 184 172 189 170" stroke="url(#geckoLime)" stroke-width="8.5"/>
+  <g stroke="#b9ffac" stroke-width="6.5">
+    <path d="M102 49 92 77 78 87"/>
+    <path d="M127 41 135 66 152 75"/>
+    <path d="M60 132 79 150 74 164"/>
+    <path d="M85 186 107 181 119 191"/>
+  </g>
+  <g class="toe" stroke="#d5ffc1" stroke-width="3.7">
+    <path d="M78 87 63 84 M78 87 69 96 M78 87 76 76"/>
+    <path d="M152 75 164 67 M152 75 165 80 M152 75 157 88"/>
+    <path d="M74 164 60 163 M74 164 67 176 M74 164 83 174"/>
+    <path d="M119 191 131 185 M119 191 129 199 M119 191 119 204"/>
+  </g>
+</g>
+<!-- Head/eye separate, clean silhouette: head less than one third of globe. -->
+<path d="M138 46 C150 31 164 28 179 34 C191 38 196 47 193 55 C191 62 182 65 171 63 L151 59Z" fill="url(#geckoLime)" stroke="#d5ffd2" stroke-width="1.2"/>
+<circle cx="180" cy="45" r="4.8" fill="#092c34"/>
+<circle cx="181.5" cy="43.5" r="1.5" fill="#f2fff6"/>
+<path d="M181 57Q186 56 190 53" fill="none" stroke="#27665d" stroke-width="1.4" stroke-linecap="round"/>
+</svg>
