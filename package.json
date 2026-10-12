@@ -8,13 +8,15 @@
   "scripts": {
     "start": "electron .",
     "check": "node --check src/bootstrap.cjs && node --check src/main.cjs && node --check src/preload.cjs && node --check src/web-preload.cjs && node --check src/renderer/renderer.js && node --check src/renderer/site-cache.js && node --check src/services/youtube-guard.cjs && node --check src/services/youtube-direct.cjs && node --check src/services/extensions.cjs && node --check src/services/sync-vault.cjs && node --check src/services/cookie-consent.cjs && node --check src/services/shields.cjs && node --check src/services/career-agent.cjs && npm test",
-    "dist": "electron-builder --win --x64 --publish never",
+    "dist": "npm run build:icons && electron-builder --win --x64 --publish never",
     "test": "node --test test/*.test.cjs",
-    "smoke:ui": "node scripts/gekko-layout-smoke.cjs"
+    "smoke:ui": "node scripts/gekko-layout-smoke.cjs",
+    "build:icons": "node scripts/build-gekko-icons.cjs"
   },
   "devDependencies": {
     "electron": "https://github.com/castlabs/electron-releases#v44.5.1+wvcus",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "sharp": "^0.34.4"
   },
   "build": {
     "appId": "com.quantic.gekko.browser",
@@ -34,7 +36,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "build/gekko.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -46,7 +49,10 @@
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
       "allowElevation": true,
-      "artifactName": "GEKKO-Setup.${ext}"
+      "artifactName": "GEKKO-Setup.${ext}",
+      "installerIcon": "build/gekko.ico",
+      "uninstallerIcon": "build/gekko.ico",
+      "installerHeaderIcon": "build/gekko.ico"
     },
     "directories": {
       "buildResources": "build",
