@@ -1,9 +1,6 @@
 name: Build Windows Installer
+# Cost guard: manual Windows installer builds only.
 on:
-  push:
-    branches: [main, "feat/gekko-2.3-finish"]
-  pull_request:
-    branches: [main, "feat/gekko-2.3-finish"]
   workflow_dispatch:
 permissions:
   contents: read
