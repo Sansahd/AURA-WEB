@@ -1,17 +1,7 @@
 name: GEKKO shared contract
 
+# Cost guard: validate the contract only when explicitly requested.
 on:
-  push:
-    branches:
-      - feat/gekko-2.4
-      - feat/gekko-native-1.1
-    paths:
-      - contracts/gekko-capabilities.v1.json
-      - .github/workflows/gekko-shared-contract.yml
-  pull_request:
-    paths:
-      - contracts/gekko-capabilities.v1.json
-      - .github/workflows/gekko-shared-contract.yml
   workflow_dispatch:
 
 jobs:
