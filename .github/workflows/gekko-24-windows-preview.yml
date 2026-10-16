@@ -1,8 +1,7 @@
 name: GEKKO 2.4 Windows preview
 
+# Cost guard: manual build only. Never compile Windows on each push.
 on:
-  push:
-    branches: [feat/gekko-2.4]
   workflow_dispatch:
 
 permissions:
