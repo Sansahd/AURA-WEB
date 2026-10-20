@@ -4,10 +4,7 @@
 :root {
   --gekko-toolbar-accent: var(--quantic-accent, #7aa2ff);
   --gekko-toolbar-opacity: var(--quantic-glass-opacity, .65);
-  --gekko-toolbar-glass: linear-gradient(112deg,
-    color-mix(in srgb, var(--gekko-toolbar-accent) 62%, rgba(10,19,30,var(--gekko-toolbar-opacity))),
-    color-mix(in srgb, var(--gekko-toolbar-accent) 45%, rgba(16,20,31,var(--gekko-toolbar-opacity))) 56%,
-    color-mix(in srgb, var(--gekko-toolbar-accent) 57%, rgba(11,18,28,var(--gekko-toolbar-opacity))));
+  --gekko-toolbar-glass: var(--gekko-toolbar-color, rgba(43,76,104,.64));
   --gekko-toolbar-outline: color-mix(in srgb, var(--gekko-toolbar-accent) 63%, rgba(255,255,255,.2));
 }
 /* La couleur Persona remplit réellement la barre (pas seulement sa bordure).
@@ -16,7 +13,7 @@ html body[data-rail-position] #bottom-dock,
 html body[data-rail-position].rail-site-tinted #bottom-dock,
 html body[data-rail-position] #sidestage-rail:not(.rail-minimized):not(#unused) {
   background: var(--gekko-toolbar-glass) !important;
-  background-image: var(--gekko-toolbar-glass) !important;
+  background-image: none !important;
   border-color: var(--gekko-toolbar-outline) !important;
 }
 html body[data-rail-position] #bottom-dock > #sidestage-rail:not(.rail-minimized) {

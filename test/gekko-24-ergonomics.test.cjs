@@ -17,9 +17,11 @@ test('the simplified toolbar retains access to apps and rail options',()=>{
 test('the accent color changes toolbar surface, not only the border',()=>{
   const css=file('src/renderer/gekko-24-ergonomics.css');
   assert.match(css,/--gekko-toolbar-accent:\s*var\(--quantic-accent/);
-  assert.match(css,/--gekko-toolbar-glass:\s*linear-gradient/);
+  assert.match(css,/--gekko-toolbar-glass:\s*var\(--gekko-toolbar-color/);
   assert.match(css,/background:\s*var\(--gekko-toolbar-glass\)\s*!important/);
   assert.match(css,/--gekko-toolbar-opacity:\s*var\(--quantic-glass-opacity/);
+  assert.match(css,/background-image:\s*none\s*!important/);
+  assert.match(file('src/renderer/renderer.js'),/function updateToolbarColor\(accent, opacity\)/);
 });
 test('window control targets are at least 40px in all layouts',()=>{
   const css=file('src/renderer/gekko-24-ergonomics.css');
