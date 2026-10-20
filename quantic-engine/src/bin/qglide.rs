@@ -1,5 +1,8 @@
 use std::time::{Duration, Instant};
 
+mod noir_style;
+use noir_style::{NoirSettings, led_button, paint_mirror};
+
 use eframe::egui;
 use quantic_engine::{BrowserSession, Engine};
 
@@ -104,6 +107,8 @@ struct GlideApp {
     favorites: Vec<String>,
     maximized: bool,
     show_apps: bool,
+    noir: NoirSettings,
+    show_persona: bool,
 }
 
 impl GlideApp {
@@ -123,6 +128,9 @@ impl GlideApp {
         visuals.widgets.inactive.fg_stroke.color = TEXT;
         visuals.widgets.hovered.fg_stroke.color = TEXT;
         visuals.widgets.active.fg_stroke.color = ACCENT;
+        visuals.selection.bg_fill = egui::Color32::from_gray(80);
+        visuals.selection.stroke.color = egui::Color32::WHITE;
+        visuals.hyperlink_color = egui::Color32::WHITE;
         cc.egui_ctx.set_visuals(visuals);
 
         Self {
@@ -140,6 +148,8 @@ impl GlideApp {
             favorites: load_favorites(),
             maximized: false,
             show_apps: false,
+            noir: NoirSettings::load(),
+            show_persona: false,
         }
     }
 
@@ -396,31 +406,31 @@ impl GlideApp {
     fn top_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("gekko_noir_dock")
             .exact_height(65.0)
-            .frame(egui::Frame::new().fill(egui::Color32::from_rgb(8,8,8))
+            .frame(egui::Frame::new().fill(egui::Color32::from_gray(8))
                 .stroke(egui::Stroke::new(1.0, BORDER)))
             .show(ctx, |ui| {
+                paint_mirror(ui,&self.noir);
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 5.0;
-                    let can_back = !self.home && self.session.can_go_back();
-                    let can_forward = !self.home && self.session.can_go_forward();
-                    if ui.add_enabled(can_back, egui::Button::new("‹")
-                        .min_size(egui::vec2(36.0,42.0))).clicked() { self.back(ctx); }
-                    if ui.add_enabled(can_forward, egui::Button::new("›")
-                        .min_size(egui::vec2(36.0,42.0))).clicked() { self.forward(ctx); }
-                    if ui.add(egui::Button::new("⟳").min_size(egui::vec2(36.0,42.0))).clicked() {
+                    let button = |ui:&mut egui::Ui,label:&str,width:f32,enabled:bool| {
+                        led_button(ui,label,egui::vec2(width,42.0),&self.noir,false,enabled)
+                    };
+                    if button(ui,"‹",36.0,!self.home && self.session.can_go_back()).clicked() {
+                        self.back(ctx);
+                    }
+                    if button(ui,"›",36.0,!self.home && self.session.can_go_forward()).clicked() {
+                        self.forward(ctx);
+                    }
+                    if button(ui,"⟳",36.0,true).clicked() {
                         if !self.home { self.reload(ctx); }
                     }
-                    if ui.add(egui::Button::new("⌂").min_size(egui::vec2(36.0,42.0))).clicked() {
-                        self.go_home();
-                    }
+                    if button(ui,"⌂",36.0,true).clicked() { self.go_home(); }
 
-                    // Origami identity stays completely native: no Chromium WebView.
                     gecko_icon(ui, 39.0);
-
-                    let reserved = 184.0; // New tab + window controls.
-                    let free = (ui.available_width() - reserved).max(170.0);
-                    let search_width = (free * 0.48).clamp(180.0, 420.0);
+                    let reserved = 242.0; // Tabs, new tab, Persona and Windows controls.
+                    let free = (ui.available_width() - reserved).max(165.0);
+                    let search_width = (free * 0.38).clamp(140.0, 365.0);
                     let address = ui.add_sized(
                         [search_width, 40.0],
                         egui::TextEdit::singleline(&mut self.address)
@@ -430,63 +440,103 @@ impl GlideApp {
                     if address.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                         self.navigate(ctx, &self.address.clone());
                     }
-                    if ui.add(egui::Button::new("→").min_size(egui::vec2(34.0,40.0))).clicked() {
-                        self.navigate(ctx, &self.address.clone());
+                    if button(ui,"→",34.0,true).clicked() {
+                        self.navigate(ctx,&self.address.clone());
                     }
-                    if ui.add(egui::Button::new(if self.favorites.contains(&self.address) {"♥"} else {"♡"})
-                        .min_size(egui::vec2(35.0,40.0)))
-                        .on_hover_text("Ajouter / retirer des favoris").clicked() {
+                    if button(ui,if self.favorites.contains(&self.address) {"♥"} else {"♡"},35.0,true)
+                        .on_hover_text("Ajouter ou retirer ce favori").clicked() {
                         self.toggle_favorite();
                     }
-                    let tabs_width = (ui.available_width() - reserved).max(75.0);
+
+                    let tabs_width = (ui.available_width() - reserved).max(80.0);
                     ui.allocate_ui_with_layout(
-                        egui::vec2(tabs_width, 44.0),
+                        egui::vec2(tabs_width,44.0),
                         egui::Layout::left_to_right(egui::Align::Center),
                         |ui| {
                             egui::ScrollArea::horizontal()
-                                .auto_shrink([false, false])
-                                .show(ui, |ui| {
+                                .auto_shrink([false,false])
+                                .show(ui,|ui| {
                                     ui.horizontal(|ui| {
-                                        let mut selected = None;
-                                        let mut closed = None;
+                                        let mut selected=None;
+                                        let mut closed=None;
                                         for i in 0..self.tabs.len() {
-                                            let title = self.tab_label(i);
-                                            let current = i == self.active_tab;
-                                            let label = format!("{}{}", if current {"◉ "} else {"○ "}, title);
-                                            let button = egui::Button::new(egui::RichText::new(label).size(13.0))
-                                                .fill(if current {egui::Color32::from_rgb(49,49,49)} else {PANEL})
-                                                .stroke(egui::Stroke::new(1.0, if current {TEXT} else {BORDER}))
-                                                .min_size(egui::vec2(153.0,42.0));
-                                            if ui.add(button).on_hover_text(self.tab_label(i)).clicked() {
-                                                selected = Some(i);
+                                            let title=self.tab_label(i);
+                                            let current=i==self.active_tab;
+                                            let label=format!("{}{}",if current {"◉ "} else {"○ "},title);
+                                            if led_button(ui,label,egui::vec2(153.0,42.0),
+                                                &self.noir,current,true)
+                                                .on_hover_text(self.tab_label(i)).clicked() {
+                                                selected=Some(i);
                                             }
-                                            if ui.add(egui::Button::new("×").min_size(egui::vec2(22.0,42.0)))
-                                                .on_hover_text("Fermer l'onglet").clicked() { closed = Some(i); }
+                                            if button(ui,"×",22.0,true)
+                                                .on_hover_text("Fermer l'onglet").clicked() {closed=Some(i);}
                                         }
-                                        if let Some(i) = selected { self.switch_tab(i); }
-                                        if let Some(i) = closed { self.close_tab(i); }
+                                        if let Some(i)=selected {self.switch_tab(i);}
+                                        if let Some(i)=closed {self.close_tab(i);}
                                     });
                                 });
                         },
                     );
-                    if ui.add(egui::Button::new("+").min_size(egui::vec2(40.0,42.0)))
-                        .on_hover_text("Nouvel onglet · Ctrl+T").clicked() { self.new_tab(); }
-                    if ui.add(egui::Button::new("−").min_size(egui::vec2(40.0,42.0)))
-                        .on_hover_text("Réduire").clicked() {
+                    if button(ui,"+",40.0,true).on_hover_text("Nouvel onglet · Ctrl+T").clicked() {
+                        self.new_tab();
+                    }
+                    if button(ui,"⚙",40.0,true)
+                        .on_hover_text("Persona · Couleur LED et miroir noir").clicked() {
+                        self.show_persona = !self.show_persona;
+                    }
+                    if button(ui,"−",40.0,true).on_hover_text("Réduire").clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
                     }
-                    if ui.add(egui::Button::new("□").min_size(egui::vec2(40.0,42.0)))
-                        .on_hover_text("Agrandir / restaurer").clicked() {
+                    if button(ui,"□",40.0,true).on_hover_text("Agrandir / restaurer").clicked() {
                         self.maximized = !self.maximized;
                         ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(self.maximized));
                     }
-                    if ui.add(egui::Button::new("×").min_size(egui::vec2(40.0,42.0))
-                        .fill(egui::Color32::from_rgb(26,26,26)))
-                        .on_hover_text("Fermer GEKKO").clicked() {
+                    if button(ui,"×",40.0,true).on_hover_text("Fermer GEKKO").clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
             });
+    }
+
+    fn persona_window(&mut self, ctx: &egui::Context) {
+        if !self.show_persona {return;}
+        let mut open=true;
+        let mut changed=false;
+        egui::Window::new("GEKKO NOIR · Persona")
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(350.0)
+            .show(ctx,|ui| {
+                ui.label(egui::RichText::new("Miroir noir + halo LED").strong().size(17.0));
+                ui.label(egui::RichText::new(
+                    "La couleur ne modifie pas le noir du navigateur : uniquement les halos des boutons."
+                ).color(MUTED).size(12.0));
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    ui.label("Couleur LED");
+                    changed |= ui.color_edit_button_srgb(&mut self.noir.led_rgb).changed();
+                    if ui.button("Blanc").clicked() {
+                        self.noir.led_rgb=[255,255,255];
+                        changed=true;
+                    }
+                });
+                ui.add_space(7.0);
+                changed |= ui.add(egui::Slider::new(&mut self.noir.led_intensity,0.0..=1.0)
+                    .text("Intensité du halo").step_by(0.05)).changed();
+                changed |= ui.add(egui::Slider::new(&mut self.noir.mirror_opacity,0.55..=0.98)
+                    .text("Profondeur miroir").step_by(0.01)).changed();
+                changed |= ui.checkbox(&mut self.noir.reduce_motion,"Réduire les animations").changed();
+                ui.add_space(9.0);
+                ui.label(egui::RichText::new("Aucun compte requis. Enregistré uniquement sur cet appareil.")
+                    .size(11.0).color(MUTED));
+            });
+        if changed {
+            if let Err(error)=self.noir.save() {
+                self.status=format!("Persona : sauvegarde impossible ({error})");
+            }
+        }
+        self.show_persona=open;
     }
 
     fn home_view(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
@@ -732,6 +782,7 @@ impl eframe::App for GlideApp {
             });
 
         self.field_editor(ctx);
+        self.persona_window(ctx);
         ctx.request_repaint_after(Duration::from_millis(250));
     }
 }
