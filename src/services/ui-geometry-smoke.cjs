@@ -38,11 +38,14 @@ function scheduleGeometrySmoke(win, app) {
           loaded:homeBrand.complete && homeBrand.naturalWidth>0
         } : null;
         const tabShelf = rect('#bottom-dock .gekko-tab-shelf');
+        const tab = rect('#bottom-dock > #sidestage-rail .tab');
+        const tabLabel = document.querySelector('#bottom-dock > #sidestage-rail .tab-title');
+        const tabFontSize = tabLabel ? parseFloat(getComputedStyle(tabLabel).fontSize) : 0;
         const windowControls = rect('#bottom-dock .gekko-rail-window-controls');
         return {
           width:innerWidth,height:innerHeight,dpr:devicePixelRatio,
           railPosition:document.body.dataset.railPosition,
-          shell,home,scene,dock,rail,input,homeSearch,favoriteTiles,brandLogo,dockBackground,dockBackgroundImage,tabShelf,windowControls
+          shell,home,scene,dock,rail,input,homeSearch,favoriteTiles,brandLogo,dockBackground,dockBackgroundImage,tabShelf,tab,tabFontSize,windowControls
         };
       })()`, true);
       const tolerance = 16;
@@ -94,6 +97,11 @@ function scheduleGeometrySmoke(win, app) {
           ? snapshot.rail.height < 30 || snapshot.rail.bottom > snapshot.dock.bottom + 2
           : snapshot.rail.width < 50 || snapshot.rail.right > snapshot.dock.right + 2
       )) errors.push('unified_rail_not_inside_dock');
+      if (!snapshot.tab || !snapshot.tab.visible ||
+          (vertical
+            ? snapshot.tab.width < 60 || snapshot.tab.height < 42
+            : snapshot.tab.width < 145 || snapshot.tab.height < 40 || snapshot.tabFontSize < 12))
+        errors.push('tab_too_small_'+expected);
       if (!snapshot.windowControls ||
           snapshot.windowControls.right > snapshot.width + 2 ||
           snapshot.windowControls.bottom > snapshot.height + 2)

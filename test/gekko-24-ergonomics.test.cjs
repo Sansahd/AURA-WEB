@@ -31,3 +31,22 @@ test('window control targets are at least 40px in all layouts',()=>{
   const html=file('src/renderer/index.html');
   for(const win of ['minimize','maximize','close'])assert.match(html,new RegExp('data-win="'+win+'"'));
 });
+
+test('tab labels, favicons and close actions are enlarged in horizontal layouts',()=>{
+  const css=file('src/renderer/gekko-24-ergonomics.css');
+  assert.match(css,/flex:0 0 clamp\(156px,13vw,190px\)!important/);
+  assert.match(css,/min-width:156px!important;max-width:190px!important/);
+  assert.match(css,/font-size:13px!important;font-weight:570!important/);
+  assert.match(css,/height:42px!important;min-height:42px!important/);
+  assert.match(css,/width:23px!important;height:25px!important/);
+  assert.match(css,/overflow-x:auto!important;overscroll-behavior-x:contain!important/);
+});
+test('vertical tabs use a large square favicon instead of unreadable micro labels',()=>{
+  const css=file('src/renderer/gekko-24-ergonomics.css');
+  assert.match(css,/width:64px!important;min-width:64px!important;max-width:64px!important/);
+  assert.match(css,/height:46px!important;min-height:46px!important/);
+  assert.match(css,/width:26px!important;height:26px!important/);
+  const smoke=file('src/services/ui-geometry-smoke.cjs');
+  assert.match(smoke,/tab_too_small_/);
+  assert.match(smoke,/snapshot\.tab\.width < 145/);
+});
