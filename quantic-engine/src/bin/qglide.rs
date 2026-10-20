@@ -11,14 +11,75 @@ const QUANTIC_PORTAL: &str = "https://mediumorchid-badger-314305.hostingersite.c
 const MAIL_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com/mail/";
 const PULSE_URL: &str = "https://mediumorchid-badger-314305.hostingersite.com/pulse/";
 
-const BG: egui::Color32 = egui::Color32::from_rgb(13, 12, 11);
-const PANEL: egui::Color32 = egui::Color32::from_rgb(24, 22, 20);
-const PANEL_HOVER: egui::Color32 = egui::Color32::from_rgb(34, 31, 27);
-const TEXT: egui::Color32 = egui::Color32::from_rgb(242, 238, 228);
-const MUTED: egui::Color32 = egui::Color32::from_rgb(156, 151, 142);
-const ACCENT: egui::Color32 = egui::Color32::from_rgb(242, 177, 52);
-const ACCENT_SOFT: egui::Color32 = egui::Color32::from_rgb(74, 55, 22);
-const BORDER: egui::Color32 = egui::Color32::from_rgb(53, 49, 44);
+const BG: egui::Color32 = egui::Color32::from_rgb(5, 5, 5);
+const PANEL: egui::Color32 = egui::Color32::from_rgb(21, 21, 21);
+const PANEL_HOVER: egui::Color32 = egui::Color32::from_rgb(43, 43, 43);
+const TEXT: egui::Color32 = egui::Color32::from_rgb(250, 250, 250);
+const MUTED: egui::Color32 = egui::Color32::from_rgb(178, 178, 178);
+const ACCENT: egui::Color32 = egui::Color32::WHITE;
+const ACCENT_SOFT: egui::Color32 = egui::Color32::from_rgb(50, 50, 50);
+const BORDER: egui::Color32 = egui::Color32::from_rgb(57, 57, 57);
+
+
+/// One parked tab owns one independent native Quantic Engine session.
+struct ParkedTab {
+    session: BrowserSession,
+    address: String,
+    texture: Option<egui::TextureHandle>,
+    home: bool,
+    error: Option<String>,
+    title: String,
+}
+
+fn favorites_file() -> std::path::PathBuf {
+    let root = std::env::var_os("APPDATA")
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(std::path::PathBuf::from))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    root.join("GEKKO").join("Native").join("favorites.json")
+}
+
+fn load_favorites() -> Vec<String> {
+    let Ok(bytes) = std::fs::read_to_string(favorites_file()) else { return Vec::new(); };
+    serde_json::from_str::<Vec<String>>(&bytes)
+        .unwrap_or_default().into_iter().filter(|url| {
+            (url.starts_with("http://") || url.starts_with("https://")) && url.len() < 2048
+        }).take(50).collect()
+}
+
+fn save_favorites(urls: &[String]) -> std::io::Result<()> {
+    let file = favorites_file();
+    if let Some(parent) = file.parent() { std::fs::create_dir_all(parent)?; }
+    let data = serde_json::to_vec_pretty(urls)?;
+    std::fs::write(file, data)
+}
+
+/// Minimal vector renderer for the approved GEKKO monochrome mark.
+/// The stored SVG uses only polygon moves and straight folds, no filters or gradient.
+fn gecko_icon(ui: &mut egui::Ui, side: f32) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(side, side), egui::Sense::hover());
+    let painter = ui.painter_at(rect);
+    painter.circle_filled(rect.center(), side * 0.49, egui::Color32::BLACK);
+    let svg = include_str!("../../assets/gekko-origami-noir.svg");
+    if let Some(part) = svg.split(" d=\"").nth(1).and_then(|s| s.split('"').next()) {
+        for command in part.split('M').skip(1) {
+            let mut points = Vec::new();
+            for item in command.replace('Z', " ").split_whitespace() {
+                let Some((x, y)) = item.trim_start_matches('L').split_once(',') else { continue; };
+                if let (Ok(x), Ok(y)) = (x.parse::<f32>(), y.parse::<f32>()) {
+                    points.push(egui::pos2(
+                        rect.min.x + side * x / 512.0,
+                        rect.min.y + side * y / 512.0,
+                    ));
+                }
+            }
+            if points.len() >= 3 {
+                painter.add(egui::Shape::convex_polygon(points, egui::Color32::WHITE, egui::Stroke::NONE));
+            }
+        }
+    }
+    response
+}
 
 #[derive(Clone)]
 struct FieldEditor {
@@ -38,6 +99,11 @@ struct GlideApp {
     error: Option<String>,
     home_query: String,
     editor: Option<FieldEditor>,
+    tabs: Vec<Option<ParkedTab>>,
+    active_tab: usize,
+    favorites: Vec<String>,
+    maximized: bool,
+    show_apps: bool,
 }
 
 impl GlideApp {
@@ -48,7 +114,7 @@ impl GlideApp {
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = BG;
         visuals.window_fill = BG;
-        visuals.extreme_bg_color = egui::Color32::from_rgb(18, 17, 15);
+        visuals.extreme_bg_color = egui::Color32::from_rgb(16, 16, 16);
         visuals.faint_bg_color = PANEL;
         visuals.override_text_color = Some(TEXT);
         visuals.widgets.inactive.bg_fill = PANEL;
@@ -62,13 +128,93 @@ impl GlideApp {
         Self {
             session,
             address: String::new(),
-            status: "Glide Native 0.6.1 prêt".to_string(),
+            status: "GEKKO NOIR — moteur natif expérimental · zéro Chromium".to_string(),
             texture: None,
             last_async_poll: Instant::now(),
             home: true,
             error: None,
             home_query: String::new(),
             editor: None,
+            tabs: vec![None],
+            active_tab: 0,
+            favorites: load_favorites(),
+            maximized: false,
+            show_apps: false,
+        }
+    }
+
+
+    fn fresh_session() -> BrowserSession {
+        BrowserSession::new(Engine::new().with_viewport_width(VIEWPORT_WIDTH))
+            .with_viewport_height(VIEWPORT_HEIGHT)
+    }
+
+    fn tab_label(&self, i: usize) -> String {
+        let url = if i == self.active_tab {
+            if self.home { return "Accueil".to_string(); }
+            self.address.as_str()
+        } else {
+            let Some(Some(tab)) = self.tabs.get(i) else { return "Accueil".to_string(); };
+            if tab.home { return "Accueil".to_string(); }
+            tab.address.as_str()
+        };
+        url::Url::parse(url).ok()
+            .and_then(|u| u.host_str().map(str::to_string))
+            .unwrap_or_else(|| "Nouvel onglet".to_string())
+    }
+
+    fn switch_tab(&mut self, index: usize) {
+        if index >= self.tabs.len() || index == self.active_tab { return; }
+        let old = ParkedTab {
+            session: std::mem::replace(&mut self.session, Self::fresh_session()),
+            address: std::mem::take(&mut self.address),
+            texture: self.texture.take(),
+            home: self.home,
+            error: self.error.take(),
+            title: self.status.clone(),
+        };
+        self.tabs[self.active_tab] = Some(old);
+        self.active_tab = index;
+        match self.tabs[index].take() {
+            Some(tab) => {
+                self.session = tab.session;
+                self.address = tab.address;
+                self.texture = tab.texture;
+                self.home = tab.home;
+                self.error = tab.error;
+                self.status = tab.title;
+            }
+            None => self.go_home(),
+        }
+        self.editor = None;
+    }
+
+    fn new_tab(&mut self) {
+        let next = self.tabs.len();
+        self.tabs.push(None);
+        self.switch_tab(next);
+    }
+
+    fn close_tab(&mut self, index: usize) {
+        if index >= self.tabs.len() { return; }
+        if self.tabs.len() == 1 { self.go_home(); return; }
+        if index == self.active_tab {
+            self.switch_tab(if index == 0 { 1 } else { index - 1 });
+        }
+        self.tabs.remove(index);
+        if self.active_tab > index { self.active_tab -= 1; }
+    }
+
+    fn toggle_favorite(&mut self) {
+        if self.home || !self.address.starts_with("http") { return; }
+        if let Some(i) = self.favorites.iter().position(|u| u == &self.address) {
+            self.favorites.remove(i);
+        } else {
+            self.favorites.insert(0, self.address.clone());
+            self.favorites.truncate(50);
+        }
+        if let Err(error) = save_favorites(&self.favorites) {
+            self.status = format!("Favoris : sauvegarde impossible ({error})");
         }
     }
 
@@ -91,7 +237,7 @@ impl GlideApp {
         self.error = None;
         self.texture = None;
         self.address.clear();
-        self.status = "Accueil Glide".to_string();
+        self.status = "Accueil GEKKO".to_string();
     }
 
     fn navigate(&mut self, ctx: &egui::Context, raw: &str) {
@@ -228,6 +374,11 @@ impl GlideApp {
     }
 
     fn keyboard_shortcuts(&mut self, ctx: &egui::Context) {
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::T)) { self.new_tab(); }
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) { self.close_tab(self.active_tab); }
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::L)) {
+            ctx.memory_mut(|m| m.request_focus(egui::Id::new("gekko-native-address")));
+        }
         if ctx.input(|i| i.key_pressed(egui::Key::F5)) {
             self.reload(ctx);
         }
@@ -243,243 +394,152 @@ impl GlideApp {
     }
 
     fn top_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("glide_top")
-            .exact_height(84.0)
-            .frame(egui::Frame::new().fill(BG))
+        egui::TopBottomPanel::top("gekko_noir_dock")
+            .exact_height(65.0)
+            .frame(egui::Frame::new().fill(egui::Color32::from_rgb(8,8,8))
+                .stroke(egui::Stroke::new(1.0, BORDER)))
             .show(ctx, |ui| {
-                ui.add_space(8.0);
-
+                ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    ui.add_space(10.0);
-                    let (mark_rect, _) = ui.allocate_exact_size(egui::vec2(28.0, 28.0), egui::Sense::hover());
-                    ui.painter().circle_filled(mark_rect.center(), 12.0, ACCENT);
-                    ui.painter().circle_filled(mark_rect.center(), 5.0, BG);
-
-                    ui.label(
-                        egui::RichText::new("GLIDE")
-                            .size(20.0)
-                            .strong()
-                            .color(TEXT),
-                    );
-
-                    ui.add_space(10.0);
-                    ui.label(
-                        egui::RichText::new("NATIVE")
-                            .size(10.0)
-                            .strong()
-                            .color(ACCENT),
-                    );
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.add_space(10.0);
-                        ui.label(
-                            egui::RichText::new("ZERO CHROMIUM")
-                                .size(10.0)
-                                .strong()
-                                .color(MUTED),
-                        );
-                    });
-                });
-
-                ui.add_space(7.0);
-
-                ui.horizontal(|ui| {
-                    ui.add_space(10.0);
-
-                    let back = ui.add_enabled(
-                        !self.home && self.session.can_go_back(),
-                        egui::Button::new("←").min_size(egui::vec2(36.0, 32.0)),
-                    );
-                    if back.clicked() {
-                        self.back(ctx);
+                    ui.spacing_mut().item_spacing.x = 5.0;
+                    let can_back = !self.home && self.session.can_go_back();
+                    let can_forward = !self.home && self.session.can_go_forward();
+                    if ui.add_enabled(can_back, egui::Button::new("‹")
+                        .min_size(egui::vec2(36.0,42.0))).clicked() { self.back(ctx); }
+                    if ui.add_enabled(can_forward, egui::Button::new("›")
+                        .min_size(egui::vec2(36.0,42.0))).clicked() { self.forward(ctx); }
+                    if ui.add(egui::Button::new("⟳").min_size(egui::vec2(36.0,42.0))).clicked() {
+                        if !self.home { self.reload(ctx); }
                     }
-
-                    let forward = ui.add_enabled(
-                        !self.home && self.session.can_go_forward(),
-                        egui::Button::new("→").min_size(egui::vec2(36.0, 32.0)),
-                    );
-                    if forward.clicked() {
-                        self.forward(ctx);
-                    }
-
-                    if ui
-                        .add(egui::Button::new("↻").min_size(egui::vec2(36.0, 32.0)))
-                        .clicked()
-                    {
-                        if self.home {
-                            self.status = "Accueil Glide".to_string();
-                        } else {
-                            self.reload(ctx);
-                        }
-                    }
-
-                    if ui
-                        .add(egui::Button::new("⌂").min_size(egui::vec2(36.0, 32.0)))
-                        .clicked()
-                    {
+                    if ui.add(egui::Button::new("⌂").min_size(egui::vec2(36.0,42.0))).clicked() {
                         self.go_home();
                     }
 
-                    ui.add_space(6.0);
+                    // Origami identity stays completely native: no Chromium WebView.
+                    gecko_icon(ui, 39.0);
 
-                    let available = (ui.available_width() - 118.0).max(220.0);
-                    let response = ui.add_sized(
-                        [available, 34.0],
+                    let reserved = 184.0; // New tab + window controls.
+                    let free = (ui.available_width() - reserved).max(170.0);
+                    let search_width = (free * 0.48).clamp(180.0, 420.0);
+                    let address = ui.add_sized(
+                        [search_width, 40.0],
                         egui::TextEdit::singleline(&mut self.address)
-                            .hint_text("Rechercher ou saisir une adresse"),
+                            .id(egui::Id::new("gekko-native-address"))
+                            .hint_text("Rechercher ou saisir une adresse…"),
                     );
-
-                    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                        let value = self.address.clone();
-                        self.navigate(ctx, &value);
+                    if address.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        self.navigate(ctx, &self.address.clone());
                     }
-
-                    if ui
-                        .add(
-                            egui::Button::new(
-                                egui::RichText::new("Aller").strong().color(BG),
-                            )
-                            .fill(ACCENT)
-                            .min_size(egui::vec2(64.0, 34.0)),
-                        )
-                        .clicked()
-                    {
-                        let value = self.address.clone();
-                        self.navigate(ctx, &value);
+                    if ui.add(egui::Button::new("→").min_size(egui::vec2(34.0,40.0))).clicked() {
+                        self.navigate(ctx, &self.address.clone());
                     }
-
-                    ui.add_space(10.0);
-                });
-            });
-    }
-
-    fn native_rail(&mut self, ctx: &egui::Context) {
-        egui::SidePanel::left("native_rail")
-            .exact_width(68.0)
-            .frame(egui::Frame::new().fill(egui::Color32::from_rgb(17, 16, 14)))
-            .show(ctx, |ui| {
-                ui.add_space(18.0);
-                ui.vertical_centered(|ui| {
-                    if rail_button(ui, "⌕", "Accueil / recherche") {
-                        self.go_home();
+                    if ui.add(egui::Button::new(if self.favorites.contains(&self.address) {"♥"} else {"♡"})
+                        .min_size(egui::vec2(35.0,40.0)))
+                        .on_hover_text("Ajouter / retirer des favoris").clicked() {
+                        self.toggle_favorite();
                     }
-                    ui.add_space(10.0);
-
-                    if rail_button(ui, "M", "Quantic Mail") {
-                        self.navigate(ctx, MAIL_URL);
+                    let tabs_width = (ui.available_width() - reserved).max(75.0);
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(tabs_width, 44.0),
+                        egui::Layout::left_to_right(egui::Align::Center),
+                        |ui| {
+                            egui::ScrollArea::horizontal()
+                                .auto_shrink([false, false])
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        let mut selected = None;
+                                        let mut closed = None;
+                                        for i in 0..self.tabs.len() {
+                                            let title = self.tab_label(i);
+                                            let current = i == self.active_tab;
+                                            let label = format!("{}{}", if current {"◉ "} else {"○ "}, title);
+                                            let button = egui::Button::new(egui::RichText::new(label).size(13.0))
+                                                .fill(if current {egui::Color32::from_rgb(49,49,49)} else {PANEL})
+                                                .stroke(egui::Stroke::new(1.0, if current {TEXT} else {BORDER}))
+                                                .min_size(egui::vec2(153.0,42.0));
+                                            if ui.add(button).on_hover_text(self.tab_label(i)).clicked() {
+                                                selected = Some(i);
+                                            }
+                                            if ui.add(egui::Button::new("×").min_size(egui::vec2(22.0,42.0)))
+                                                .on_hover_text("Fermer l'onglet").clicked() { closed = Some(i); }
+                                        }
+                                        if let Some(i) = selected { self.switch_tab(i); }
+                                        if let Some(i) = closed { self.close_tab(i); }
+                                    });
+                                });
+                        },
+                    );
+                    if ui.add(egui::Button::new("+").min_size(egui::vec2(40.0,42.0)))
+                        .on_hover_text("Nouvel onglet · Ctrl+T").clicked() { self.new_tab(); }
+                    if ui.add(egui::Button::new("−").min_size(egui::vec2(40.0,42.0)))
+                        .on_hover_text("Réduire").clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
                     }
-                    ui.add_space(10.0);
-
-                    if rail_button(ui, "P", "Quantic Pulse") {
-                        self.navigate(ctx, PULSE_URL);
+                    if ui.add(egui::Button::new("□").min_size(egui::vec2(40.0,42.0)))
+                        .on_hover_text("Agrandir / restaurer").clicked() {
+                        self.maximized = !self.maximized;
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(self.maximized));
                     }
-                    ui.add_space(10.0);
-
-                    if rail_button(ui, "A", "AURA Career") {
-                        self.status = "AURA Career natif est installé avec Glide".to_string();
-                    }
-
-                    ui.add_space(18.0);
-                    ui.separator();
-                    ui.add_space(12.0);
-
-                    if rail_button(ui, "Q", "Portail Quantic") {
-                        self.navigate(ctx, QUANTIC_PORTAL);
+                    if ui.add(egui::Button::new("×").min_size(egui::vec2(40.0,42.0))
+                        .fill(egui::Color32::from_rgb(26,26,26)))
+                        .on_hover_text("Fermer GEKKO").clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
             });
     }
 
     fn home_view(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-        ui.add_space(70.0);
-
+        ui.add_space((ui.available_height() * 0.17).clamp(28.0, 150.0));
         ui.vertical_centered(|ui| {
-            let (logo_rect, _) = ui.allocate_exact_size(egui::vec2(92.0, 92.0), egui::Sense::hover());
-            ui.painter().circle_filled(logo_rect.center(), 42.0, ACCENT);
-            ui.painter().circle_filled(logo_rect.center(), 19.0, BG);
-
-            ui.add_space(16.0);
-            ui.label(
-                egui::RichText::new("GLIDE")
-                    .size(44.0)
-                    .strong()
-                    .color(TEXT),
-            );
-            ui.label(
-                egui::RichText::new("Le web, sans Chromium.")
-                    .size(17.0)
-                    .color(MUTED),
-            );
-
+            gecko_icon(ui, 132.0);
+            ui.add_space(11.0);
+            ui.label(egui::RichText::new("G E K K O").size(47.0).strong().color(TEXT));
+            ui.add_space(0.0);
+            ui.label(egui::RichText::new("B R O W S E   F R E E L Y")
+                .size(10.0).strong().color(MUTED));
             ui.add_space(30.0);
-
-            let search_width = ui.available_width().min(720.0);
+            let search_width = ui.available_width().min(690.0).max(200.0);
             let response = ui.add_sized(
-                [search_width, 46.0],
+                [search_width, 55.0],
                 egui::TextEdit::singleline(&mut self.home_query)
-                    .hint_text("Rechercher sur le web ou saisir une adresse"),
+                    .hint_text("⌕  Rechercher ou saisir une adresse…"),
             );
-
             let enter = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-
-            ui.add_space(10.0);
-            let search_clicked = ui
-                .add(
-                    egui::Button::new(
-                        egui::RichText::new("Rechercher")
-                            .strong()
-                            .color(BG),
-                    )
-                    .fill(ACCENT)
-                    .min_size(egui::vec2(150.0, 38.0)),
-                )
-                .clicked();
-
-            if enter || search_clicked {
+            if enter {
                 let value = self.home_query.clone();
-                if !value.trim().is_empty() {
-                    self.address = value.clone();
-                    self.navigate(ctx, &value);
-                }
+                self.navigate(ctx, &value);
             }
-
-            ui.add_space(42.0);
-
+            ui.add_space(23.0);
             ui.horizontal(|ui| {
-                let total = 4.0 * 150.0 + 3.0 * 14.0;
-                ui.add_space(((ui.available_width() - total) / 2.0).max(0.0));
-
-                if home_card(ui, "WEB", "Recherche privée", "HTML léger") {
-                    let value = if self.home_query.trim().is_empty() {
-                        "Quantic".to_string()
-                    } else {
-                        self.home_query.clone()
-                    };
-                    self.navigate(ctx, &value);
-                }
-                ui.add_space(14.0);
-
-                if home_card(ui, "MAIL", "Quantic Mail", "Communication") {
-                    self.navigate(ctx, MAIL_URL);
-                }
-                ui.add_space(14.0);
-
-                if home_card(ui, "PULSE", "Quantic Pulse", "Réseau social") {
-                    self.navigate(ctx, PULSE_URL);
-                }
-                ui.add_space(14.0);
-
-                if home_card(ui, "AURA", "AURA Career", "Agent emploi") {
-                    self.status = "AURA Career natif est installé avec Glide".to_string();
-                }
+                let centered = ((ui.available_width() - search_width) * 0.5).max(0.0);
+                ui.add_space(centered);
+                ui.label(egui::RichText::new("MES FAVORIS").size(12.0).strong().color(TEXT));
+                ui.add_space(10.0);
+                ui.label(egui::RichText::new("· Stockés sur ce PC").size(11.0).color(MUTED));
             });
-
-            ui.add_space(34.0);
-            ui.label(
-                egui::RichText::new("Rust · Quantic Engine · Boa JS · aucun moteur tiers")
-                    .size(11.0)
-                    .color(MUTED),
-            );
+            ui.add_space(8.0);
+            if self.favorites.is_empty() {
+                ui.label(egui::RichText::new("Ajoute une page avec ♡ dans la barre.")
+                    .size(13.0).color(MUTED));
+            } else {
+                let items = self.favorites.clone();
+                egui::ScrollArea::vertical().max_height(250.0).show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing = egui::vec2(8.0,8.0);
+                        for url in items.iter().take(12) {
+                            let title = host_label(url);
+                            let button = egui::Button::new(egui::RichText::new(title).size(12.0))
+                                .min_size(egui::vec2(148.0,55.0))
+                                .fill(PANEL)
+                                .stroke(egui::Stroke::new(1.0,BORDER));
+                            if ui.add(button).on_hover_text(url).clicked() {
+                                self.navigate(ctx, url);
+                            }
+                        }
+                    });
+                });
+            }
         });
     }
 
@@ -580,7 +640,7 @@ impl GlideApp {
         let mut keep_open = true;
         let mut save = false;
 
-        egui::Window::new("Saisie Glide")
+        egui::Window::new("Saisie GEKKO")
             .collapsible(false)
             .resizable(false)
             .default_width(460.0)
@@ -648,26 +708,7 @@ impl GlideApp {
         }
     }
 
-    fn status_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::bottom("status_bar")
-            .exact_height(28.0)
-            .frame(egui::Frame::new().fill(egui::Color32::from_rgb(17, 16, 14)))
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.add_space(8.0);
-                    ui.label(egui::RichText::new(&self.status).size(10.0).color(MUTED));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.add_space(8.0);
-                        ui.label(
-                            egui::RichText::new("Chromium 0 · Electron 0 · CEF 0")
-                                .size(10.0)
-                                .strong()
-                                .color(ACCENT),
-                        );
-                    });
-                });
-            });
-    }
+
 }
 
 impl eframe::App for GlideApp {
@@ -676,8 +717,7 @@ impl eframe::App for GlideApp {
         self.keyboard_shortcuts(ctx);
 
         self.top_bar(ctx);
-        self.status_bar(ctx);
-        self.native_rail(ctx);
+        // Single top dock: no duplicate SideStage and no hidden Chromium surface.
 
         egui::CentralPanel::default()
             .frame(egui::Frame::new().fill(BG))
@@ -760,9 +800,10 @@ fn host_label(url: &str) -> String {
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Quantic Glide Native")
+            .with_title("GEKKO NOIR — Native")
             .with_inner_size([1440.0, 900.0])
-            .with_min_inner_size([980.0, 680.0]),
+            .with_min_inner_size([980.0, 680.0])
+            .with_decorations(false),
         ..Default::default()
     };
 
@@ -771,4 +812,22 @@ fn main() -> eframe::Result {
         options,
         Box::new(|cc| Ok(Box::new(GlideApp::new(cc)))),
     )
+}
+
+
+#[cfg(test)]
+mod native_noir_tests {
+    use super::*;
+    #[test]
+    fn native_search_never_opens_a_chromium_fallback() {
+        assert_eq!(GlideApp::normalize_address("example.com"), "https://example.com");
+        assert!(GlideApp::normalize_address("bonjour").starts_with(SEARCH_PREFIX));
+    }
+    #[test]
+    fn monochrome_mark_has_no_gradient_or_external_url() {
+        let icon = include_str!("../../assets/gekko-origami-noir.svg");
+        assert!(icon.contains("fill=\"#000\""));
+        assert!(icon.contains("fill=\"#fff\""));
+        assert!(!icon.contains("linearGradient"));
+    }
 }

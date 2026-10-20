@@ -1,0 +1,54 @@
+name: GEKKO NOIR Native Zero Chromium (Windows)
+
+on:
+  push:
+    branches:
+      - feat/gekko-noir-native-20261020
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-native:
+    runs-on: windows-2025
+    timeout-minutes: 65
+    defaults:
+      run:
+        working-directory: quantic-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: quantic-engine
+      - name: Check zero Chromium dependencies
+        shell: pwsh
+        run: |
+          $tree = cargo tree --edges normal
+          $tree | Out-File cargo-tree.txt
+          if ($tree -match 'chromium|electron|cef|webview2|webkit|wry') {
+            throw "Forbidden browser runtime detected in native Cargo dependencies"
+          }
+          Write-Host "ZERO CHROMIUM DEPENDENCY GATE: PASSED"
+      - name: Rust format
+        run: cargo fmt --all -- --check
+      - name: Native UI tests
+        run: cargo test --bin qglide
+      - name: Native build
+        run: cargo build --release --bin qglide
+      - name: Native binary is really present
+        shell: pwsh
+        run: |
+          if (-not (Test-Path target/release/qglide.exe)) { throw "Native GEKKO.exe missing" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target/release/qglide.exe dist/GEKKO-NOIR-Native-ZeroChromium.exe
+          Get-FileHash dist/GEKKO-NOIR-Native-ZeroChromium.exe -Algorithm SHA256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GEKKO-NOIR-Native-ZeroChromium-Windows
+          path: quantic-engine/dist/GEKKO-NOIR-Native-ZeroChromium.exe
+          retention-days: 7
+          if-no-files-found: error
