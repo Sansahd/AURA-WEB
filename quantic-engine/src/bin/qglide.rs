@@ -404,17 +404,18 @@ impl GlideApp {
     }
 
     fn top_bar(&mut self, ctx: &egui::Context) {
+        let led_style = self.noir.clone();
         egui::TopBottomPanel::top("gekko_noir_dock")
             .exact_height(65.0)
             .frame(egui::Frame::new().fill(egui::Color32::from_gray(8))
                 .stroke(egui::Stroke::new(1.0, BORDER)))
             .show(ctx, |ui| {
-                paint_mirror(ui,&self.noir);
+                paint_mirror(ui,&led_style);
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 5.0;
                     let button = |ui:&mut egui::Ui,label:&str,width:f32,enabled:bool| {
-                        led_button(ui,label,egui::vec2(width,42.0),&self.noir,false,enabled)
+                        led_button(ui,label,egui::vec2(width,42.0),&led_style,false,enabled)
                     };
                     if button(ui,"‹",36.0,!self.home && self.session.can_go_back()).clicked() {
                         self.back(ctx);
@@ -464,7 +465,7 @@ impl GlideApp {
                                             let current=i==self.active_tab;
                                             let label=format!("{}{}",if current {"◉ "} else {"○ "},title);
                                             if led_button(ui,label,egui::vec2(153.0,42.0),
-                                                &self.noir,current,true)
+                                                &led_style,current,true)
                                                 .on_hover_text(self.tab_label(i)).clicked() {
                                                 selected=Some(i);
                                             }
