@@ -3,6 +3,10 @@ name: GEKKO 2.4 Windows preview
 # Cost guard: manual build only. Never compile Windows on each push.
 on:
   workflow_dispatch:
+  # One opt-in preview build on the dedicated UI branch, not on main.
+  push:
+    branches:
+      - fix/gekko-ergonomie-20261020
 
 permissions:
   contents: read
@@ -63,7 +67,7 @@ jobs:
       - name: Upload Windows preview installer
         uses: actions/upload-artifact@v4
         with:
-          name: GEKKO-2.4-beta13-Windows-x64
+          name: GEKKO-2.4-ergonomie-Windows-x64
           path: dist/GEKKO-Setup.exe
           if-no-files-found: error
           retention-days: 14

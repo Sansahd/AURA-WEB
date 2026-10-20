@@ -1,0 +1,121 @@
+/* GEKKO 2.4 - barre lisible, sans lanceurs imposés.
+ * Dernier fichier du cascade CSS : neutralise les anciennes couleurs figées.
+ * Les services et options demeurent accessibles par le bouton Apps Quantic. */
+:root {
+  --gekko-toolbar-accent: var(--quantic-accent, #7aa2ff);
+  --gekko-toolbar-opacity: var(--quantic-glass-opacity, .65);
+  --gekko-toolbar-glass: linear-gradient(112deg,
+    color-mix(in srgb, var(--gekko-toolbar-accent) 62%, rgba(10,19,30,var(--gekko-toolbar-opacity))),
+    color-mix(in srgb, var(--gekko-toolbar-accent) 45%, rgba(16,20,31,var(--gekko-toolbar-opacity))) 56%,
+    color-mix(in srgb, var(--gekko-toolbar-accent) 57%, rgba(11,18,28,var(--gekko-toolbar-opacity))));
+  --gekko-toolbar-outline: color-mix(in srgb, var(--gekko-toolbar-accent) 63%, rgba(255,255,255,.2));
+}
+/* La couleur Persona remplit réellement la barre (pas seulement sa bordure).
+   Le fond est partagé pour les orientations horizontale et verticale. */
+html body[data-rail-position] #bottom-dock,
+html body[data-rail-position].rail-site-tinted #bottom-dock,
+html body[data-rail-position] #sidestage-rail:not(.rail-minimized):not(#unused) {
+  background: var(--gekko-toolbar-glass) !important;
+  background-image: var(--gekko-toolbar-glass) !important;
+  border-color: var(--gekko-toolbar-outline) !important;
+}
+html body[data-rail-position] #bottom-dock > #sidestage-rail:not(.rail-minimized) {
+  background: transparent !important;
+  background-image: none !important;
+  border:0!important;
+}
+html body[data-rail-position] #bottom-dock .address {
+  background:color-mix(in srgb,var(--gekko-toolbar-accent) 16%,rgba(8,16,25,.83))!important;
+  border-color:color-mix(in srgb,var(--gekko-toolbar-accent) 50%,rgba(244,255,251,.25))!important;
+}
+html body[data-rail-position] #bottom-dock .address:focus-within {
+  border-color:var(--gekko-toolbar-accent)!important;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--gekko-toolbar-accent) 25%,transparent)!important;
+}
+/* Aucun service externe / identité / contrôle d'agencement forcé dans la barre.
+   Bouton Apps Quantic => services, déplacer, épingler et Quantic ID. */
+#bottom-dock > #sidestage-rail > :is(
+  .side-stage-app,.side-stage-brand,.gekko-rail-pin,
+  .gekko-rail-position,.gekko-identity-indicator,.side-stage-close
+) { display:none!important; }
+/* Les onglets peuvent maintenant exploiter l'espace laissé libre. */
+body:is([data-rail-position="bottom"],[data-rail-position="top"])
+  #bottom-dock > #sidestage-rail .gekko-tab-shelf {
+  flex:1 1 auto!important;min-width:56px!important;
+}
+body:is([data-rail-position="bottom"],[data-rail-position="top"])
+  #bottom-dock > #sidestage-rail .gekko-rail-window-controls {
+  display:flex!important;flex:0 0 139px!important;
+  width:139px!important;min-width:139px!important;max-width:139px!important;
+  height:44px!important;min-height:44px!important;
+  gap:5px!important;padding:0 0 0 5px!important;
+  align-items:center!important;justify-content:flex-end!important;
+  margin-left:auto!important;
+}
+body:is([data-rail-position="bottom"],[data-rail-position="top"])
+  #bottom-dock > #sidestage-rail .gekko-rail-window-controls button {
+  flex:0 0 42px!important;width:42px!important;min-width:42px!important;
+  height:42px!important;min-height:42px!important;
+}
+/* En barre latérale, ne jamais presser 3 boutons dans 70px de largeur. */
+body:is([data-rail-position="left"],[data-rail-position="right"])
+  #bottom-dock > #sidestage-rail .gekko-rail-window-controls {
+  display:flex!important;flex:0 0 138px!important;
+  flex-direction:column!important;
+  width:70px!important;min-width:70px!important;max-width:70px!important;
+  height:138px!important;min-height:138px!important;max-height:138px!important;
+  gap:4px!important;margin-top:auto!important;padding:5px 0 0!important;
+  border-top:1px solid color-mix(in srgb,var(--gekko-toolbar-accent) 45%,transparent)!important;
+  border-left:0!important;
+}
+body:is([data-rail-position="left"],[data-rail-position="right"])
+  #bottom-dock > #sidestage-rail .gekko-rail-window-controls button {
+  flex:0 0 40px!important;width:48px!important;min-width:48px!important;
+  height:40px!important;min-height:40px!important;
+}
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls button {
+  box-sizing:border-box!important;
+  display:grid!important;place-items:center!important;
+  margin:0!important;padding:0!important;
+  border-radius:11px!important;
+  border:1px solid rgba(248,255,252,.18)!important;
+  color:#f6fbff!important;
+  background:rgba(6,15,25,.34)!important;
+  font:600 22px/1 system-ui,sans-serif!important;
+  cursor:pointer!important;-webkit-app-region:no-drag!important;
+  transition:background .12s ease,border-color .12s ease!important;
+}
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls button:hover {
+  background:color-mix(in srgb,var(--gekko-toolbar-accent) 43%,rgba(8,18,28,.7))!important;
+  border-color:rgba(255,255,255,.53)!important;
+}
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls button[data-win="close"]:hover {
+  background:#bb2938!important;border-color:#e86871!important;
+}
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls button:focus-visible,
+#bottom-dock .dock-control:focus-visible {
+  outline:2px solid #fff!important;outline-offset:1px!important;
+}
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls button:active {
+  transform:scale(.95);
+}
+/* Autres actions : cibles plus grandes, pictogrammes mieux lisibles. */
+#bottom-dock .dock-control {
+  box-sizing:border-box!important;
+  width:36px!important;min-width:36px!important;flex-basis:36px!important;
+  height:38px!important;min-height:38px!important;padding:7px!important;
+}
+#bottom-dock .dock-control svg{width:21px!important;height:21px!important}
+#bottom-dock .search-engine-button {height:36px!important}
+#bottom-dock .address input{font-size:14px!important}
+#bottom-dock > #sidestage-rail .gekko-window-grip {
+  color:#fff!important;font-size:17px!important;
+}
+@media(max-width:1050px){
+  #bottom-dock .dock-control{width:34px!important;min-width:34px!important;flex-basis:34px!important}
+  #bottom-dock #downloads,#bottom-dock #forward{display:none!important}
+  #bottom-dock > .nav-row{min-width:0!important}
+}
+@media(prefers-reduced-motion:reduce){
+  #bottom-dock > #sidestage-rail .gekko-rail-window-controls button{transition:none!important}
+}
