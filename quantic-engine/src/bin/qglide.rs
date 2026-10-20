@@ -50,7 +50,7 @@ fn load_favorites() -> Vec<String> {
 fn save_favorites(urls: &[String]) -> std::io::Result<()> {
     let file = favorites_file();
     if let Some(parent) = file.parent() { std::fs::create_dir_all(parent)?; }
-    let data = serde_json::to_vec_pretty(urls)?;
+    let data = serde_json::to_vec_pretty(urls).map_err(std::io::Error::other)?;
     std::fs::write(file, data)
 }
 
