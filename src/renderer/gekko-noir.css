@@ -1,0 +1,196 @@
+/* GEKKO NOIR — Black / White / Origami (2026-10-20)
+ * Dernière couche de style. Ne modifie jamais les pages web externes.
+ * Matériaux unis, contraste maîtrisé, aucune teinte cachée dans le verre. */
+:root{
+  color-scheme:dark;
+  --gekko-black:#050505;
+  --gekko-paper:#ffffff;
+  --gekko-surface:#101010;
+  --gekko-raised:#171717;
+  --gekko-border:#343434;
+  --gekko-muted:#b4b4b4;
+  --gekko-noir-material:rgba(7,7,7,.85);
+  --text:#f9f9f9;
+  --muted:#b5b5b5;
+  --line:rgba(255,255,255,.18);
+  --line-strong:rgba(255,255,255,.39);
+  --glass:rgba(255,255,255,.035);
+  --glass-hover:rgba(255,255,255,.11);
+  --glass-active:rgba(255,255,255,.17);
+}
+html,body,#shell{background:#050505!important;color:#f6f6f6!important}
+body:not(.has-wallpaper){background-image:none!important}
+#shell{background-image:none!important}
+
+/* Surface du dock : noire dans les QUATRE orientations, sans retour des
+   mélanges bleu / vert / violet issus des anciens styles. */
+html body[data-rail-position] #bottom-dock,
+html body[data-rail-position].rail-site-tinted #bottom-dock,
+html body[data-rail-position] #sidestage-rail:not(.rail-minimized):not(#unused){
+  --gekko-chrome-background:var(--gekko-noir-material);
+  --gekko-toolbar-glass:var(--gekko-noir-material);
+  --gekko-chrome-edge:rgba(255,255,255,.28);
+  --gekko-toolbar-outline:rgba(255,255,255,.28);
+  background:var(--gekko-noir-material)!important;
+  background-image:none!important;
+  border-color:rgba(255,255,255,.26)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 5px 22px rgba(0,0,0,.2)!important;
+  backdrop-filter:blur(18px) saturate(100%)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(100%)!important;
+}
+html body[data-rail-position] #bottom-dock > #sidestage-rail:not(.rail-minimized){
+  background:transparent!important;background-image:none!important;
+  border:0!important;box-shadow:none!important;backdrop-filter:none!important;
+}
+html body[data-rail-position] #bottom-dock .address{
+  background:#181818!important;background-image:none!important;
+  border:1px solid #454545!important;box-shadow:none!important;
+}
+html body[data-rail-position] #bottom-dock .address:focus-within{
+  background:#1c1c1c!important;border-color:#e9e9e9!important;
+  box-shadow:0 0 0 2px rgba(255,255,255,.12)!important;
+}
+#bottom-dock :is(.dock-control,.search-engine-button,.address-go,.plus),
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls button{
+  color:#f7f7f7!important;
+  background:#171717!important;background-image:none!important;
+  border-color:#383838!important;box-shadow:none!important;
+}
+#bottom-dock :is(.dock-control,.search-engine-button,.address-go,.plus):hover,
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls button:hover{
+  background:#303030!important;border-color:#777!important;
+}
+#bottom-dock > #sidestage-rail .gekko-rail-window-controls button[data-win="close"]:hover{
+  background:#fff!important;color:#000!important;border-color:#fff!important;
+}
+#bottom-dock .dock-control.active{background:#303030!important;border-color:#aaa!important}
+#bottom-dock .favorite-heart-eyes{filter:grayscale(1)!important}
+#bottom-dock :is(.dock-separator,.address-divider){background:#4a4a4a!important}
+#bottom-dock #address{color:#fff!important;caret-color:#fff!important}
+#bottom-dock #address::placeholder{color:#c5c5c5!important}
+
+/* Onglets 42 px / 156-190 px : on conserve strictement leur taille et
+   les boutons de fermeture accessibles, indépendamment de la nouvelle couleur. */
+html body[data-rail-position] #bottom-dock > #sidestage-rail .tab{
+  color:#f6f6f6!important;background:#151515!important;
+  border:1px solid #353535!important;box-shadow:none!important;
+}
+html body[data-rail-position] #bottom-dock > #sidestage-rail .tab:hover{
+  background:#252525!important;border-color:#777!important;
+}
+html body[data-rail-position] #bottom-dock > #sidestage-rail .tab.active{
+  background:#343434!important;border:1px solid #eee!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13)!important;
+}
+html body[data-rail-position] #bottom-dock > #sidestage-rail .tab.active::before{
+  background:#fff!important;
+}
+html body[data-rail-position] #bottom-dock > #sidestage-rail :is(.tab-mark,.tab-title,.tab-x,.tab-sound){color:#f9f9f9!important}
+html body[data-rail-position] #bottom-dock > #sidestage-rail .tab-x:hover{
+  background:#fff!important;color:#000!important;
+}
+html body[data-rail-position] #bottom-dock > #sidestage-rail .plus{
+  color:#fff!important;background:#202020!important;border-color:#484848!important;
+}
+
+/* Accueil GEKKO : aucune aurore, aucun relief montagneux, ni lavis coloré.
+   L'image de fond PERSONNELLE reste disponible si l'utilisateur en a choisi une. */
+body:not(.has-wallpaper) .home,
+body:not(.has-wallpaper) .gekko-home-scene{
+  background:#050505!important;background-image:none!important;
+}
+body:not(.has-wallpaper) :is(.gekko-home-sky,.gekko-home-aurora,
+  .gekko-home-mountains,.gekko-home-reflection){display:none!important}
+.gekko-home-scene:before,.gekko-home-scene:after{
+  background:none!important;box-shadow:none!important;
+}
+.gekko-home-brand{color:#fff!important;filter:none!important}
+.gekko-home-brand strong{color:#fff!important;font-weight:680!important;letter-spacing:.16em!important}
+.gekko-home-brand span{color:#bdbdbd!important;letter-spacing:.27em!important}
+.gekko-home-brand img{filter:none!important;image-rendering:auto!important}
+body[data-rail-position] .gekko-home-search{
+  background:#151515!important;background-image:none!important;
+  border:1px solid #5a5a5a!important;box-shadow:none!important;
+  backdrop-filter:none!important;
+}
+body[data-rail-position] .gekko-home-search:focus-within{border-color:#fff!important}
+.gekko-home-search :is(input,svg){color:#fff!important;stroke:#fff!important;caret-color:#fff!important}
+.gekko-home-search input::placeholder{color:#bdbdbd!important}
+body[data-rail-position] .gekko-home-search button{
+  color:#fff!important;background:#292929!important;border:1px solid #616161!important;
+}
+body[data-rail-position] .gekko-home-search button:hover{background:#464646!important}
+.gekko-home-favorites-head :is(h2,button){color:#f7f7f7!important}
+.gekko-home-favorites-empty{color:#b5b5b5!important}
+body[data-rail-position] .gekko-home-favorite,
+body[data-rail-position] .gekko-home-favorite:hover{
+  background:#131313!important;border-color:#383838!important;
+  box-shadow:none!important;color:#f7f7f7!important;
+}
+body[data-rail-position] .gekko-home-favorite:hover{border-color:#aaa!important;background:#202020!important}
+
+/* Pages internes, réglages Persona, historique et favoris */
+body:not(.gekko-search-active) #internal-page,
+body:not(.gekko-search-active) #internal-content{
+  background:#080808!important;background-image:none!important;
+}
+:is(.internal-section,.internal-card,.internal-row,.error-card,.persona-control,
+  .persona-wallpaper-preview,.quantic-suite-panel,.apps-panel,.ai-panel,
+  .search-engine-menu,.site-suggestions){
+  color:#f5f5f5!important;background:#141414!important;
+  background-image:none!important;border-color:#393939!important;
+  box-shadow:none!important;
+}
+:is(.internal-card,.internal-row,.app-tile,.engine-option,.pill-button,
+  .persona-actions button,.gk25-chip){border-color:#3e3e3e!important}
+:is(.internal-card,.app-tile,.engine-option,.pill-button,.persona-actions button){
+  background:#1a1a1a!important;background-image:none!important;color:#f7f7f7!important;
+}
+:is(.internal-card,.app-tile,.engine-option,.pill-button,.persona-actions button):hover{
+  background:#303030!important;border-color:#a7a7a7!important;
+}
+:is(.internal-page,.apps-panel,.ai-panel,.internal-section,.search-engine-menu)
+  :is(p,small,.muted,.persona-note){color:#c3c3c3!important}
+:is(.internal-page,.apps-panel,.ai-panel,.internal-section,.search-engine-menu)
+  :is(h1,h2,h3,strong,label){color:#fafafa!important}
+:is(.persona-control,.internal-section) :is(input,textarea,select){
+  accent-color:#fff!important;color-scheme:dark;
+}
+input[type="color"]{border:1px solid #888!important}
+:is(.apps-panel,.ai-panel) :is(button,input,textarea){
+  color:#fafafa!important;border-color:#555!important;
+}
+body[data-rail-position] .gekko-home-search button:focus-visible,
+:is(#bottom-dock,.internal-page,.apps-panel,.ai-panel) :is(button,input,textarea):focus-visible{
+  outline:2px solid #fff!important;outline-offset:2px!important;
+}
+
+/* Résultats GEKKO Search et recherche interne, SANS coloration des sites
+   visités (un WebContentsView natif indépendant). */
+body.gekko-search-active #internal-page{
+  background:#080808!important;background-image:none!important;
+}
+.gk25{--a:#fff!important;color:#fafafa!important}
+.gk25::before{display:none!important}
+.gk25-panel,.gk25-feature,.gk25-result{
+  background:#141414!important;background-image:none!important;
+  border-color:#393939!important;box-shadow:none!important;
+}
+.gk25-result:hover{border-color:#aaa!important}
+:is(.gk25-form,.gk25-filterrow select,.gk25-chip,.gk25-facts){
+  background:#1a1a1a!important;border-color:#555!important;color:#fafafa!important;
+}
+.gk25-title,.gk25-link,.gk25-tab[aria-current="page"],.gk25-tag{
+  color:#fff!important;
+}
+:is(.gk25-note,.gk25-snippet,.gk25-meta,.gk25-sitename,.gk25-metatext small){
+  color:#c5c5c5!important;
+}
+.gk25-tab[aria-current="page"]:after{background:#fff!important}
+.gk25-feature-fact,.gk25-favicon,.gk25-assist{
+  background:#282828!important;color:#fff!important;border-color:#444!important;
+}
+.gk25-go{background:#eaeaea!important;color:#050505!important;border-color:#fff!important}
+@media(prefers-reduced-motion:reduce){
+  #bottom-dock *, .gekko-home-search,.gk25-result{transition:none!important}
+}

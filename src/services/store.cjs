@@ -60,6 +60,14 @@ class QuanticStore {
         this.data.settings.appearance.glassMaterialVersion=2;
         this.scheduleSave(500);
       }
+      // GEKKO NOIR: migrate only the OLD implicit blue default once.
+      // Custom accents and all saved bookmarks, tabs and wallpapers stay untouched.
+      if (Number(existingSettings.appearance?.paletteVersion || 0) < 1) {
+        const wasOldDefault = String(existingSettings.appearance?.accent || '#7aa2ff').toLowerCase() === '#7aa2ff';
+        if (wasOldDefault) this.data.settings.appearance.accent = '#ffffff';
+        this.data.settings.appearance.paletteVersion = 1;
+        this.scheduleSave(300);
+      }
       // V1.1 used to clear Chromium's cache on every exit and forced the private
       // route for every page. Those defaults made media-heavy sites cold-start on
       // every launch and caused anti-abuse challenges. Migrate that implicit old

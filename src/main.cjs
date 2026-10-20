@@ -803,7 +803,7 @@ function createView(tab) {
   // ready so the Quantic glass shell remains visible instead of flashing white.
   // Keep a fully opaque dark backing surface during native resize and page paint.
   // A transparent WebContentsView can reveal white compositor frames on Windows.
-  try { view.setBackgroundColor('#07131b'); } catch {}
+  try { view.setBackgroundColor('#050505'); } catch {}
   win.contentView.addChildView(view);
   const wc = view.webContents;
   wc.setAudioMuted(Boolean(tab.muted));
@@ -1950,7 +1950,7 @@ function createWindow() {
     minHeight: 600,
     frame: false,
     transparent: false,
-    backgroundColor: '#07131b',
+    backgroundColor: '#050505',
     roundedCorners: true,
     thickFrame: true,
     show: false,
@@ -1997,7 +1997,7 @@ function createWindow() {
   win.on('resize', () => {
     // Match the BrowserWindow and native WebContentsView paint surfaces while
     // the user drags any resize edge; never uncover Electron's white default.
-    win.setBackgroundColor('#07131b');
+    win.setBackgroundColor('#050505');
     layout();
   });
   win.on('move', () => { railDragUntil = Date.now() + 1200; });

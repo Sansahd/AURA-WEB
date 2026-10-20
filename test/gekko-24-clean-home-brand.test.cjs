@@ -57,10 +57,10 @@ test('branded Windows binary and all shortcuts use canonical GEKKO artwork',()=>
 
 test('native window and web view have matching dark resize backing',()=>{
  const main=read('src/main.cjs');
- assert.match(main,/backgroundColor: '#07131b'/);
- assert.match(main,/view\.setBackgroundColor\('#07131b'\)/);
+ assert.match(main,/backgroundColor: '#050505'/);
+ assert.match(main,/view\.setBackgroundColor\('#050505'\)/);
  assert.match(main,/win\.on\('resize', \(\) => \{/);
- assert.match(main,/win\.setBackgroundColor\('#07131b'\)/);
+ assert.match(main,/win\.setBackgroundColor\('#050505'\)/);
  assert.match(main,/layout\(\)/);
 });
 

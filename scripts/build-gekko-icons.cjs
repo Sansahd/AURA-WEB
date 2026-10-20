@@ -10,6 +10,7 @@ const path=require('node:path');
 const sharp=require('sharp');
 const root=path.resolve(__dirname,'..');
 const userArtwork=path.join(root,'src','assets','gekko-user-logo.webp.b64');
+const noirArtwork=path.join(root,'src','assets','gekko-origami-noir.svg');
 const pngFile=path.join(root,'src','assets','gekko-icon.png');
 const icoFile=path.join(root,'build','gekko.ico');
 const sizes=[16,24,32,48,64,128,256];
@@ -17,12 +18,13 @@ const sizes=[16,24,32,48,64,128,256];
 async function build(){
  const encoded=fs.readFileSync(userArtwork,'utf8').trim();
  if(!/^[A-Za-z0-9+/=]+$/.test(encoded))throw Error('Invalid uploaded logo encoding');
- const artwork=Buffer.from(encoded,'base64');
- if(artwork.length<4000 || artwork.toString('ascii',0,4)!=='RIFF' ||
-    artwork.toString('ascii',8,12)!=='WEBP')
+ const uploadedArtwork=Buffer.from(encoded,'base64');
+ const artwork=fs.existsSync(noirArtwork) ? fs.readFileSync(noirArtwork) : uploadedArtwork;
+ if(uploadedArtwork.length<4000 || uploadedArtwork.toString('ascii',0,4)!=='RIFF' ||
+    uploadedArtwork.toString('ascii',8,12)!=='WEBP')
    throw Error('GEKKO user artwork not a valid WebP');
  const meta=await sharp(artwork).metadata();
- if(meta.width<80 || meta.height<80 || !meta.hasAlpha)
+ if(meta.width<80 || meta.height<80 || (!meta.hasAlpha && !fs.existsSync(noirArtwork)))
    throw Error('GEKKO user artwork must be a transparent square');
  const pngs=await Promise.all(sizes.map(size=>
    sharp(artwork).resize(size,size,{fit:'contain',background:'#00000000'})

@@ -9,7 +9,8 @@ const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg']);
 
 const DEFAULT_APPEARANCE = Object.freeze({
   enabled: true,
-  accent: '#7aa2ff',
+  accent: '#ffffff',
+  paletteVersion: 1,
   glassOpacity: 0.22,
   glassMaterialVersion: 2,
   radius: 14,
@@ -36,6 +37,7 @@ function normalizeAppearance(value = {}, current = DEFAULT_APPEARANCE) {
   return {
     enabled: typeof source.enabled === 'boolean' ? source.enabled : base.enabled !== false,
     accent: cleanHex(source.accent, cleanHex(base.accent)),
+    paletteVersion: Math.max(0, Math.floor(Number(source.paletteVersion ?? base.paletteVersion ?? 0) || 0)),
     glassOpacity: clamp(source.glassOpacity, 0.05, 0.95, clamp(base.glassOpacity, 0.05, 0.95, DEFAULT_APPEARANCE.glassOpacity)),
     glassMaterialVersion: 2,
     radius: Math.round(clamp(source.radius, 6, 28, clamp(base.radius, 6, 28, DEFAULT_APPEARANCE.radius))),

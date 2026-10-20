@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - fix/gekko-ergonomie-20261020
+      - feat/gekko-noir-origami-20261020
 
 permissions:
   contents: read
@@ -67,7 +68,7 @@ jobs:
       - name: Upload Windows preview installer
         uses: actions/upload-artifact@v4
         with:
-          name: GEKKO-2.4-ergonomie-Windows-x64
+          name: GEKKO-2.4-NOIR-Origami-Windows-x64
           path: dist/GEKKO-Setup.exe
           if-no-files-found: error
           retention-days: 14
