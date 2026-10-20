@@ -31,7 +31,7 @@ html body[data-rail-position] #bottom-dock .address:focus-within {
 }
 /* Aucun service externe / identité / contrôle d'agencement forcé dans la barre.
    Bouton Apps Quantic => services, déplacer, épingler et Quantic ID. */
-#bottom-dock > #sidestage-rail > :is(
+html body[data-rail-position] #bottom-dock > #sidestage-rail > :is(
   .side-stage-app,.side-stage-brand,.gekko-rail-pin,
   .gekko-rail-position,.gekko-identity-indicator,.side-stage-close
 ) { display:none!important; }

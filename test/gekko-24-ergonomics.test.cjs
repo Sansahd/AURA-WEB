@@ -11,7 +11,7 @@ test('the simplified toolbar retains access to apps and rail options',()=>{
   assert.match(html,/data-app-url="quantic:\/\/identity"/);
   assert.match(ui,/window\.quantic\.railPositionMenu\(\)/);
   assert.match(ui,/window\.quantic\.toggleRailPin\(\)/);
-  assert.match(css,/#bottom-dock > #sidestage-rail > :is\(/);
+  assert.match(css,/html body\[data-rail-position\] #bottom-dock > #sidestage-rail > :is\(/);
   assert.match(css,/\.side-stage-app,\.side-stage-brand/);
 });
 test('the accent color changes toolbar surface, not only the border',()=>{
